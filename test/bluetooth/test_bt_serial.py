@@ -2,7 +2,7 @@ from typing import Tuple
 from unittest import TestCase
 
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
-from pyshimmer.mock_serial import MockSerial
+from pyshimmer.test_util import MockSerial
 
 
 class BluetoothSerialTest(TestCase):

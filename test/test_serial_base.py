@@ -17,7 +17,7 @@ from io import BytesIO
 from typing import Tuple
 from unittest import TestCase
 
-from pyshimmer.mock_serial import MockSerial
+from pyshimmer.test_util import MockSerial
 from pyshimmer.serial_base import SerialBase, BufferedReader, ReadAbort
 
 
