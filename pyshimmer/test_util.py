@@ -6,15 +6,18 @@
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 
+import os
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+import pty
 from io import BytesIO, RawIOBase, SEEK_END, SEEK_SET
-from typing import Optional, Union
+from typing import Optional, Union, Tuple, BinaryIO
+
+from serial import Serial
 
 
 class MockSerial(RawIOBase):
@@ -70,3 +73,38 @@ class MockSerial(RawIOBase):
 
         self._write_buf = BytesIO()
         return data
+
+
+class PTYSerialMockCreator:
+
+    def __init__(self):
+        self._master_fobj = None
+        self._slave_fobj = None
+
+        self._slave_serial = None
+
+    @staticmethod
+    def _create_fobj(fd: int) -> BinaryIO:
+        # https://bugs.python.org/issue20074
+        fobj = os.fdopen(fd, 'r+b', 0)
+        assert fobj.fileno() == fd
+
+        return fobj
+
+    def create_mock(self) -> Tuple[Serial, BinaryIO]:
+        master_fd, slave_fd = pty.openpty()
+
+        self._master_fobj = self._create_fobj(master_fd)
+        self._slave_fobj = self._create_fobj(slave_fd)
+
+        # Serial Baud rate is ignored by the driver and can be set to any value
+        slave_path = os.ttyname(slave_fd)
+        self._slave_serial = Serial(slave_path, 115200)
+
+        return self._slave_serial, self._master_fobj
+
+    def close(self):
+        self._slave_serial.close()
+
+        self._master_fobj.close()
+        self._slave_fobj.close()
