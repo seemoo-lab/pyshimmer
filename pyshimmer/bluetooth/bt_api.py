@@ -15,7 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from queue import Queue
 from threading import Event, Thread
-from typing import List, Tuple
+from typing import List, Tuple, Callable
 
 from serial import Serial
 
@@ -26,7 +26,7 @@ from pyshimmer.bluetooth.bt_commands import ShimmerCommand, GetSamplingRateComma
     SetExperimentIDCommand, GetDeviceNameCommand, SetDeviceNameCommand, DummyCommand
 from pyshimmer.bluetooth.bt_const import ACK_COMMAND_PROCESSED, DATA_PACKET
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
-from pyshimmer.device import EChannelType, ChDataTypeAssignment, ExGRegister, EFirmwareType
+from pyshimmer.device import EChannelType, ChDataTypeAssignment, ExGRegister, EFirmwareType, ChannelDataType
 from pyshimmer.serial_base import ReadAbort
 
 
@@ -66,18 +66,102 @@ class RequestResponse:
         return self.get_result()
 
 
-class ShimmerBluetooth:
+class BluetoothRequestHandler:
+    """Base class for the Bluetooth API which handles serial data processing synchronously
 
-    def __init__(self, serial: Serial):
-        self._serial = BluetoothSerial(serial)
-        self._thread = Thread(target=self._run_readloop, daemon=True)
-        self._stop = False
+    In contrast to the :class:`ShimmerBluetooth` class which uses Threading, this class acts as a base layer that
+    operates synchronously and allows for easier testing.
+
+    :arg serial: The serial interface to use
+    """
+
+    def __init__(self, serial: BluetoothSerial):
+        self._serial = serial
 
         self._ack_queue = Queue()
         self._resp_queue = Queue()
 
         self._stream_types = []
         self._stream_cbs = []
+
+    def set_stream_types(self, types: List[Tuple[EChannelType, ChannelDataType]]) -> None:
+        """Set the channel types that are streamed as part of the data packets
+
+        :param types: A List of tuples, each containing a channel type and its corresponding data type
+        """
+        self._stream_types = types
+
+    def add_stream_callback(self, cb: Callable[[DataPacket], None]) -> None:
+        """Add a stream callback which is called when a new data packet arrives
+
+        :param cb: a function with a single argument
+        """
+        self._stream_cbs += [cb]
+
+    def remove_stream_callback(self, cb: Callable[[DataPacket], None]) -> None:
+        """Remove the callback from the list of active callbacks
+
+        :param cb: The callback function to remove
+        """
+        self._stream_cbs.remove(cb)
+
+    def process_single_input_event(self) -> None:
+        """Process and read a single input event
+
+        An input event can be a single acknowledgment or a request response. The function does not return anything.
+        All data is provided via the completion objects returned when queueing the command.
+
+        """
+        peek = self._serial.peek_packed('B')
+
+        if peek == ACK_COMMAND_PROCESSED:
+            self._serial.read_ack()
+
+            compl_obj = self._ack_queue.get_nowait()
+            compl_obj.set_completed()
+        elif peek == DATA_PACKET:
+            packet = DataPacket(self._stream_types)
+            packet.receive(self._serial)
+            [cb(packet) for cb in self._stream_cbs]
+        else:
+            cmd, return_obj = self._resp_queue.get_nowait()
+
+            resp_code = cmd.get_response_code()
+            if peek != resp_code:
+                raise ValueError(f'Expecting response code 0x{resp_code:x} but found 0x{peek:x}')
+
+            result = cmd.receive(self._serial)
+            return_obj.set_result(result)
+
+    def queue_command(self, cmd: ShimmerCommand) -> Tuple[RequestCompletion, RequestResponse]:
+        """Queue a command request for processing
+
+        :param cmd: The command to send to the Shimmer device
+        :return: A completion instance and a response instance. The completion instance is always returned and becomes
+            true when the command has been processed by the Shimmer. The response object is only returned if the command
+            features a response. It holds the response data once the response has been returned by the Shimmer.
+        """
+        compl_obj = RequestCompletion()
+        self._ack_queue.put_nowait(compl_obj)
+
+        if cmd.has_response():
+            return_obj = RequestResponse()
+            self._resp_queue.put_nowait((cmd, return_obj))
+        else:
+            return_obj = None
+
+        cmd.send(self._serial)
+
+        return compl_obj, return_obj
+
+
+class ShimmerBluetooth:
+
+    def __init__(self, serial: Serial):
+        self._serial = BluetoothSerial(serial)
+        self._bluetooth = BluetoothRequestHandler(self._serial)
+
+        self._thread = Thread(target=self._run_readloop, daemon=True)
 
     def __enter__(self):
         self.initialize()
@@ -110,54 +194,15 @@ class ShimmerBluetooth:
 
     def _readloop(self):
         while True:
-            peek = self._serial.peek()
-
-            if peek == ACK_COMMAND_PROCESSED:
-                self._serial.read_ack()
-
-                compl_obj = self._ack_queue.get_nowait()
-                compl_obj.set_completed()
-            elif peek == DATA_PACKET:
-                packet = DataPacket(self._stream_types)
-                packet.receive(self._serial)
-                [cb(packet) for cb in self._stream_cbs]
-            else:
-                cmd, return_obj = self._resp_queue.get_nowait()
-
-                resp_code = cmd.get_response_code()
-                if peek != resp_code:
-                    raise ValueError(f'Expecting response code 0x{resp_code:x} but found 0x{peek:x}')
-
-                result = cmd.receive(self._serial)
-                return_obj.set_result(result)
-
-    def _process_command(self, cmd: ShimmerCommand):
-        compl_obj = RequestCompletion()
-        self._ack_queue.put_nowait(compl_obj)
-
-        if cmd.has_response():
-            return_obj = RequestResponse()
-            self._resp_queue.put_nowait((cmd, return_obj))
-        else:
-            return_obj = None
-
-        cmd.send(self._serial)
-
-        return compl_obj, return_obj
+            self._bluetooth.process_single_input_event()
 
     def _process_and_wait(self, cmd):
-        compl_obj, return_obj = self._process_command(cmd)
+        compl_obj, return_obj = self._bluetooth.queue_command(cmd)
         compl_obj.wait()
 
         if return_obj is not None:
             return return_obj.wait()
         return None
-
-    def add_stream_callback(self, cb):
-        self._stream_cbs += [cb]
-
-    def remove_stream_callback(self, cb):
-        self._stream_cbs.remove(cb)
 
     def get_sampling_rate(self) -> float:
         return self._process_and_wait(GetSamplingRateCommand())
@@ -219,7 +264,9 @@ class ShimmerBluetooth:
     def start_streaming(self) -> None:
         ctypes = self.get_data_types()
 
-        self._stream_types = [(t, ChDataTypeAssignment[t]) for t in ctypes]
+        stream_types = [(t, ChDataTypeAssignment[t]) for t in ctypes]
+        self._bluetooth.set_stream_types(stream_types)
+
         self._process_and_wait(StartStreamingCommand())
 
     def stop_streaming(self) -> None:
