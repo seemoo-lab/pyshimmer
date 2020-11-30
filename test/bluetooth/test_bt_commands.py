@@ -1,11 +1,26 @@
+# pyshimmer - API for Shimmer sensor devices
+# Copyright (C) 2020  Lukas Magel
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from typing import Tuple
 from unittest import TestCase
 
 from pyshimmer.bluetooth.bt_commands import ShimmerCommand, GetSamplingRateCommand, GetConfigTimeCommand, \
-    SetConfigTimeCommand, GetRealTimeClockCommand, SetRealTimeClockCommand, GetStatusCommand, GetFirmwareVersionCommand, \
-    InquiryCommand, StartStreamingCommand, StopStreamingCommand, StartLoggingCommand, StopLoggingCommand, \
-    GetEXGRegsCommand, SetEXGRegsCommand, GetExperimentIDCommand, SetExperimentIDCommand, GetDeviceNameCommand, \
-    SetDeviceNameCommand, DummyCommand, DataPacket
+    SetConfigTimeCommand, GetRealTimeClockCommand, SetRealTimeClockCommand, GetStatusCommand, \
+    GetFirmwareVersionCommand, InquiryCommand, StartStreamingCommand, StopStreamingCommand, StartLoggingCommand, \
+    StopLoggingCommand, GetEXGRegsCommand, SetEXGRegsCommand, GetExperimentIDCommand, SetExperimentIDCommand, \
+    GetDeviceNameCommand, SetDeviceNameCommand, DummyCommand, DataPacket
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
 from pyshimmer.device import EFirmwareType, EChannelType, ChDataTypeAssignment
 from pyshimmer.test_util import MockSerial
@@ -69,8 +84,8 @@ class BluetoothCommandsTest(TestCase):
 
     def test_get_firmware_version_command(self):
         cmd = GetFirmwareVersionCommand()
-        type, major, minor, patch = self.assert_cmd(cmd, b'\x2e', 0x2f, b'\x2f\x03\x00\x00\x00\x0b\x00')
-        self.assertEqual(type, EFirmwareType.LogAndStream)
+        fw_type, major, minor, patch = self.assert_cmd(cmd, b'\x2e', 0x2f, b'\x2f\x03\x00\x00\x00\x0b\x00')
+        self.assertEqual(fw_type, EFirmwareType.LogAndStream)
         self.assertEqual(major, 0)
         self.assertEqual(minor, 11)
         self.assertEqual(patch, 0)

@@ -131,7 +131,7 @@ class ShimmerReaderTest(TestCase):
         expected_ppg = r[:, 1]
 
         actual_ts = reader.timestamp * 1000  # needs to be in ms
-        actual_ppg = reader[EChannelType.INTERNAL_ADC_13] * 1000.0 # needs to be in mV
+        actual_ppg = reader[EChannelType.INTERNAL_ADC_13] * 1000.0  # needs to be in mV
 
         np.testing.assert_almost_equal(actual_ts.flatten(), expected_ts.flatten())
         np.testing.assert_almost_equal(actual_ppg, expected_ppg)
@@ -151,7 +151,7 @@ class ShimmerReaderTest(TestCase):
         expected_ppg = csv_data[:, 1]
 
         actual_ts = reader.timestamp * 1000
-        actual_ppg = reader[EChannelType.INTERNAL_ADC_13] * 1000.0 # needs to be in mV
+        actual_ppg = reader[EChannelType.INTERNAL_ADC_13] * 1000.0  # needs to be in mV
 
         self.assertEqual(exp_channels, reader.channels)
         self.assertEqual(exp_sr, reader.sample_rate)
