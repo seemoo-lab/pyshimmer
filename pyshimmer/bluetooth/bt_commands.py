@@ -142,8 +142,8 @@ class GetConfigTimeCommand(ResponseCommand):
 
 class SetConfigTimeCommand(ShimmerCommand):
 
-    def __init__(self, time_ut_ms):
-        self._time = time_ut_ms
+    def __init__(self, time):
+        self._time = time
 
     def send(self, ser: BluetoothSerial) -> None:
         time_str = '{:d}'.format(int(self._time))
@@ -160,7 +160,7 @@ class GetRealTimeClockCommand(ResponseCommand):
     def send(self, ser: BluetoothSerial) -> None:
         ser.write_command(GET_RWC_COMMAND)
 
-    def receive(self, ser: BluetoothSerial) -> any:
+    def receive(self, ser: BluetoothSerial) -> float:
         t_ticks = ser.read_response(RWC_RESPONSE, arg_format="<Q")
         return ticks2sec(t_ticks)
 

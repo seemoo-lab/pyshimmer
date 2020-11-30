@@ -156,6 +156,10 @@ class BluetoothRequestHandler:
 
 
 class ShimmerBluetooth:
+    """Main API for communicating with the Shimmer via Bluetooth
+
+    :arg serial: The serial interface to use for communication
+    """
 
     def __init__(self, serial: Serial):
         self._serial = BluetoothSerial(serial)
@@ -188,13 +192,11 @@ class ShimmerBluetooth:
 
     def _run_readloop(self):
         try:
-            self._readloop()
+            while True:
+                self._bluetooth.process_single_input_event()
+
         except ReadAbort:
             print('Read loop exciting after cancel request')
-
-    def _readloop(self):
-        while True:
-            self._bluetooth.process_single_input_event()
 
     def _process_and_wait(self, cmd):
         compl_obj, return_obj = self._bluetooth.queue_command(cmd)
@@ -204,57 +206,140 @@ class ShimmerBluetooth:
             return return_obj.wait()
         return None
 
+    def add_stream_callback(self, cb: Callable[[DataPacket], None]) -> None:
+        """Add a stream callback which is called when a new data packet arrives
+
+        :param cb: a function with a single argument
+        """
+        self._bluetooth.add_stream_callback(cb)
+
+    def remove_stream_callback(self, cb: Callable[[DataPacket], None]) -> None:
+        """Remove the callback from the list of active callbacks
+
+        :param cb: The callback function to remove
+        """
+        self._bluetooth.remove_stream_callback(cb)
+
     def get_sampling_rate(self) -> float:
+        """Retrieve the sampling rate of the device
+
+        :return: The sampling rate as floating point value in samples per second
+        """
         return self._process_and_wait(GetSamplingRateCommand())
 
     def get_config_time(self) -> int:
+        """Get the config time from the device as configured in the configuration file
+
+        :return: The config time as integer
+        """
         return self._process_and_wait(GetConfigTimeCommand())
 
-    def set_config_time(self, ut_ms: int) -> None:
-        """Set the config time of the device as unix timestamp in milliseconds
+    def set_config_time(self, time: int) -> None:
+        """Set the config time of the device
 
-        Set the time of the device to the supplied Unix millisecond timestamp (since Jan 1st, 1970). See Python
-        time.time() for more information.
-
-        Args:
-            ut_ms: An integer that represents the elapsed milliseconds since Jan 1st, 1970.
+        :arg time: The configuration time that will be set in the configuration of the Shimmer
         """
-        self._process_and_wait(SetConfigTimeCommand(ut_ms))
+        self._process_and_wait(SetConfigTimeCommand(time))
 
-    def get_rtc(self) -> int:
+    def get_rtc(self) -> float:
+        """Retrieve the current value of the onboard real-time clock
+
+        :return: The current time of the device in seconds as UNIX timestamp
+        """
         return self._process_and_wait(GetRealTimeClockCommand())
 
-    def set_rtc(self, ut_ms: int) -> None:
-        self._process_and_wait(SetRealTimeClockCommand(ut_ms))
+    def set_rtc(self, time_sec: float) -> None:
+        """Set the value of the onboard real-time clock
+
+        Should be set as a UTC UNIX timestamp such that the resulting recordings have universal timestamps
+
+        :param time_sec: The UNIX timestamp in seconds
+        """
+        self._process_and_wait(SetRealTimeClockCommand(time_sec))
 
     def get_status(self) -> List[bool]:
+        """Get the status of the device
+
+        :return: A list of 8 bools which signal:
+            dev_docked, dev_sensing, rtc_set, dev_logging, dev_streaming, sd_card_present, sd_error, status_red_led
+        """
         return self._process_and_wait(GetStatusCommand())
 
     def get_firmware_version(self) -> Tuple[EFirmwareType, int, int, int]:
+        """Get the version of the running firmware
+
+        :return: A tuple of four values:
+            - The firmware type as enum, i.e. SDLog, LogAndStream, ...
+            - the major version as int
+            - the minor version as int
+            - the patch level as int
+        """
         return self._process_and_wait(GetFirmwareVersionCommand())
 
-    def get_exg_register(self, chip_id) -> ExGRegister:
+    def get_exg_register(self, chip_id: int) -> ExGRegister:
+        """Get the current configuration of one of the two ExG registers of the device
+
+        Note that this command only returns meaningful results if the device features ECG chips
+
+        :param chip_id: The ID of the chip, one of [0, 1]
+        :return: An ExGRegister object that presents the register contents in an easily processable manner
+        """
         return self._process_and_wait(GetEXGRegsCommand(chip_id))
 
-    def set_exg_register(self, chip_id, offset, data) -> None:
+    def set_exg_register(self, chip_id: int, offset: int, data: bytes) -> None:
+        """Configure part of the memory of the ExG registers
+
+        :param chip_id: The ID of the chip, one of [0, 1]
+        :param offset: The offset at which to write the data bytes
+        :param data: The data bytes to write
+        """
         self._process_and_wait(SetEXGRegsCommand(chip_id, offset, data))
 
     def get_device_name(self) -> str:
+        """Retrieve the device name
+
+        :return: The device name as string
+        """
         return self._process_and_wait(GetDeviceNameCommand())
 
     def set_device_name(self, dev_name: str) -> None:
+        """Set the device name
+
+        :param dev_name: The device name to set
+        """
         self._process_and_wait(SetDeviceNameCommand(dev_name))
 
     def get_experiment_id(self) -> str:
+        """Retrieve the experiment id as string
+
+        :return: The experiment ID as string
+        """
         return self._process_and_wait(GetExperimentIDCommand())
 
     def set_experiment_id(self, exp_id: str) -> None:
+        """Set the experiment ID for the device
+
+        :param exp_id: The id to set for the device
+        """
         self._process_and_wait(SetExperimentIDCommand(exp_id))
 
     def get_inquiry(self) -> Tuple[float, int, List[EChannelType]]:
+        """Perform inquiry command
+
+        :return: A tuple of 3 values:
+            - The sampling rate as float
+            - The buf size of the device
+            - The active data channels of the device as list, does not include the TIMESTAMP channel
+        """
         return self._process_and_wait(InquiryCommand())
 
     def get_data_types(self):
+        """Get the active data channels of the device
+
+        These data channels will be contained in a DataPacket when streaming
+
+        :return: A list of data channels, always containing the TIMESTAMP channel
+        """
         _, _, ctypes = self.get_inquiry()
         # The Timestamp is always present in data packets
         ctypes = [EChannelType.TIMESTAMP] + ctypes
@@ -262,6 +347,9 @@ class ShimmerBluetooth:
         return ctypes
 
     def start_streaming(self) -> None:
+        """Start streaming data
+
+        """
         ctypes = self.get_data_types()
 
         stream_types = [(t, ChDataTypeAssignment[t]) for t in ctypes]
@@ -270,13 +358,29 @@ class ShimmerBluetooth:
         self._process_and_wait(StartStreamingCommand())
 
     def stop_streaming(self) -> None:
+        """Stop streaming data
+
+        Note that the interface will possibly return more data packets that have already been received and are in the
+        input buffer.
+
+        """
         self._process_and_wait(StopStreamingCommand())
 
     def start_logging(self) -> None:
+        """Start logging data to the SD card of the device
+
+        """
         self._process_and_wait(StartLoggingCommand())
 
     def stop_logging(self) -> None:
+        """Stop logging data to the SD card of the device
+
+        """
         self._process_and_wait(StopLoggingCommand())
 
     def send_ping(self) -> None:
+        """Send a ping command to the device
+
+        The command can be used to test the connection. It does not return anything.
+        """
         self._process_and_wait(DummyCommand())
