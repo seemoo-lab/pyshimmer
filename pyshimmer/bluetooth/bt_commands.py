@@ -15,7 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import struct
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Union, Tuple
 
 from pyshimmer.bluetooth.bt_const import *
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
@@ -25,23 +25,45 @@ from pyshimmer.util import bit_is_set
 
 
 class DataPacket:
+    """Parses data packets received by the Shimmer device
 
-    def __init__(self, stream_types):
+    :arg stream_types: List of tuples that contains each data channel contained in the data packet as well as the
+        corresponding data type decoder
+    """
+
+    def __init__(self, stream_types: List[Tuple[EChannelType, ChannelDataType]]):
         self._types = stream_types
         self._values = {}
 
     @property
     def channels(self) -> List[EChannelType]:
+        """The data channels present in this data packet
+
+        :return: The channels as list
+        """
         return [t for t, _ in self._types]
 
     @property
     def channel_types(self) -> List[ChannelDataType]:
+        """The channel data types that represent the binary data of each channel
+
+        :return: The data types as list
+        """
         return [t for _, t in self._types]
 
     def __getitem__(self, item: EChannelType) -> any:
+        """Return the value of a certain data channel
+
+        :param item: The data channel for which to return the data
+        :return: The value of the data channel
+        """
         return self._values[item]
 
     def receive(self, ser: BluetoothSerial) -> None:
+        """Receive and decode a data packet
+
+        :param ser: The serial device from which to read the data
+        """
         ser.read_response(DATA_PACKET)
 
         for channel_type, channel_dtype in self._types:
@@ -50,24 +72,48 @@ class DataPacket:
 
 
 class ShimmerCommand(ABC):
+    """Abstract base class that represents a command sent to the Shimmer
+
+    """
 
     @abstractmethod
     def send(self, ser: BluetoothSerial) -> None:
+        """Encodes the command and sends it to the Shimmer via the provided serial interface
+
+        :param ser: The serial to use for sending the command
+        """
         pass
 
     def has_response(self) -> bool:
+        """Specifies if the command has a response that needs to be read from the return stream
+
+        :return: True if the command has a response, else false
+        """
         return False
 
     def get_response_code(self) -> int:
+        """The response code of the command
+
+        :return: The response code as integer
+        """
         return 0
 
     def receive(self, ser: BluetoothSerial) -> any:
+        """Decode the command response from the provided serial interface
+
+        :param ser: The serial from which to decode the response
+        :return: The data contained in the response
+        """
         return None
 
 
 class ResponseCommand(ShimmerCommand, ABC):
+    """Abstract base class for all commands that feature a command response
 
-    def __init__(self, rcode):
+    :arg rcode: The response code of the response
+    """
+
+    def __init__(self, rcode: int):
         self._rcode = rcode
 
     def has_response(self) -> bool:
@@ -78,8 +124,12 @@ class ResponseCommand(ShimmerCommand, ABC):
 
 
 class OneShotCommand(ShimmerCommand):
+    """Class for commands that only send a command code and have no response
 
-    def __init__(self, cmd_code):
+    :arg cmd_code: The command code to send
+    """
+
+    def __init__(self, cmd_code: int):
         self._code = cmd_code
 
     def send(self, ser: BluetoothSerial) -> None:
@@ -87,6 +137,12 @@ class OneShotCommand(ShimmerCommand):
 
 
 class GetStringCommand(ResponseCommand):
+    """Send a command that features a variable-length string as response
+
+    :arg req_code: The command code of the request
+    :arg resp_code: The response code
+    :arg encoding: The encoding to use when reading the response string
+    """
 
     def __init__(self, req_code: int, resp_code: int, encoding: str = 'utf8'):
         super().__init__(resp_code)
@@ -102,6 +158,12 @@ class GetStringCommand(ResponseCommand):
 
 
 class SetStringCommand(ShimmerCommand):
+    """A command for sending a variable-length string to the device
+
+    :arg req_code: The code of the command request
+    :arg str_data: The data to send as part of the request
+    :arg encoding: The encoding to use when writing the data to the stream
+    """
 
     def __init__(self, req_code: int, str_data: str, encoding: str = 'utf8'):
         self._req_code = req_code
@@ -114,6 +176,9 @@ class SetStringCommand(ShimmerCommand):
 
 
 class GetSamplingRateCommand(ResponseCommand):
+    """Retrieve the sampling rate in samples per second
+
+    """
 
     def __init__(self):
         super().__init__(SAMPLING_RATE_RESPONSE)
@@ -128,6 +193,9 @@ class GetSamplingRateCommand(ResponseCommand):
 
 
 class GetConfigTimeCommand(ResponseCommand):
+    """Retrieve the config time that is stored in the Shimmer device configuration file
+
+    """
 
     def __init__(self):
         super().__init__(CONFIGTIME_RESPONSE)
@@ -141,8 +209,12 @@ class GetConfigTimeCommand(ResponseCommand):
 
 
 class SetConfigTimeCommand(ShimmerCommand):
+    """Set the config time, which will be stored in the Shimmer device configuration file
 
-    def __init__(self, time):
+    :arg time: The integer value to send
+    """
+
+    def __init__(self, time: int):
         self._time = time
 
     def send(self, ser: BluetoothSerial) -> None:
@@ -153,6 +225,9 @@ class SetConfigTimeCommand(ShimmerCommand):
 
 
 class GetRealTimeClockCommand(ResponseCommand):
+    """
+    Get the real-time clock as UNIX Timestamp in seconds
+    """
 
     def __init__(self):
         super().__init__(RWC_RESPONSE)
@@ -166,6 +241,11 @@ class GetRealTimeClockCommand(ResponseCommand):
 
 
 class SetRealTimeClockCommand(ShimmerCommand):
+    """
+    Set the real-time clock as UNIX timestamp in seconds
+
+    :arg ts_sec: The UNIX timestamp in seconds
+    """
 
     def __init__(self, ts_sec: float):
         self._time = int(ts_sec)
@@ -176,6 +256,9 @@ class SetRealTimeClockCommand(ShimmerCommand):
 
 
 class GetStatusCommand(ResponseCommand):
+    """Retrieve the current status of the device
+
+    """
     STATUS_DOCKED_BF = 1 << 0
     STATUS_SENSING_BF = 1 << 1
     STATUS_RTC_SET_BF = 1 << 2
@@ -190,7 +273,7 @@ class GetStatusCommand(ResponseCommand):
     def __init__(self):
         super().__init__(INSTREAM_CMD_RESPONSE)
 
-    def unpack_status_bitfields(self, val):
+    def unpack_status_bitfields(self, val: int) -> List[bool]:
         values = [bit_is_set(val, f) for f in self.STATUS_BITFIELDS]
         return values
 
@@ -203,6 +286,9 @@ class GetStatusCommand(ResponseCommand):
 
 
 class GetFirmwareVersionCommand(ResponseCommand):
+    """Retrieve the firmware type and version
+
+    """
 
     def __init__(self):
         super().__init__(FW_VERSION_RESPONSE)
@@ -217,12 +303,15 @@ class GetFirmwareVersionCommand(ResponseCommand):
 
 
 class InquiryCommand(ResponseCommand):
+    """Perform an inquiry to determine the sample rate, buffer size, and active data channels
+
+    """
 
     def __init__(self):
         super().__init__(INQUIRY_RESPONSE)
 
     @staticmethod
-    def decode_channel_types(ct_bin):
+    def decode_channel_types(ct_bin: bytes) -> List[EChannelType]:
         ctypes_index = struct.unpack('B' * len(ct_bin), ct_bin)
         ctypes = [BtChannelsByIndex[i] for i in ctypes_index]
         return ctypes
@@ -241,20 +330,32 @@ class InquiryCommand(ResponseCommand):
 
 
 class StartStreamingCommand(OneShotCommand):
+    """Start streaming data over the Bluetooth channel
+
+    """
 
     def __init__(self):
         super().__init__(START_STREAMING_COMMAND)
 
 
 class StopStreamingCommand(OneShotCommand):
+    """Stop streaming data over the Bluetooth channel
+
+    """
 
     def __init__(self):
         super().__init__(STOP_STREAMING_COMMAND)
 
 
 class GetEXGRegsCommand(ResponseCommand):
+    """Retrieve the current state of the ExG chip register
 
-    def __init__(self, chip_id):
+    Queries the values of all registers of the specified chip and returns it as an ExGRegister instance
+
+    :arg chip_id: The chip id, can be one of [0, 1]
+    """
+
+    def __init__(self, chip_id: int):
         super().__init__(EXG_REGS_RESPONSE)
 
         self._chip = chip_id
@@ -274,8 +375,14 @@ class GetEXGRegsCommand(ResponseCommand):
 
 
 class SetEXGRegsCommand(ShimmerCommand):
+    """Set the binary contents of the ExG registers of a chip
 
-    def __init__(self, chip_id, offset, data):
+    :arg chip_id: The id of the chip, can be one of [0, 1]
+    :arg offset: At which offset to write the data
+    :arg data: The bytes to write to the registers
+    """
+
+    def __init__(self, chip_id: int, offset: int, data: bytes):
         self._chip = chip_id
         self._offset = offset
         self._data = data
@@ -287,42 +394,65 @@ class SetEXGRegsCommand(ShimmerCommand):
 
 
 class GetExperimentIDCommand(GetStringCommand):
+    """Retrieve the experiment id
+
+    """
 
     def __init__(self):
         super().__init__(GET_EXPID_COMMAND, EXPID_RESPONSE)
 
 
 class SetExperimentIDCommand(SetStringCommand):
+    """Set the experiment id
+
+    :arg exp_id: The experiment id as string
+    """
 
     def __init__(self, exp_id: str):
         super().__init__(SET_EXPID_COMMAND, exp_id)
 
 
 class GetDeviceNameCommand(GetStringCommand):
+    """Get the device name
+
+    """
 
     def __init__(self):
         super().__init__(GET_SHIMMERNAME_COMMAND, SHIMMERNAME_RESPONSE)
 
 
 class SetDeviceNameCommand(SetStringCommand):
+    """Set the device name
+
+    :arg dev_name: The new device name as string
+    """
 
     def __init__(self, dev_name: str):
         super().__init__(SET_SHIMMERNAME_COMMAND, dev_name)
 
 
 class StartLoggingCommand(OneShotCommand):
+    """Begin logging data to the SD card
+
+    """
 
     def __init__(self):
         super().__init__(START_LOGGING_COMMAND)
 
 
 class StopLoggingCommand(OneShotCommand):
+    """End logging data to the SD card
+
+    """
 
     def __init__(self):
         super().__init__(STOP_LOGGING_COMMAND)
 
 
 class DummyCommand(OneShotCommand):
+    """Dummy command that is only acknowledged by the Shimmer but triggers no response
+
+    """
 
     def __init__(self):
         super().__init__(DUMMY_COMMAND)
