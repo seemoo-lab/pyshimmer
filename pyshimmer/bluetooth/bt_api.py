@@ -13,7 +13,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from queue import Queue
+from queue import Queue, Empty
 from threading import Event, Thread
 from typing import List, Tuple, Callable
 
@@ -154,6 +154,24 @@ class BluetoothRequestHandler:
 
         return compl_obj, return_obj
 
+    def clear_queues(self) -> None:
+        """Clear the internal queues and release any locks held by other threads
+
+        """
+        try:
+            while True:
+                compl: RequestCompletion = self._ack_queue.get_nowait()
+                compl.set_completed()
+        except Empty:
+            pass
+
+        try:
+            while True:
+                _, resp = self._resp_queue.get_nowait()
+                resp.set_result(None)
+        except Empty:
+            pass
+
 
 class ShimmerBluetooth:
     """Main API for communicating with the Shimmer via Bluetooth
@@ -189,6 +207,7 @@ class ShimmerBluetooth:
         self._serial.cancel_read()
         self._thread.join()
         self._serial.close()
+        self._bluetooth.clear_queues()
 
     def _run_readloop(self):
         try:

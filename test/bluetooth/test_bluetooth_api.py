@@ -114,3 +114,16 @@ class BluetoothRequestHandlerTest(TestCase):
         self.assertEqual(pkt.channels, ch_types)
         self.assertEqual(pkt[EChannelType.TIMESTAMP], 0xb2d11e)
         self.assertEqual(pkt[EChannelType.INTERNAL_ADC_13], 0x06fc)
+
+    def test_clear_queues(self):
+        cmd = GetDeviceNameCommand()
+
+        compl, resp = self._sot.queue_command(cmd)
+
+        self.assertFalse(compl.has_completed())
+        self.assertFalse(resp.has_result())
+
+        self._sot.clear_queues()
+        self.assertTrue(compl.has_completed())
+        self.assertTrue(resp.has_result())
+        self.assertEqual(resp.get_result(), None)
