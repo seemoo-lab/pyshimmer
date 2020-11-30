@@ -92,7 +92,6 @@ class ShimmerBluetooth:
         Initialize the reading loop by starting a new thread to handle all reads asynchronously
         """
         self._thread.start()
-        self.send_ping()
 
     def shutdown(self) -> None:
         """Shutdown the read loop
