@@ -1,7 +1,8 @@
-from typing import Optional, BinaryIO, List
+from concurrent.futures import ThreadPoolExecutor, Future
+from typing import Optional, BinaryIO, List, Callable
 from unittest import TestCase
 
-from pyshimmer.bluetooth.bt_api import BluetoothRequestHandler
+from pyshimmer.bluetooth.bt_api import BluetoothRequestHandler, ShimmerBluetooth
 from pyshimmer.bluetooth.bt_commands import GetDeviceNameCommand, SetDeviceNameCommand, DataPacket
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
 from pyshimmer.device import ChDataTypeAssignment, EChannelType
@@ -127,3 +128,92 @@ class BluetoothRequestHandlerTest(TestCase):
         self.assertTrue(compl.has_completed())
         self.assertTrue(resp.has_result())
         self.assertEqual(resp.get_result(), None)
+
+
+class ShimmerBluetoothIntegrationTest(TestCase):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self._executor = ThreadPoolExecutor(max_workers=1)
+
+        self._mock_creator: Optional[PTYSerialMockCreator] = None
+        self._sot: Optional[ShimmerBluetooth] = None
+
+        self._master: Optional[BinaryIO] = None
+
+    def _submit_handler_fn(self, fn: Callable[[BinaryIO, ShimmerBluetooth], any]) -> Future:
+        return self._executor.submit(fn, self._master, self._sot)
+
+    def _submit_req_resp_handler(self, req_len: int, resp: bytes) -> Future:
+        def master_fn(master: BinaryIO, _) -> bytes:
+            req = bytes()
+            while len(req) < req_len:
+                req += master.read(req_len - len(req))
+
+            master.write(resp)
+            return req
+
+        return self._submit_handler_fn(master_fn)
+
+    def setUp(self) -> None:
+        self._mock_creator = PTYSerialMockCreator()
+        serial, self._master = self._mock_creator.create_mock()
+
+        self._sot = ShimmerBluetooth(serial)
+        self._sot.initialize()
+
+    def tearDown(self) -> None:
+        self._sot.shutdown()
+        self._mock_creator.close()
+
+    # noinspection PyMethodMayBeStatic
+    def test_context_manager(self):
+        mock_creator = PTYSerialMockCreator()
+        serial, master = mock_creator.create_mock()
+
+        sot = ShimmerBluetooth(serial)
+        with sot:
+            pass
+
+        mock_creator.close()
+
+    def test_get_sampling_rate(self):
+        ftr = self._submit_req_resp_handler(1, b'\xff\x04\x40\x00')
+        r = self._sot.get_sampling_rate()
+
+        self.assertEqual(ftr.result(), b'\x03')
+        self.assertEqual(r, 512.0)
+
+    def test_get_data_types(self):
+        ftr = self._submit_req_resp_handler(1, b'\xff\x02\x40\x00\x01\xff\x01\x09\x01\x01\x12')
+        r = self._sot.get_data_types()
+
+        self.assertEqual(ftr.result(), b'\x01')
+        self.assertEqual(r, [EChannelType.TIMESTAMP, EChannelType.INTERNAL_ADC_13])
+
+    def test_streaming(self):
+        pkts = []
+
+        def pkt_handler(new_pkt: DataPacket) -> None:
+            pkts.append(new_pkt)
+
+        inquiry_ftr = self._submit_req_resp_handler(1, b'\xff\x02\x40\x00\x01\xff\x01\x09\x01\x01\x12')
+        start_streaming_ftr = self._submit_req_resp_handler(1, b'\xff')
+        self._submit_req_resp_handler(0, b'\x00\x25\x13\xf4\x4a\x07')
+        stop_streaming_ftr = self._submit_req_resp_handler(1, b'\xff')
+
+        self._sot.add_stream_callback(pkt_handler)
+        self._sot.start_streaming()
+
+        self.assertEqual(inquiry_ftr.result(), b'\x01')
+        self.assertEqual(start_streaming_ftr.result(), b'\x07')
+
+        self._sot.stop_streaming()
+        self.assertEqual(stop_streaming_ftr.result(), b'\x20')
+
+        self.assertEqual(len(pkts), 1)
+        pkt = pkts[0]
+
+        self.assertEqual(pkt[EChannelType.TIMESTAMP], 15995685)
+        self.assertEqual(pkt[EChannelType.INTERNAL_ADC_13], 1866)
