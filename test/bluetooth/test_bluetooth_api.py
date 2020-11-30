@@ -25,6 +25,13 @@ class BluetoothRequestHandlerTest(TestCase):
         bt_serial = BluetoothSerial(serial)
         self._sot = BluetoothRequestHandler(bt_serial)
 
+    def read_from_master(self, n: int) -> bytes:
+        result = bytes()
+        while len(result) < n:
+            result += self._master.read(n - len(result))
+
+        return result
+
     def tearDown(self) -> None:
         self._mock_creator.close()
 
@@ -42,7 +49,7 @@ class BluetoothRequestHandlerTest(TestCase):
         self.assertFalse(compl.has_completed())
         self.assertFalse(resp.has_result())
 
-        r = self._master.read(1)
+        r = self.read_from_master(1)
         self.assertEqual(r, b'\x7b')
 
         self._master.write(b'\xff')
@@ -64,7 +71,7 @@ class BluetoothRequestHandlerTest(TestCase):
         self.assertFalse(compl.has_completed())
         self.assertEqual(resp, None)
 
-        r = self._master.read(7)
+        r = self.read_from_master(7)
         self.assertEqual(r, b'\x79\x05S_PPG')
 
         self._master.write(b'\xff')
