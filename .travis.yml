@@ -7,4 +7,6 @@ python:
 install:
   - pip install .[test]
 script:
-  - pytest
+  - pytest --cov-config=.coveragerc --cov=./
+after_success:
+  - bash <(curl -s https://codecov.io/bash) -v
