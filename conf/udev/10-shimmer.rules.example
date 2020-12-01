@@ -1,0 +1,20 @@
+# Distinguishing both Shimmer Docks and tty interfaces is somewhat difficult because the distinguishing attributes
+# are spread across multiple devices in the USB device tree. The main distinguishing attribute is the serial ID
+# of the dock. This allows to distinguish between the ECG and the PPG dock. The second step is to check if the
+# bInterfaceNumber of the tty device is 00 --> bootloader or 01 --> device UART.
+#
+# Unfortunately, it is not possible to check attributes from different parents in a single rule and we need to use
+# the Goto action to create an if clause around the bInterfaceNumber. The actual rules then check against the serial
+# ID to identifiy if it is the ECG or the PPG dock. Idea taken from an answer by Arnout on Stackexchange:
+# https://unix.stackexchange.com/questions/204829/attributes-from-various-parent-devices-in-a-udev-rule
+SUBSYSTEMS=="usb" ATTRS{bInterfaceNumber}!="00" GOTO="is_secondary_interface"
+SUBSYSTEM=="tty" ATTRS{idVendor}=="<id_vendor1>" ATTRS{idProduct}=="<id_product1>" ATTRS{serial}=="<id_serial1>" SYMLINK+="ttyPPGbl"
+SUBSYSTEM=="tty" ATTRS{idVendor}=="<id_vendor2>" ATTRS{idProduct}=="<id_product2>" ATTRS{serial}=="<id_serial2>" SYMLINK+="ttyECGbl"
+GOTO="end"
+
+LABEL="is_secondary_interface"
+SUBSYSTEM=="tty" ATTRS{idVendor}=="<id_vendor1>" ATTRS{idProduct}=="<id_product1>" ATTRS{serial}=="<id_serial1>" SYMLINK+="ttyPPGdev"
+SUBSYSTEM=="tty" ATTRS{idVendor}=="<id_vendor2>" ATTRS{idProduct}=="<id_product2>" ATTRS{serial}=="<id_serial2>" SYMLINK+="ttyECGdev"
+GOTO="end"
+
+LABEL="end"
