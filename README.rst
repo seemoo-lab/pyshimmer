@@ -82,9 +82,16 @@ to assign persistent names to the device files. Note that the rules do not actua
 it is located in. **This means that you need to always place the device in its respective dock**.
 
 The following section provides an example of how to handle two Shimmer docks, one of which is an ECG and the other a
-PPG device.
+PPG device:
 
-Create a new udev rule file: :code:`/etc/udev/rules.d/10-shimmer.rules` and add the following contents:
+Distinguishing the Shimmer booloader and device interfaces based on their udev attributes is somewhat difficult because
+the distinguishing attributes are spread across multiple devices in the USB device tree.
+We first differentiate between different Shimmer docks based on the serial ID attribute of the dock. This allows us to
+distinguish between the ECG and the PPG dock. The second step is to check the bInterfaceNumber of the tty device.
+With this check, we determine if the tty file is the bootloader device, i.e. bInterfaceNumber == 00, or the interface
+to the Shimmer itself, i.e. bInterfaceNumber == 01. Unfortunately, it is not possible to check attributes from different
+parents in a single rule and we need to use the Goto action to create an if clause around the bInterfaceNumber. You can
+see the full udev ruleset in the following code snippet:
 
 .. code-block::
 
@@ -100,14 +107,10 @@ Create a new udev rule file: :code:`/etc/udev/rules.d/10-shimmer.rules` and add 
 
     LABEL="end"
 
-You can also find the example file in :code:`conf/udev/10-shimmer.rules.example`. Distinguishing both Shimmer Docks and
-tty interfaces is somewhat difficult because the distinguishing attributes are spread across multiple devices in the
-USB device tree. The main distinguishing attribute is the serial ID of the dock. This allows to distinguish between the
-ECG and the PPG dock. The second step is to check if the bInterfaceNumber of the tty device is 00 (bootloader) or
-01 (Dock device). Unfortunately, it is not possible to check attributes from different parents in a single rule and we
-need to use the Goto action to create an if clause around the bInterfaceNumber.
+You can also find the example file in :code:`conf/udev/10-shimmer.rules.example`.
 
-In the file, you need to replace the
+In order to create a custom ruleset for your devices, create a new udev rule file
+:code:`/etc/udev/rules.d/10-shimmer.rules` and add the above contents. In the file, you need to replace the
 :code:`<id_vendor1>`, :code:`<id_product1>`, and :code:`<id_serial1>` of the first device, and the :code:`<id_vendor2>`,
 :code:`<id_product2>`, and :code:`<id_serial2>` of the second device. You can find the values by scanning the
 :code:`dmesg` command after plugging in a Shimmer device. Here is an example:
@@ -122,7 +125,6 @@ In the file, you need to replace the
     [144366.386684] usb 1-4.3: SerialNumber: <id_serial>
 
 Save the file and reload the rules for them to take effect:
-
 
 .. code-block::
 
