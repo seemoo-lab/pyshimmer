@@ -13,3 +13,11 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from .bluetooth.bt_api import ShimmerBluetooth
+from .bluetooth.bt_commands import DataPacket
+from .uart.dock_api import ShimmerDock
+from .reader.shimmer_reader import ShimmerReader
+from .reader.binary_reader import ShimmerBinaryReader
+from .util import fmt_hex
+from .device import EChannelType, DEFAULT_BAUDRATE, ChannelDataType, ExGRegister, EFirmwareType, ERLDRef, ExGRLDLead, \
+    ExGMux
