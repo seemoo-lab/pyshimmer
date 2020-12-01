@@ -64,6 +64,9 @@ class MockSerial(RawIOBase):
         self._read_buf.write(data)
         self._read_buf.seek(cur_pos, SEEK_SET)
 
+    def test_get_remaining_read_data(self) -> bytes:
+        return self._read_buf.read()
+
     def test_clear_read_buffer(self) -> None:
         self._read_buf = BytesIO()
 
