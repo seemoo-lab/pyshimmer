@@ -13,15 +13,23 @@ pyshimmer provides a Python API to work with the wearable sensor devices produce
 three major components:
 
 * The Bluetooth API: An interface to communicate with the Shimmer LogAndStream firmware via Bluetooth
-* The UART API: An interface to communicate with the Shimmer while they are placed in a dock
+* The Dock API: An interface to communicate with the Shimmer while they are placed in a dock
 * The Reader API: An interface to read the binary files produced by the Shimmer devices
 
 .. _Shimmer: http://www.shimmersensing.com/
 
+Please note that the following README does not provide a general introduction into the Shimmer devices. For this, please
+consult the corresponding `documentation page <http://www.shimmersensing.com/support/wireless-sensor-networks-documentation/>`_
+of the vendor and take a closer look at:
+
+* The Shimmer User Manual
+* The LogAndStream Manual
+* The SDLog Manual
+
 Contributing
 ------------
 All code in this repository was produced as part of my Master thesis. This means that the API is not
-complete. Especially the Bluetooth and UART API do not feature all calls supported by the devices. However, the code
+complete. Especially the Bluetooth and Dock API do not feature all calls supported by the devices. However, the code
 provides a solid foundation to extend it where necessary. Please feel free to make contributions in case the code is
 missing required calls.
 
@@ -92,7 +100,7 @@ You can also find the example file in :code:`conf/udev/10-shimmer.rules.example`
 tty interfaces is somewhat difficult because the distinguishing attributes are spread across multiple devices in the
 USB device tree. The main distinguishing attribute is the serial ID of the dock. This allows to distinguish between the
 ECG and the PPG dock. The second step is to check if the bInterfaceNumber of the tty device is 00 (bootloader) or
-01 (device UART). Unfortunately, it is not possible to check attributes from different parents in a single rule and we
+01 (Dock device). Unfortunately, it is not possible to check attributes from different parents in a single rule and we
 need to use the Goto action to create an if clause around the bInterfaceNumber.
 
 In the file, you need to replace the
@@ -115,6 +123,11 @@ Save the file and reload the rules for them to take effect:
 .. code-block::
 
     udevadm control --reload-rules && udevadm trigger
+
+You should now have two strongly named device files for each Shimmer dock:
+
+* :code:`/dev/ttyPPGbl` and :code:`/dev/ttyPPGdev` for the PPG Shimmer bootloader and device interfaces,
+* :code:`/dev/ttyECGbl` and :code:`/dev/ttyECGdev` for the ECG Shimmer bootloader and device interfaces.
 
 Configuring the Bluetooth Interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -152,3 +165,100 @@ where :code:`<bind_id>` is an arbitrary integer of your choosing. The command wi
 with the following name: :code:`/dev/rfcomm<bind_id>`.
 The file acts as a regular serial device and allows you to communicate with the Shimmer. The file is also used by the
 library.
+
+Using the API
+-------------
+
+Using the Bluetooth interface
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If you want to connect to the Bluetooth interface, use the :code:`ShimmerBluetooth` class. The API only offers blocking
+calls.
+
+.. code-block:: python
+
+    import time
+
+    from serial import Serial
+
+    from pyshimmer import ShimmerBluetooth, DEFAULT_BAUDRATE, DataPacket, EChannelType
+
+
+    def handler(pkt: DataPacket) -> None:
+        cur_value = pkt[EChannelType.INTERNAL_ADC_13]
+        print(f'Received new data point: {cur_value}')
+
+
+    if __name__ == '__main__':
+        serial = Serial('/dev/rfcomm42', DEFAULT_BAUDRATE)
+        shim_dev = ShimmerBluetooth(serial)
+
+        shim_dev.initialize()
+
+        dev_name = shim_dev.get_device_name()
+        print(f'My name is: {dev_name}')
+
+        shim_dev.add_stream_callback(handler)
+
+        shim_dev.start_streaming()
+        time.sleep(5.0)
+        shim_dev.stop_streaming()
+
+        shim_dev.shutdown()
+
+The example shows how to make simple calls and how to use the Bluetooth streaming capabilities of the device.
+
+Using the Dock API
+^^^^^^^^^^^^^^^^^^
+
+.. code-block:: python
+
+    from serial import Serial
+
+    from pyshimmer import ShimmerDock, DEFAULT_BAUDRATE, fmt_hex
+
+    if __name__ == '__main__':
+        serial = Serial('/dev/ttyPPGdev', DEFAULT_BAUDRATE)
+        shim_dock = ShimmerDock(serial)
+
+        mac = shim_dock.get_mac_address()
+        print(f'Device MAC: {fmt_hex(mac)}')
+
+        shim_dock.close()
+
+Using the Dock API works very similar to the Bluetooth API. However, it does not require a separate initialization call
+because it does not use a background thread to decode incoming messages.
+
+Using the Reader API
+^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: python
+
+    from pyshimmer import ShimmerReader, EChannelType
+
+    if __name__ == '__main__':
+
+        with open('test/reader/resources/ecg.bin', 'rb') as f:
+            reader = ShimmerReader(f)
+
+            # Read the file contents into memory
+            reader.load_file_data()
+
+            print(f'Available data channels: {reader.channels}')
+            print(f'Sampling rate: {reader.sample_rate} Hz')
+            print()
+
+            ts = reader[EChannelType.TIMESTAMP]
+            ecg_ch1 = reader[EChannelType.EXG_ADS1292R_1_CH1_24BIT]
+            assert len(ts) == len(ecg_ch1)
+
+            print(f'Timestamp: {ts.shape}')
+            print(f'ECG Channel: {ecg_ch1.shape}')
+            print()
+
+            exg_reg = reader.exg_reg1
+            print(f'ECG Chip Sampling Rate: {exg_reg.data_rate} Hz')
+            print(f'ECG Chip Gain: {exg_reg.ch1_gain}')
+
+If the data was recorded using the :code:`SDLog` firmware and features synchronization information, the API
+automatically interpolates the data to the common timestamp information of the master.
