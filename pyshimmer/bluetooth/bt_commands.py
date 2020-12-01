@@ -272,7 +272,7 @@ class GetStatusCommand(ResponseCommand):
                         STATUS_SD_PRESENT_BF, STATUS_SD_ERROR_BF, STATUS_RED_LED_BF)
 
     def __init__(self):
-        super().__init__(INSTREAM_CMD_RESPONSE)
+        super().__init__((INSTREAM_CMD_RESPONSE, STATUS_RESPONSE))
 
     def unpack_status_bitfields(self, val: int) -> List[bool]:
         values = [bit_is_set(val, f) for f in self.STATUS_BITFIELDS]
@@ -282,8 +282,7 @@ class GetStatusCommand(ResponseCommand):
         ser.write_command(GET_STATUS_COMMAND)
 
     def receive(self, ser: BluetoothSerial) -> any:
-        resp_code = (INSTREAM_CMD_RESPONSE, STATUS_RESPONSE)
-        bitfields = ser.read_response(resp_code, arg_format='B')
+        bitfields = ser.read_response(self.get_response_code(), arg_format='B')
         return self.unpack_status_bitfields(bitfields)
 
 

@@ -81,9 +81,9 @@ class BluetoothRequestHandlerTest(TestCase):
         self.assertTrue(resp.has_result())
         self.assertEqual(resp.get_result(), 'S_PPG')
 
-    def test_enqueue_multibyte_fail(self):
+    def test_enqueue_multibyte(self):
         cmd = GetStringCommand(0x10, b'\x0a\x0b')
-        self._sot.queue_command(cmd)
+        compl, resp = self._sot.queue_command(cmd)
 
         r = self.read_from_master(1)
         self.assertEqual(r, b'\x10')
@@ -92,7 +92,11 @@ class BluetoothRequestHandlerTest(TestCase):
         self._sot.process_single_input_event()
 
         self._master.write(b'\x0a\x0b\x02ab')
-        self.assertRaises(ValueError, self._sot.process_single_input_event)
+        self._sot.process_single_input_event()
+
+        self.assertTrue(compl.has_completed())
+        self.assertTrue(resp.has_result())
+        self.assertEqual(resp.get_result(), 'ab')
 
     def test_queue_command_no_resp(self):
         cmd = SetDeviceNameCommand('S_PPG')

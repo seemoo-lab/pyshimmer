@@ -28,6 +28,7 @@ from pyshimmer.bluetooth.bt_const import ACK_COMMAND_PROCESSED, DATA_PACKET
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
 from pyshimmer.device import EChannelType, ChDataTypeAssignment, ExGRegister, EFirmwareType, ChannelDataType
 from pyshimmer.serial_base import ReadAbort
+from pyshimmer.util import fmt_hex
 
 
 class RequestCompletion:
@@ -135,10 +136,10 @@ class BluetoothRequestHandler:
             cmd, return_obj = self._resp_queue.get_nowait()
 
             resp_code = cmd.get_response_code()
-            if len(resp_code) != 1:
-                raise ValueError('Cannot handle multi-byte response codes')
-            if peek != resp_code[0]:
-                raise ValueError(f'Expecting response code 0x{resp_code[0]:x} but found 0x{peek:x}')
+            peek = self._serial.peek(len(resp_code))
+
+            if peek != resp_code:
+                raise ValueError(f'Expecting response code {fmt_hex(resp_code)} but found {fmt_hex(peek)}')
 
             result = cmd.receive(self._serial)
             return_obj.set_result(result)
