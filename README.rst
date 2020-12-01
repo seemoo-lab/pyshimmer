@@ -4,6 +4,10 @@ pyshimmer: Unofficial Python API for Shimmer Sensor devices
 .. image:: https://travis-ci.com/seemoo-lab/pyshimmer.svg?branch=master
     :target: https://travis-ci.com/seemoo-lab/pyshimmer
 
+.. image:: https://www.codefactor.io/repository/github/seemoo-lab/pyshimmer/badge/develop
+   :target: https://www.codefactor.io/repository/github/seemoo-lab/pyshimmer/overview/develop
+   :alt: CodeFactor
+
 .. contents::
 
 General Information
