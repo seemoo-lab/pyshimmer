@@ -11,12 +11,15 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
+from typing import Union, Tuple
+
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from serial import Serial
 
-from pyshimmer.bluetooth.bt_const import INSTREAM_CMD_RESPONSE, ACK_COMMAND_PROCESSED
+from pyshimmer.bluetooth.bt_const import ACK_COMMAND_PROCESSED
 from pyshimmer.serial_base import SerialBase
+from pyshimmer.util import fmt_hex
 
 
 class BluetoothSerial(SerialBase):
@@ -81,25 +84,24 @@ class BluetoothSerial(SerialBase):
         if r != ACK_COMMAND_PROCESSED:
             raise ValueError('Byte received is no acknowledgment')
 
-    def read_response(self, rcode: int, arg_format: str = None, instream: bool = False) -> any:
+    def read_response(self, rcode: Union[int, Tuple[int, ...], bytes], arg_format: str = None) -> any:
         """Read a Bluetooth command response from the stream
 
-        :param rcode: The expected response code
+        :param rcode: The expected response code. Can be an int for a single-byte response code,
+            or a tuple of ints or a bytes instance for a multi-byte response code
         :param arg_format: The format string to use when decoding the response arguments. Can be None, a
             :func:`struct.unpack` string or `varlen`. If None, no arguments will be read.
-        :param instream: If the response is an in-stream response. If true, the first byte is expected to be the
-            in-stream flag byte.
         :raises RuntimeError: If the response code is incorrect
         :return: The arguments of the response or () if the response has no arguments
         """
-        if instream:
-            first_byte = self.read_byte()
-            if first_byte != INSTREAM_CMD_RESPONSE:
-                raise RuntimeError(f'Received incorrect instream response code: 0x{first_byte:x}')
+        if isinstance(rcode, int):
+            rcode = (rcode,)
+        if isinstance(rcode, tuple):
+            rcode = bytes(rcode)
 
-        actual_rcode = self.read_byte()
+        actual_rcode = self.read(len(rcode))
         if rcode != actual_rcode:
-            raise RuntimeError(f'Received incorrect response code: 0x{rcode:x} != 0x{actual_rcode:x}')
+            raise RuntimeError(f'Received incorrect response code: {fmt_hex(rcode)} != {fmt_hex(actual_rcode)}')
 
         if arg_format is not None:
             if arg_format == "varlen":

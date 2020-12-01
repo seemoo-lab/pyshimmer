@@ -281,7 +281,8 @@ class GetStatusCommand(ResponseCommand):
         ser.write_command(GET_STATUS_COMMAND)
 
     def receive(self, ser: BluetoothSerial) -> any:
-        bitfields = ser.read_response(STATUS_RESPONSE, arg_format='B', instream=True)
+        resp_code = (INSTREAM_CMD_RESPONSE, STATUS_RESPONSE)
+        bitfields = ser.read_response(resp_code, arg_format='B')
         return self.unpack_status_bitfields(bitfields)
 
 

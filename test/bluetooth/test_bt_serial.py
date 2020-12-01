@@ -71,22 +71,51 @@ class BluetoothSerialTest(TestCase):
     def test_read_response(self):
         mock, sot = self.create_sot()
 
-        mock.test_put_read_data(b'\x00\x50')
-        self.assertRaises(RuntimeError, sot.read_response, 0x50, instream=True)
-
-        mock.test_clear_read_buffer()
-        mock.test_put_read_data(b'\x8A\x51')
-        self.assertRaises(RuntimeError, sot.read_response, 0x50, instream=True)
-
-        mock.test_clear_read_buffer()
-        mock.test_put_read_data(b'\x8A\x50')
-        r = sot.read_response(0x50, instream=True)
+        # int response code
+        mock.test_put_read_data(b'\x42')
+        r = sot.read_response(0x42)
         self.assertEqual(r, ())
 
+        mock.test_clear_read_buffer()
+        mock.test_put_read_data(b'\x42')
+        self.assertRaises(RuntimeError, sot.read_response, 0x43)
+
+        # Single-byte tuple response code
+        mock.test_clear_read_buffer()
+        mock.test_put_read_data(b'\x42')
+        r = sot.read_response((0x42,))
+        self.assertEqual(r, ())
+
+        mock.test_clear_read_buffer()
+        mock.test_put_read_data(b'\x42')
+        self.assertRaises(RuntimeError, sot.read_response, (0x43,))
+
+        # Multi-byte tuple response code
+        mock.test_clear_read_buffer()
+        mock.test_put_read_data(b'\x42\x43')
+        r = sot.read_response((0x42, 0x43))
+        self.assertEqual(r, ())
+
+        mock.test_clear_read_buffer()
+        mock.test_put_read_data(b'\x43\x42')
+        self.assertRaises(RuntimeError, sot.read_response, (0x43, 0x44))
+
+        # bytes response code
+        mock.test_clear_read_buffer()
+        mock.test_put_read_data(b'\x42\x43')
+        r = sot.read_response(b'\x42\x43')
+        self.assertEqual(r, ())
+
+        mock.test_clear_read_buffer()
+        mock.test_put_read_data(b'\x42\x44')
+        self.assertRaises(RuntimeError, sot.read_response, b'\x43\x44')
+
+        mock.test_clear_read_buffer()
         mock.test_put_read_data(b'\x50\x03\x00\x01\x02')
         r = sot.read_response(0x50, arg_format='varlen')
         self.assertEqual(r, b'\x00\x01\x02')
 
+        mock.test_clear_read_buffer()
         mock.test_put_read_data(b'\x50\x03\x00\x01\x02')
         r = sot.read_response(0x50, arg_format='<HBB')
         self.assertEqual(r, (0x3, 0x1, 0x2))
