@@ -15,7 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import struct
 from io import SEEK_SET, SEEK_CUR
-from typing import BinaryIO
+from typing import BinaryIO, Tuple, Union
 
 import numpy as np
 
@@ -69,6 +69,15 @@ def unwrap(x, shift):
         x += (np.arange(len(x)) > i) * shift
 
     return x
+
+
+def resp_code_to_bytes(code: Union[int, Tuple[int, ...], bytes]) -> bytes:
+    if isinstance(code, int):
+        code = (code,)
+    if isinstance(code, tuple):
+        code = bytes(code)
+
+    return code
 
 
 class FileIOBase:

@@ -19,7 +19,7 @@ from serial import Serial
 
 from pyshimmer.bluetooth.bt_const import ACK_COMMAND_PROCESSED
 from pyshimmer.serial_base import SerialBase
-from pyshimmer.util import fmt_hex
+from pyshimmer.util import fmt_hex, resp_code_to_bytes
 
 
 class BluetoothSerial(SerialBase):
@@ -94,10 +94,7 @@ class BluetoothSerial(SerialBase):
         :raises RuntimeError: If the response code is incorrect
         :return: The arguments of the response or () if the response has no arguments
         """
-        if isinstance(rcode, int):
-            rcode = (rcode,)
-        if isinstance(rcode, tuple):
-            rcode = bytes(rcode)
+        rcode = resp_code_to_bytes(rcode)
 
         actual_rcode = self.read(len(rcode))
         if rcode != actual_rcode:

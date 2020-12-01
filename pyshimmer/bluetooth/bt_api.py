@@ -135,8 +135,10 @@ class BluetoothRequestHandler:
             cmd, return_obj = self._resp_queue.get_nowait()
 
             resp_code = cmd.get_response_code()
-            if peek != resp_code:
-                raise ValueError(f'Expecting response code 0x{resp_code:x} but found 0x{peek:x}')
+            if len(resp_code) != 1:
+                raise ValueError('Cannot handle multi-byte response codes')
+            if peek != resp_code[0]:
+                raise ValueError(f'Expecting response code 0x{resp_code[0]:x} but found 0x{peek:x}')
 
             result = cmd.receive(self._serial)
             return_obj.set_result(result)

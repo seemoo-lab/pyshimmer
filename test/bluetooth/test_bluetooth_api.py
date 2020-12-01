@@ -18,7 +18,8 @@ from typing import Optional, BinaryIO, List, Callable
 from unittest import TestCase
 
 from pyshimmer.bluetooth.bt_api import BluetoothRequestHandler, ShimmerBluetooth
-from pyshimmer.bluetooth.bt_commands import GetDeviceNameCommand, SetDeviceNameCommand, DataPacket, GetStatusCommand
+from pyshimmer.bluetooth.bt_commands import GetDeviceNameCommand, SetDeviceNameCommand, DataPacket, GetStatusCommand, \
+    GetStringCommand
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
 from pyshimmer.device import ChDataTypeAssignment, EChannelType
 from pyshimmer.test_util import PTYSerialMockCreator
@@ -79,6 +80,19 @@ class BluetoothRequestHandlerTest(TestCase):
 
         self.assertTrue(resp.has_result())
         self.assertEqual(resp.get_result(), 'S_PPG')
+
+    def test_enqueue_multibyte_fail(self):
+        cmd = GetStringCommand(0x10, b'\x0a\x0b')
+        self._sot.queue_command(cmd)
+
+        r = self.read_from_master(1)
+        self.assertEqual(r, b'\x10')
+
+        self._master.write(b'\xff')
+        self._sot.process_single_input_event()
+
+        self._master.write(b'\x0a\x0b\x02ab')
+        self.assertRaises(ValueError, self._sot.process_single_input_event)
 
     def test_queue_command_no_resp(self):
         cmd = SetDeviceNameCommand('S_PPG')

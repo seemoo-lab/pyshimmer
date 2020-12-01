@@ -15,13 +15,13 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import struct
 from abc import ABC, abstractmethod
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 from pyshimmer.bluetooth.bt_const import *
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
 from pyshimmer.device import dr2sr, EChannelType, ChannelDataType, sec2ticks, ticks2sec, ExGRegister, \
     get_firmware_type
-from pyshimmer.util import bit_is_set
+from pyshimmer.util import bit_is_set, resp_code_to_bytes
 
 
 class DataPacket:
@@ -91,12 +91,12 @@ class ShimmerCommand(ABC):
         """
         return False
 
-    def get_response_code(self) -> int:
+    def get_response_code(self) -> bytes:
         """The response code of the command
 
-        :return: The response code as integer
+        :return: The response code as a series of bytes, is normally one or two bytes long
         """
-        return 0
+        return bytes()
 
     def receive(self, ser: BluetoothSerial) -> any:
         """Decode the command response from the provided serial interface
@@ -110,16 +110,17 @@ class ShimmerCommand(ABC):
 class ResponseCommand(ShimmerCommand, ABC):
     """Abstract base class for all commands that feature a command response
 
-    :arg rcode: The response code of the response
+    :arg rcode: The response code of the response. Can be a single int for a single-byte response code or
+        a tuple of ints or a bytes instance for a multi-byte response code
     """
 
-    def __init__(self, rcode: int):
-        self._rcode = rcode
+    def __init__(self, rcode: Union[int, Tuple[int, ...], bytes]):
+        self._rcode = resp_code_to_bytes(rcode)
 
     def has_response(self) -> bool:
         return True
 
-    def get_response_code(self) -> int:
+    def get_response_code(self) -> bytes:
         return self._rcode
 
 
@@ -144,7 +145,7 @@ class GetStringCommand(ResponseCommand):
     :arg encoding: The encoding to use when reading the response string
     """
 
-    def __init__(self, req_code: int, resp_code: int, encoding: str = 'utf8'):
+    def __init__(self, req_code: int, resp_code: Union[int, Tuple[int], bytes], encoding: str = 'utf8'):
         super().__init__(resp_code)
         self._req_code = req_code
         self._encoding = encoding
