@@ -18,7 +18,7 @@ from typing import Optional, BinaryIO, List, Callable
 from unittest import TestCase
 
 from pyshimmer.bluetooth.bt_api import BluetoothRequestHandler, ShimmerBluetooth
-from pyshimmer.bluetooth.bt_commands import GetDeviceNameCommand, SetDeviceNameCommand, DataPacket
+from pyshimmer.bluetooth.bt_commands import GetDeviceNameCommand, SetDeviceNameCommand, DataPacket, GetStatusCommand
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
 from pyshimmer.device import ChDataTypeAssignment, EChannelType
 from pyshimmer.test_util import PTYSerialMockCreator
@@ -93,6 +93,25 @@ class BluetoothRequestHandlerTest(TestCase):
         self._master.write(b'\xff')
         self._sot.process_single_input_event()
         self.assertTrue(compl.has_completed())
+
+    def test_get_status_command(self):
+        cmd = GetStatusCommand()
+        compl, resp = self._sot.queue_command(cmd)
+
+        self.assertFalse(compl.has_completed())
+        self.assertFalse(resp.has_result())
+
+        r = self.read_from_master(1)
+        self.assertEqual(r, b'\x72')
+
+        self._master.write(b'\xff\x8a\x71\x21')
+        self._sot.process_single_input_event()
+        self.assertTrue(compl.has_completed())
+        self.assertFalse(resp.has_result())
+
+        self._sot.process_single_input_event()
+        self.assertTrue(resp.has_result())
+        self.assertEqual(resp.get_result(), [True, False, False, False, False, True, False, False])
 
     def test_incorrect_resp_code_fail(self):
         cmd = GetDeviceNameCommand()
