@@ -114,6 +114,31 @@ class BluetoothRequestHandler:
         """
         self._stream_cbs.remove(cb)
 
+    def _process_ack(self):
+        self._serial.read_ack()
+
+        compl_obj = self._ack_queue.get_nowait()
+        compl_obj.set_completed()
+
+    def _process_data_packet(self):
+        packet = DataPacket(self._stream_types)
+        packet.receive(self._serial)
+
+        for cb in self._stream_cbs:
+            cb(packet)
+
+    def _process_resp_from_queue(self):
+        cmd, return_obj = self._resp_queue.get_nowait()
+
+        resp_code = cmd.get_response_code()
+        peek = self._serial.peek(len(resp_code))
+
+        if peek != resp_code:
+            raise ValueError(f'Expecting response code {fmt_hex(resp_code)} but found {fmt_hex(peek)}')
+
+        result = cmd.receive(self._serial)
+        return_obj.set_result(result)
+
     def process_single_input_event(self) -> None:
         """Process and read a single input event
 
@@ -124,25 +149,14 @@ class BluetoothRequestHandler:
         peek = self._serial.peek_packed('B')
 
         if peek == ACK_COMMAND_PROCESSED:
-            self._serial.read_ack()
+            self._process_ack()
+            return
 
-            compl_obj = self._ack_queue.get_nowait()
-            compl_obj.set_completed()
-        elif peek == DATA_PACKET:
-            packet = DataPacket(self._stream_types)
-            packet.receive(self._serial)
-            [cb(packet) for cb in self._stream_cbs]
-        else:
-            cmd, return_obj = self._resp_queue.get_nowait()
+        if peek == DATA_PACKET:
+            self._process_data_packet()
+            return
 
-            resp_code = cmd.get_response_code()
-            peek = self._serial.peek(len(resp_code))
-
-            if peek != resp_code:
-                raise ValueError(f'Expecting response code {fmt_hex(resp_code)} but found {fmt_hex(peek)}')
-
-            result = cmd.receive(self._serial)
-            return_obj.set_result(result)
+        self._process_resp_from_queue()
 
     def queue_command(self, cmd: ShimmerCommand) -> Tuple[RequestCompletion, RequestResponse]:
         """Queue a command request for processing
