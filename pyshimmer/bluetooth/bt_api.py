@@ -28,7 +28,7 @@ from pyshimmer.bluetooth.bt_const import ACK_COMMAND_PROCESSED, DATA_PACKET
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
 from pyshimmer.device import EChannelType, ChDataTypeAssignment, ExGRegister, EFirmwareType, ChannelDataType
 from pyshimmer.serial_base import ReadAbort
-from pyshimmer.util import fmt_hex
+from pyshimmer.util import fmt_hex, PeekQueue
 
 
 class RequestCompletion:
@@ -88,7 +88,7 @@ class BluetoothRequestHandler:
         self._serial = serial
 
         self._ack_queue = Queue()
-        self._resp_queue = Queue()
+        self._resp_queue = PeekQueue()
 
         self._stream_types = []
         self._stream_cbs = []
@@ -116,8 +116,12 @@ class BluetoothRequestHandler:
 
     def _process_ack(self):
         self._serial.read_ack()
+        compl_obj, cmd_resp_pair = self._ack_queue.get_nowait()
 
-        compl_obj = self._ack_queue.get_nowait()
+        if None not in cmd_resp_pair:
+            # We are expecting a response
+            self._resp_queue.put_nowait(cmd_resp_pair)
+
         compl_obj.set_completed()
 
     def _process_data_packet(self):
@@ -166,18 +170,18 @@ class BluetoothRequestHandler:
             true when the command has been processed by the Shimmer. The response object is only returned if the command
             features a response. It holds the response data once the response has been returned by the Shimmer.
         """
+        resp_obj = None
+        cmd_resp_pair = (None, None)
         compl_obj = RequestCompletion()
-        self._ack_queue.put_nowait(compl_obj)
 
         if cmd.has_response():
-            return_obj = RequestResponse()
-            self._resp_queue.put_nowait((cmd, return_obj))
-        else:
-            return_obj = None
+            resp_obj = RequestResponse()
+            cmd_resp_pair = (cmd, resp_obj)
 
+        self._ack_queue.put_nowait((compl_obj, cmd_resp_pair))
         cmd.send(self._serial)
 
-        return compl_obj, return_obj
+        return compl_obj, resp_obj
 
     def clear_queues(self) -> None:
         """Clear the internal queues and release any locks held by other threads
@@ -185,8 +189,11 @@ class BluetoothRequestHandler:
         """
         try:
             while True:
-                compl: RequestCompletion = self._ack_queue.get_nowait()
+                compl, (cmd, resp) = self._ack_queue.get_nowait()
                 compl.set_completed()
+
+                if resp is not None:
+                    resp.set_result(None)
         except Empty:
             pass
 
