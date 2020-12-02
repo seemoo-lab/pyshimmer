@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import struct
 from io import SEEK_SET, SEEK_CUR
+from queue import Queue
 from typing import BinaryIO, Tuple, Union
 
 import numpy as np
@@ -78,6 +79,26 @@ def resp_code_to_bytes(code: Union[int, Tuple[int, ...], bytes]) -> bytes:
         code = bytes(code)
 
     return code
+
+
+class PeekQueue(Queue):
+    """A thread-safe queue implementation that allows peeking at the first element in the queue.
+
+    Based on a suggestion on StackOverflow:
+    https://stackoverflow.com/questions/1293966/best-way-to-obtain-indexed-access-to-a-python-queue-thread-safe
+    """
+
+    def peek(self):
+        """Peek at the element that will be removed next.
+
+        :return: The next entry in the queue to be removed or None if the queue is empty
+        """
+        # noinspection PyUnresolvedReferences
+        with self.mutex:
+            if self._qsize() > 0:
+                return self.queue[0]
+
+            return None
 
 
 class FileIOBase:
