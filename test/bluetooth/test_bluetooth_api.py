@@ -98,6 +98,33 @@ class BluetoothRequestHandlerTest(TestCase):
         self.assertTrue(resp.has_result())
         self.assertEqual(resp.get_result(), 'ab')
 
+    def test_enqueue_multiple_commands(self):
+        cmd1 = GetDeviceNameCommand()
+        cmd2 = GetStatusCommand()
+
+        compl1, resp1 = self._sot.queue_command(cmd1)
+        compl2, resp2 = self._sot.queue_command(cmd2)
+
+        r = self.read_from_master(2)
+        self.assertEqual(r, b'\x7B\x72')
+
+        self._master.write(b'\xff\x7a\x05\x53\x5f\x50\x50\x47')
+        self._master.write(b'\xff\x8a\x71\x21')
+
+        self._sot.process_single_input_event()
+        self.assertTrue(compl1.has_completed())
+
+        self._sot.process_single_input_event()
+        self.assertTrue(resp1.has_result())
+        self.assertEqual(resp1.get_result(), 'S_PPG')
+
+        self._sot.process_single_input_event()
+        self.assertTrue(compl2.has_completed())
+
+        self._sot.process_single_input_event()
+        self.assertTrue(resp2.has_result())
+        self.assertEqual(resp2.get_result(), [True, False, False, False, False, True, False, False])
+
     def test_queue_command_no_resp(self):
         cmd = SetDeviceNameCommand('S_PPG')
         compl, resp = self._sot.queue_command(cmd)
