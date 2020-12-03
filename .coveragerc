@@ -1,3 +1,6 @@
 [run]
-source = pyshimmer
-omit = test/*
+source =
+    pyshimmer
+omit =
+    test/*
+    setup.py
