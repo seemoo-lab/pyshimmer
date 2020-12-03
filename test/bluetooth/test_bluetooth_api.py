@@ -19,7 +19,7 @@ from unittest import TestCase
 
 from pyshimmer.bluetooth.bt_api import BluetoothRequestHandler, ShimmerBluetooth
 from pyshimmer.bluetooth.bt_commands import GetDeviceNameCommand, SetDeviceNameCommand, DataPacket, GetStatusCommand, \
-    GetStringCommand
+    GetStringCommand, ResponseCommand
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
 from pyshimmer.device import ChDataTypeAssignment, EChannelType
 from pyshimmer.test_util import PTYSerialMockCreator
@@ -52,12 +52,19 @@ class BluetoothRequestHandlerTest(TestCase):
     def tearDown(self) -> None:
         self._mock_creator.close()
 
-    def test_add_remove_cb(self):
+    def test_add_remove_stream_cb(self):
         def cb(_):
             pass
 
         self._sot.add_stream_callback(cb)
         self._sot.remove_stream_callback(cb)
+
+    def test_add_remove_status_cb(self):
+        def cb(_):
+            pass
+
+        self._sot.add_status_callback(cb)
+        self._sot.remove_status_callback(cb)
 
     def test_enque_command(self):
         cmd = GetDeviceNameCommand()
@@ -139,6 +146,30 @@ class BluetoothRequestHandlerTest(TestCase):
         self._sot.process_single_input_event()
         self.assertTrue(compl.has_completed())
 
+    def test_queue_unknown_instream(self):
+        class InStreamCommand(ResponseCommand):
+
+            def __init__(self):
+                super().__init__(b'\x8a\x42')
+
+            def send(self, ser: BluetoothSerial) -> None:
+                ser.write(b'\x42')
+
+            def receive(self, ser: BluetoothSerial) -> any:
+                return ser.read_response(b'\x8a\x42')
+
+        compl, resp = self._sot.queue_command(InStreamCommand())
+
+        r = self.read_from_master(1)
+        self.assertEqual(r, b'\x42')
+
+        self._master.write(b'\xff\x8a\x42')
+        self._sot.process_single_input_event()
+        self.assertTrue(compl.has_completed())
+
+        self._sot.process_single_input_event()
+        self.assertTrue(resp.has_result())
+
     def test_get_status_command(self):
         cmd = GetStatusCommand()
         compl, resp = self._sot.queue_command(cmd)
@@ -195,18 +226,75 @@ class BluetoothRequestHandlerTest(TestCase):
         self.assertEqual(pkt[EChannelType.TIMESTAMP], 0xb2d11e)
         self.assertEqual(pkt[EChannelType.INTERNAL_ADC_13], 0x06fc)
 
+    def test_get_status_response(self):
+        status_resp: List[List[bool]] = []
+
+        stat_pkt_1 = b'\x8a\x71\x20'
+        stat_pkt_2 = b'\x8a\x71\x21'
+        self._sot.add_status_callback(lambda x: status_resp.append(x))
+
+        self._master.write(stat_pkt_1)
+        self._master.write(stat_pkt_2)
+
+        self._sot.process_single_input_event()
+        self.assertEqual(len(status_resp), 1)
+        self.assertEqual(status_resp[0], [False, False, False, False, False, True, False, False])
+
+        self._sot.process_single_input_event()
+        self.assertEqual(len(status_resp), 2)
+        self.assertEqual(status_resp[1], [True, False, False, False, False, True, False, False])
+
+    def test_get_status_response_update_mixed(self):
+        stat_pkt_1 = b'\x8a\x71\x20'
+        stat_pkt_2 = b'\x8a\x71\x21'
+
+        status_resp: List[List[bool]] = []
+        self._sot.add_status_callback(lambda x: status_resp.append(x))
+
+        compl, resp = self._sot.queue_command(GetStatusCommand())
+        r = self.read_from_master(1)
+        self.assertEqual(r, b'\x72')
+
+        self._master.write(b'\xff' + stat_pkt_1)
+        self._master.write(stat_pkt_2)
+
+        self._sot.process_single_input_event()
+        self.assertTrue(compl.has_completed())
+
+        self._sot.process_single_input_event()
+        self.assertTrue(resp.has_result())
+        self.assertEqual(resp.get_result(), [False, False, False, False, False, True, False, False])
+
+        self._sot.process_single_input_event()
+        self.assertEqual(len(status_resp), 1)
+        self.assertEqual(status_resp[0], [True, False, False, False, False, True, False, False])
+
     def test_clear_queues(self):
-        cmd = GetDeviceNameCommand()
+        compl1, resp1 = self._sot.queue_command(GetDeviceNameCommand())
+        compl2, resp2 = self._sot.queue_command(GetDeviceNameCommand())
 
-        compl, resp = self._sot.queue_command(cmd)
+        self.assertFalse(compl1.has_completed())
+        self.assertFalse(resp1.has_result())
 
-        self.assertFalse(compl.has_completed())
-        self.assertFalse(resp.has_result())
+        # Ensure that the first command has been passed into the response queue
+        self._master.write(b'\xff')
+        self._sot.process_single_input_event()
+
+        self.assertTrue(compl1.has_completed())
+        self.assertFalse(resp1.has_result())
+
+        self.assertFalse(compl2.has_completed())
+        self.assertFalse(resp2.has_result())
 
         self._sot.clear_queues()
-        self.assertTrue(compl.has_completed())
-        self.assertTrue(resp.has_result())
-        self.assertEqual(resp.get_result(), None)
+
+        self.assertTrue(compl1.has_completed())
+        self.assertTrue(resp1.has_result())
+        self.assertEqual(resp1.get_result(), None)
+
+        self.assertTrue(compl2.has_completed())
+        self.assertTrue(resp2.has_result())
+        self.assertEqual(resp2.get_result(), None)
 
 
 class ShimmerBluetoothIntegrationTest(TestCase):
@@ -296,3 +384,20 @@ class ShimmerBluetoothIntegrationTest(TestCase):
 
         self.assertEqual(pkt[EChannelType.TIMESTAMP], 15995685)
         self.assertEqual(pkt[EChannelType.INTERNAL_ADC_13], 1866)
+
+    def test_status_update(self):
+        pkts = []
+
+        def status_handler(new_pkt: List[bool]) -> None:
+            pkts.append(new_pkt)
+
+        self._sot.add_status_callback(status_handler)
+
+        self._submit_req_resp_handler(1, b'\x8a\x71\x20\xff\x7a\x03ABC')
+        r = self._sot.get_device_name()
+        self.assertEqual(r, 'ABC')
+
+        self.assertEqual(len(pkts), 1)
+        pkt = pkts[0]
+
+        self.assertEqual(pkt, [False, False, False, False, False, True, False, False])

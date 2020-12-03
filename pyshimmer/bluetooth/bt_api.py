@@ -24,7 +24,7 @@ from pyshimmer.bluetooth.bt_commands import ShimmerCommand, GetSamplingRateComma
     GetFirmwareVersionCommand, InquiryCommand, StartStreamingCommand, StopStreamingCommand, DataPacket, \
     GetEXGRegsCommand, SetEXGRegsCommand, StartLoggingCommand, StopLoggingCommand, GetExperimentIDCommand, \
     SetExperimentIDCommand, GetDeviceNameCommand, SetDeviceNameCommand, DummyCommand
-from pyshimmer.bluetooth.bt_const import ACK_COMMAND_PROCESSED, DATA_PACKET
+from pyshimmer.bluetooth.bt_const import ACK_COMMAND_PROCESSED, DATA_PACKET, FULL_STATUS_RESPONSE, INSTREAM_CMD_RESPONSE
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
 from pyshimmer.device import EChannelType, ChDataTypeAssignment, ExGRegister, EFirmwareType, ChannelDataType
 from pyshimmer.serial_base import ReadAbort
@@ -92,6 +92,7 @@ class BluetoothRequestHandler:
 
         self._stream_types = []
         self._stream_cbs = []
+        self._status_cbs = []
 
     def set_stream_types(self, types: List[Tuple[EChannelType, ChannelDataType]]) -> None:
         """Set the channel types that are streamed as part of the data packets
@@ -114,6 +115,21 @@ class BluetoothRequestHandler:
         """
         self._stream_cbs.remove(cb)
 
+    def add_status_callback(self, cb: Callable[[List[bool]], None]) -> None:
+        """Add a status callback which is called when a new status update from the Shimmer arrives
+
+        :param cb: a function with a single argument. The argument is the same value is the return value of the
+            :meth:`pyshimmer.bluetooth.bt_api.ShimmerBluetooth.get_status` method.
+        """
+        self._status_cbs += [cb]
+
+    def remove_status_callback(self, cb: Callable[[List[bool]], None]) -> None:
+        """Remove the callback from the list of active callbacks
+
+        :param cb: The callback function to remove
+        """
+        self._status_cbs.remove(cb)
+
     def _process_ack(self):
         self._serial.read_ack()
         compl_obj, cmd_resp_pair = self._ack_queue.get_nowait()
@@ -130,6 +146,38 @@ class BluetoothRequestHandler:
 
         for cb in self._stream_cbs:
             cb(packet)
+
+    def _process_in_stream_resp(self):
+        peek = self._serial.peek(len(FULL_STATUS_RESPONSE))
+
+        if peek == FULL_STATUS_RESPONSE:
+            # The packet is a status response, which we need to handle separately
+            self._process_status_response()
+        else:
+            # We don't know exactly what it is, but it must have been triggered by a command, so we simply
+            # process it as part of the reqular queue handling
+            self._process_resp_from_queue()
+
+    def _process_status_response(self):
+        cmd_resp_pair = self._resp_queue.peek()
+
+        if cmd_resp_pair is not None and isinstance(cmd_resp_pair[0], GetStatusCommand):
+            # We have received a Status Response and have are expecting a response from a command
+            # ---> Handle it like a regular command
+            self._process_resp_from_queue()
+        else:
+            # We have received a Status Response but are not expecting one
+            # ---> Handle it as a pushed Status Update
+            self._process_status_update()
+
+    def _process_status_update(self):
+        # Called if the status response was not triggered by a command but sent by the Shimmer as the result of
+        # an event
+        status_cmd = GetStatusCommand()
+        r = status_cmd.receive(self._serial)
+
+        for cb in self._status_cbs:
+            cb(r)
 
     def _process_resp_from_queue(self):
         cmd, return_obj = self._resp_queue.get_nowait()
@@ -154,13 +202,12 @@ class BluetoothRequestHandler:
 
         if peek == ACK_COMMAND_PROCESSED:
             self._process_ack()
-            return
-
-        if peek == DATA_PACKET:
+        elif peek == DATA_PACKET:
             self._process_data_packet()
-            return
-
-        self._process_resp_from_queue()
+        elif peek == INSTREAM_CMD_RESPONSE:
+            self._process_in_stream_resp()
+        else:
+            self._process_resp_from_queue()
 
     def queue_command(self, cmd: ShimmerCommand) -> Tuple[RequestCompletion, RequestResponse]:
         """Queue a command request for processing
@@ -270,6 +317,21 @@ class ShimmerBluetooth:
         :param cb: The callback function to remove
         """
         self._bluetooth.remove_stream_callback(cb)
+
+    def add_status_callback(self, cb: Callable[[List[bool]], None]) -> None:
+        """Add a status callback which is called when a new status update from the Shimmer arrives
+
+        :param cb: a function with a single argument. The argument is the same value is the return value of the
+            :meth:`pyshimmer.bluetooth.bt_api.ShimmerBluetooth.get_status` method.
+        """
+        self._bluetooth.add_status_callback(cb)
+
+    def remove_status_callback(self, cb: Callable[[List[bool]], None]) -> None:
+        """Remove the callback from the list of active callbacks
+
+        :param cb: The callback function to remove
+        """
+        self._bluetooth.remove_status_callback(cb)
 
     def get_sampling_rate(self) -> float:
         """Retrieve the sampling rate of the device
