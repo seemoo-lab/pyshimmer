@@ -8,6 +8,9 @@ pyshimmer: Unofficial Python API for Shimmer Sensor devices
    :target: https://www.codefactor.io/repository/github/seemoo-lab/pyshimmer/overview/develop
    :alt: CodeFactor
 
+.. image:: https://codecov.io/gh/seemoo-lab/pyshimmer/branch/develop/graph/badge.svg?token=EHK1ISJH7Z
+    :target: https://codecov.io/gh/seemoo-lab/pyshimmer
+
 .. contents::
 
 General Information
