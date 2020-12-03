@@ -16,38 +16,76 @@
 import struct
 from io import SEEK_SET, SEEK_CUR
 from queue import Queue
-from typing import BinaryIO, Tuple, Union
+from typing import BinaryIO, Tuple, Union, List
 
 import numpy as np
 
 
-def bit_is_set(bitfield, mask):
+def bit_is_set(bitfield: int, mask: int) -> bool:
+    """Check if the bit set in the mask is also set in the bitfield
+
+    :param bitfield: The bitfield stored as an integer of arbitrary length
+    :param mask: The mask where only a single bit is set
+    :return: True if the bit in the mask is set in the bitfield, else False
+    """
     return bitfield & mask == mask
 
 
-def raise_to_next_pow(x):
+def raise_to_next_pow(x: int) -> int:
+    """Raise the argument to the next power of 2
+
+    Example:
+        - 1 --> 1
+        - 2 --> 2
+        - 3 --> 4
+        - 5 --> 8
+
+    :param x: The value to raise to the next power
+    :return: The raised value
+    """
     if x <= 0:
         return 1
 
     return 1 << (x - 1).bit_length()
 
 
-def flatten_list(lst):
+def flatten_list(lst: Union[List, Tuple]) -> List:
+    """Flatten the supplied list by one level
+
+    Assumes that the supplied argument consists of lists itself. All elements are taken from the sublists and added
+    to a fresh copy.
+
+    :param lst: A list of lists
+    :return: A list with the contents of the sublists
+    """
     lst_flat = [val for sublist in lst for val in sublist]
     return lst_flat
 
 
-def fmt_hex(val_bin):
-    return ' '.join('{:02x}'.format(i) for i in val_bin)
+def fmt_hex(val: bytes) -> str:
+    """Format the supplied array of bytes as str
+
+    :param val: The binary array to format
+    :return: The resulting string
+    """
+    return ' '.join('{:02x}'.format(i) for i in val)
 
 
-def unpack(args):
+def unpack(args: Union[List, Tuple]) -> Union[List, Tuple, any]:
+    """Extract the first object if the list has length 1
+
+    If the supplied list or tuple only features a single element, the element is retrieved and returned. If the list or
+    tuple is longer, the entire list or tuple is returned.
+
+    :param args: The list or tuple to unpack
+    :return: The list or tuple itself or the single element if the argument has a length of 1
+    """
     if len(args) == 1:
         return args[0]
     return args
 
 
-def unwrap(x, shift):
+def unwrap(x: np.ndarray, shift: int) -> np.ndarray:
     """Detect overflows in the data and unwrap them
 
     The function tries to detect overflows in the input array x, with shape (N, ). It is assumed that x is monotonically
@@ -55,13 +93,9 @@ def unwrap(x, shift):
     series x_i > x_i+1. For every such point, the function will add the value of the shift parameter to all following
     samples, i.e. x_k' = x_k + shift, for every k > i.
 
-    Args:
-        x: The array to unwrap
-        shift: The value which to add to the series after each overflow point
-
-    Returns:
-        An array of equal length that has been unwrapped
-
+    :param x: The array to unwrap
+    :param shift: The value which to add to the series after each overflow point
+    :return: An array of equal length that has been unwrapped
     """
     x_diff = np.diff(x)
     wrap_points = np.argwhere(x_diff < 0)
@@ -73,6 +107,11 @@ def unwrap(x, shift):
 
 
 def resp_code_to_bytes(code: Union[int, Tuple[int, ...], bytes]) -> bytes:
+    """Convert the supplied response code to bytes
+
+    :param code: The code, can be an int, a tuple of ints, or bytes
+    :return: The supplied code as byte array
+    """
     if isinstance(code, int):
         code = (code,)
     if isinstance(code, tuple):
@@ -102,6 +141,12 @@ class PeekQueue(Queue):
 
 
 class FileIOBase:
+    """Convenience wrapper around a BinaryIO file object
+
+    Serves as an (abstract) base class for IO operations
+
+    :arg fp: The file to wrap
+    """
 
     def __init__(self, fp: BinaryIO):
         if not fp.seekable():

@@ -106,7 +106,8 @@ class BluetoothCommandsTest(TestCase):
 
     def test_get_status_command(self):
         cmd = GetStatusCommand()
-        self.assert_cmd(cmd, b'\x72', b'\x8a\x71', b'\x8a\x71\x25', [True, False, True, False, False, True, False, False])
+        expected_result = [True, False, True, False, False, True, False, False]
+        self.assert_cmd(cmd, b'\x72', b'\x8a\x71', b'\x8a\x71\x25', expected_result)
 
     def test_get_firmware_version_command(self):
         cmd = GetFirmwareVersionCommand()
