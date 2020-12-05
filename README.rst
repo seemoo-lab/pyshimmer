@@ -69,6 +69,27 @@ You can then run the tests from the repository root by simply issuing:
 
     pytest
 
+Shimmer Firmware
+^^^^^^^^^^^^^^^^
+
+The vanilla version of the `Shimmer3 firmware <https://github.com/ShimmerResearch/shimmer3>`_ exhibits several
+unfixed bugs (see the `issues page <https://github.com/ShimmerResearch/shimmer3/issues>`_ for more information).
+Depending on the firmware you intend to use, you will need to compile and run a custom patched version of the firmware.
+In the following table, we list the tested firmware versions and their compatibility.
+
+============= ========= ============= ======================================================================
+Firmware Type Version   Compatibility Issues
+============= ========= ============= ======================================================================
+LogAndStream  v0.11.0   Incompatible  - `Issue 7 <https://github.com/ShimmerResearch/shimmer3/issues/7>`_
+                                      - `Issue 10 <https://github.com/ShimmerResearch/shimmer3/issues/10>`_
+SDLog         v0.19.0   Compatible
+============= ========= ============= ======================================================================
+
+If you want to use the *LogAndStream* firmware with the pyshimmer library, you will need to compile and program a
+patched version of the firmware. We provide a forked repository which features the necessary fixes
+`here <https://github.com/seemoo-lab/shimmer3/>`_. It also contains instructions on how to compile and program the
+firwmare.
+
 Creating udev rules for persistent device filenames
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
