@@ -205,7 +205,7 @@ class BluetoothRequestHandlerTest(TestCase):
 
         ch_types = [EChannelType.TIMESTAMP, EChannelType.INTERNAL_ADC_13]
         self._sot.set_stream_types([(c, ChDataTypeAssignment[c]) for c in ch_types])
-        self._sot.add_stream_callback(lambda x: results.append(x))
+        self._sot.add_stream_callback(results.append)
 
         self._master.write(data_pkt_1)
         self._master.write(data_pkt_2)
@@ -231,7 +231,7 @@ class BluetoothRequestHandlerTest(TestCase):
 
         stat_pkt_1 = b'\x8a\x71\x20'
         stat_pkt_2 = b'\x8a\x71\x21'
-        self._sot.add_status_callback(lambda x: status_resp.append(x))
+        self._sot.add_status_callback(status_resp.append)
 
         self._master.write(stat_pkt_1)
         self._master.write(stat_pkt_2)
@@ -249,7 +249,7 @@ class BluetoothRequestHandlerTest(TestCase):
         stat_pkt_2 = b'\x8a\x71\x21'
 
         status_resp: List[List[bool]] = []
-        self._sot.add_status_callback(lambda x: status_resp.append(x))
+        self._sot.add_status_callback(status_resp.append)
 
         compl, resp = self._sot.queue_command(GetStatusCommand())
         r = self.read_from_master(1)
