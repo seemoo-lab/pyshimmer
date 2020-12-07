@@ -154,7 +154,7 @@ Save the file and reload the rules for them to take effect:
 
     udevadm control --reload-rules && udevadm trigger
 
-You should now have two strongly named device files for each Shimmer dock:
+You should now have two named device files for each Shimmer dock:
 
 * :code:`/dev/ttyPPGbl` and :code:`/dev/ttyPPGdev` for the PPG Shimmer bootloader and device interfaces,
 * :code:`/dev/ttyECGbl` and :code:`/dev/ttyECGdev` for the ECG Shimmer bootloader and device interfaces.
@@ -162,7 +162,7 @@ You should now have two strongly named device files for each Shimmer dock:
 Configuring the Bluetooth Interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 The library uses a :code:`tty` serial interface to communicate with the Shimmer over Bluetooth. Before you can use the
-library, you need to set up the serial channel appropriately. This has only been tested this under Arch Linux, but other
+library, you need to set up the serial channel appropriately. This has only been tested under Arch Linux, but other
 Linux distributions should work as well.
 
 Requirements:
@@ -172,7 +172,7 @@ Requirements:
 * The :code:`hcitool` commandline tool. For Arch Linux, use the `bluez-hcitool AUR <https://aur.archlinux.org/packages/bluez-hcitool/>`_ package
 * A Shimmer device with  :code:`LogAndStream` firmware
 
-Scan for the device the find out its MAC address:
+Scan for the device to find out its MAC address:
 
 .. code-block::
 
