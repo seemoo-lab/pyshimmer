@@ -1,4 +1,0 @@
-pyserial>=3.4
-numpy>=1.15
-pytest>=5.3.5
-setuptools>=47.1.1

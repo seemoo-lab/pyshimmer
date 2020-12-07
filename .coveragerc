@@ -1,0 +1,6 @@
+[run]
+source =
+    pyshimmer
+omit =
+    test/*
+    setup.py

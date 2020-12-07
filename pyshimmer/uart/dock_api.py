@@ -25,6 +25,11 @@ from pyshimmer.util import unpack
 
 
 class ShimmerDock:
+    """Main API to communicate with the Shimmer over the Dock UART
+
+    :arg ser: The serial interface to use for communication
+
+    """
 
     def __init__(self, ser: Serial, flush_before_req=True):
         self._serial = DockSerial(ser)
@@ -101,30 +106,67 @@ class ShimmerDock:
         self._serial.end_read_crc_verify()
 
     def close(self) -> None:
+        """Close the underlying serial interface and release all resources
+
+        """
         self._serial.close()
 
-    def get_mac_address(self) -> Tuple:
+    def get_mac_address(self) -> Tuple[int, ...]:
+        """Retrieve the Bluetooth MAC address of the device
+
+        :return: A tuple containing six integer values, each representing a single byte of the address
+        """
         self._write_packet(UART_GET, UART_COMP_SHIMMER, UART_PROP_MAC)
 
         mac = self._read_response_wformat_verify(UART_COMP_SHIMMER, UART_PROP_MAC, 'BBBBBB')
         return mac
 
     def set_rtc(self, ts_sec: float) -> None:
+        """Set the real-time clock of the device
+
+        Specify the UNIX timestamp in seconds as new value for the real-time clock of the device
+
+        :param ts_sec: The UNIX timestamp in seconds
+        """
         ticks = sec2ticks(ts_sec)
         self._write_packet_wformat(UART_SET, UART_COMP_SHIMMER, UART_PROP_RWC_CFG_TIME, '<Q', ticks)
         self._read_ack()
 
     def get_rtc(self) -> float:
+        """Retrieve the current value of the real-time clock
+
+        :return: A floating-point value representing the current value of the real-time clock as UNIX timestamp
+            in seconds
+        """
         self._write_packet(UART_GET, UART_COMP_SHIMMER, UART_PROP_CURR_LOCAL_TIME)
         ticks = self._read_response_wformat_verify(UART_COMP_SHIMMER, UART_PROP_CURR_LOCAL_TIME, '<Q')
         return ticks2sec(ticks)
 
     def get_config_rtc(self) -> float:
+        """Get the value that was last set for the real-time clock
+
+        Example:
+
+            The real-time clock is set to a value of 42s. Subsequent calls to :meth:`get_rtc` will return v > 42s,
+            while :meth:`get_config_rtc` will return 42s.
+
+        :return: A floating-point value representing the last configured value for the real-time clock as UNIX
+            timestamp in seconds
+        """
         self._write_packet(UART_GET, UART_COMP_SHIMMER, UART_PROP_RWC_CFG_TIME)
         ticks = self._read_response_wformat_verify(UART_COMP_SHIMMER, UART_PROP_RWC_CFG_TIME, '<Q')
         return ticks2sec(ticks)
 
     def get_firmware_version(self) -> Tuple[int, EFirmwareType, int, int, int]:
+        """Retrieve the firmware version of the device
+
+        :return: A tuple containing the following values:
+            - The hardware version, should be 3 for Shimmer3
+            - The firmware type: LogAndStream or SDLog
+            - The major release version
+            - The minor release version
+            - The patch level
+        """
         self._write_packet(UART_GET, UART_COMP_SHIMMER, UART_PROP_VER)
         hw_ver, fw_type_bin, major, minor, rel = self._read_response_wformat_verify(UART_COMP_SHIMMER,
                                                                                     UART_PROP_VER, '<BHHBB')
@@ -132,10 +174,20 @@ class ShimmerDock:
         return hw_ver, fw_type, major, minor, rel
 
     def get_firmware_type(self) -> EFirmwareType:
+        """Retrieve the active firmware type
+
+        :return: The firmware type: LogAndStream or SDLog
+        """
         _, fw_type, _, _, _ = self.get_firmware_version()
         return fw_type
 
     def get_infomem(self, addr: int, dlen: int) -> bytes:
+        """Access the infomem memory and retrieve the specified range
+
+        :param addr: The start address
+        :param dlen: The length of the memory block that will be retrieved
+        :return: The bytes of the memory block
+        """
         # Due to a bug in the firmware code, we must manually set a variable in the firmware to a specific value
         # using a different command before we can read the InfoMem.
         self._write_packet_wformat(UART_GET, UART_COMP_DAUGHTER_CARD, UART_PROP_CARD_ID, '<BH', 0x0, 0x0)
@@ -148,7 +200,7 @@ class ShimmerDock:
         if not 0 <= chip_id <= 1:
             raise ValueError('Parameter chip_id must be 0 or 1')
 
-        offset = 0x0A + chip_id * 0x0A
+        offset = UART_INFOMEM_EXG_OFFSET + chip_id * 0x0A
         dlen = 0x0A
 
         reg_data = self.get_infomem(offset, dlen)
