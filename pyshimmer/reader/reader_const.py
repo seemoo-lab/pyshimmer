@@ -38,6 +38,9 @@ TRIAL_CONFIG_MASTER = 0x02 << 8 * 0
 EXG_REG_OFFSET = 0x38
 EXG_REG_LEN = 0x0A
 
+ACC_LN_CALIB_OFFSET = 0x8B
+ACC_LN_CALIB_LEN = 0x15
+
 SensorOrder: Dict[ESensorGroup, int] = {
     ESensorGroup.ACCEL_LN: 1,
     ESensorGroup.BATTERY: 2,

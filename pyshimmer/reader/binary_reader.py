@@ -23,7 +23,7 @@ from pyshimmer.device import ESensorGroup, EChannelType, ChannelDataType, Sensor
 from pyshimmer.util import FileIOBase, unpack, bit_is_set
 from .reader_const import RTC_CLOCK_DIFF_OFFSET, ENABLED_SENSORS_OFFSET, ENABLED_SENSORS_LEN, SR_OFFSET, \
     START_TS_OFFSET, START_TS_LEN, TRIAL_CONFIG_OFFSET, TRIAL_CONFIG_MASTER, TRIAL_CONFIG_SYNC, BLOCK_LEN, \
-    DATA_LOG_OFFSET, EXG_REG_OFFSET, EXG_REG_LEN, sort_sensors
+    DATA_LOG_OFFSET, EXG_REG_OFFSET, EXG_REG_LEN, ACC_LN_CALIB_OFFSET, ACC_LN_CALIB_LEN, sort_sensors
 
 
 class ShimmerBinaryReader(FileIOBase):
@@ -189,6 +189,11 @@ class ShimmerBinaryReader(FileIOBase):
             sync_data = ((), ())
 
         return samples_dict, sync_data
+
+    def read_ln_acc_calib_data(self):
+        self._seek(ACC_LN_CALIB_OFFSET)
+        calib_data_bin = self._read(ACC_LN_CALIB_LEN)
+        return struct.unpack('>' + 6 * 'H' + 9 * 'B', calib_data_bin)
 
     def get_exg_reg(self, chip_id: int) -> bytes:
         return self._exg_regs[chip_id]
