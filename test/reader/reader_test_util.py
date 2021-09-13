@@ -22,6 +22,10 @@ _synced_pair_csv_name = 'sdlog_sync_slave.csv.gz'
 _pair_raw_name = 'pair_raw.bin'
 _pair_csv_name = 'pair_consensys.csv'
 
+_acc_gyro_sample_name = "acc_gyro_sample.bin"
+_acc_gyro_uncal_name = "acc_gyro_uncalibrated.csv.gz"
+_acc_gyro_cal_name = "acc_gyro_calibrated.csv.gz"
+
 _ecg_sample_bin = 'ecg.bin'
 _ecg_sample_uncal = 'ecg_uncalibrated.csv.gz'
 _ecg_sample_cal = 'ecg_calibrated.csv.gz'
@@ -50,3 +54,8 @@ def get_synced_bin_vs_consensys_pair_fpath():
 def get_ecg_sample():
     res_dir = get_resources_dir()
     return res_dir / _ecg_sample_bin, res_dir / _ecg_sample_uncal, res_dir / _ecg_sample_cal
+
+
+def get_triaxcal_sample():
+    res_dir = get_resources_dir()
+    return res_dir / _acc_gyro_sample_name, res_dir / _acc_gyro_uncal_name, res_dir / _acc_gyro_cal_name
