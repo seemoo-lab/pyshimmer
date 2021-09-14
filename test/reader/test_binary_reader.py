@@ -19,7 +19,8 @@ import numpy as np
 
 from pyshimmer.device import ESensorGroup, EChannelType, get_ch_dtypes
 from pyshimmer.reader.shimmer_reader import ShimmerBinaryReader
-from .reader_test_util import get_binary_sample_fpath, get_synced_bin_vs_consensys_pair_fpath, get_ecg_sample
+from .reader_test_util import get_binary_sample_fpath, get_synced_bin_vs_consensys_pair_fpath, get_ecg_sample, \
+    get_triaxcal_sample
 
 
 class ShimmerReaderTest(TestCase):
@@ -110,3 +111,32 @@ class ShimmerReaderTest(TestCase):
             reader = ShimmerBinaryReader(f)
             self.assertEqual(reader.exg_reg1, b'\x03\xA8\x10\x49\x40\x23\x00\x00\x02\x03')
             self.assertEqual(reader.exg_reg2, b'\x03\xA0\x10\xC1\xC1\x00\x00\x00\x02\x01')
+
+    # noinspection PyMethodMayBeStatic
+    def test_accel_ln_calib_data(self):
+        exp_params = {
+            ESensorGroup.ACCEL_LN: (
+                np.array([2045, 2071, 2033]),
+                np.diag([83, 83, 83]),
+                np.array([[0.0, 1.0, 0.0],
+                          [1.0, 0.0, 0.02],
+                          [0.02, -0.01, -1.0]]),
+            ),
+            ESensorGroup.GYRO: (
+                np.array([-123, -29, -35]),
+                np.diag([56.68, 57.91, 59.21]),
+                np.array([[0.0, 1.0, -0.02],
+                          [1.0, 0.0, 0.03],
+                          [-0.25, 0.01, -0.97]])
+            )
+        }
+
+        fpath, _, _ = get_triaxcal_sample()
+        with open(fpath, 'rb') as f:
+            reader = ShimmerBinaryReader(f)
+
+            for sensor, (exp_offset, exp_gain, exp_alignment) in exp_params.items():
+                offset, gain, alignment = reader.get_calibration_params(sensor)
+                np.testing.assert_almost_equal(offset, exp_offset, decimal=10)
+                np.testing.assert_almost_equal(gain, exp_gain, decimal=10)
+                np.testing.assert_almost_equal(alignment, exp_alignment, decimal=10)

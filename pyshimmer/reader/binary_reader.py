@@ -23,7 +23,8 @@ from pyshimmer.device import ESensorGroup, EChannelType, ChannelDataType, Sensor
 from pyshimmer.util import FileIOBase, unpack, bit_is_set
 from .reader_const import RTC_CLOCK_DIFF_OFFSET, ENABLED_SENSORS_OFFSET, ENABLED_SENSORS_LEN, SR_OFFSET, \
     START_TS_OFFSET, START_TS_LEN, TRIAL_CONFIG_OFFSET, TRIAL_CONFIG_MASTER, TRIAL_CONFIG_SYNC, BLOCK_LEN, \
-    DATA_LOG_OFFSET, EXG_REG_OFFSET, EXG_REG_LEN, ACC_LN_CALIB_OFFSET, ACC_LN_CALIB_LEN, sort_sensors
+    DATA_LOG_OFFSET, EXG_REG_OFFSET, EXG_REG_LEN, sort_sensors, \
+    TRIAXCAL_FILE_OFFSET, TRIAXCAL_OFFSET_SCALING, TRIAXCAL_GAIN_SCALING, TRIAXCAL_ALIGNMENT_SCALING
 
 
 class ShimmerBinaryReader(FileIOBase):
@@ -173,6 +174,19 @@ class ShimmerBinaryReader(FileIOBase):
         reg2 = self._read(EXG_REG_LEN)
         return reg1, reg2
 
+    def _read_calibration_params(self, offset: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        fmt = ">" + 6 * 'h' + 9 * 'b'
+
+        self._seek(offset)
+        calib_param_bytes = self._read(struct.calcsize(fmt))
+        params_raw = struct.unpack(fmt, calib_param_bytes)
+
+        offset = np.array(params_raw[:3])
+        gain = np.diag(params_raw[3:6])
+        alignment = np.array(params_raw[6:]).reshape((3, 3))
+
+        return offset, gain, alignment
+
     def read_data(self):
         samples, sync_offsets = self._read_contents()
 
@@ -190,13 +204,17 @@ class ShimmerBinaryReader(FileIOBase):
 
         return samples_dict, sync_data
 
-    def read_ln_acc_calib_data(self):
-        self._seek(ACC_LN_CALIB_OFFSET)
-        calib_data_bin = self._read(ACC_LN_CALIB_LEN)
-        return struct.unpack('>' + 6 * 'H' + 9 * 'B', calib_data_bin)
-
     def get_exg_reg(self, chip_id: int) -> bytes:
         return self._exg_regs[chip_id]
+
+    def get_calibration_params(self, sensor: ESensorGroup) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        offset = TRIAXCAL_FILE_OFFSET[sensor]
+        sc_offset = TRIAXCAL_OFFSET_SCALING[sensor]
+        sc_gain = TRIAXCAL_GAIN_SCALING[sensor]
+        sc_alignment = TRIAXCAL_ALIGNMENT_SCALING[sensor]
+
+        offset, gain, alignment = self._read_calibration_params(offset)
+        return offset * sc_offset, gain * sc_gain, alignment * sc_alignment
 
     @property
     def sample_rate(self) -> int:
