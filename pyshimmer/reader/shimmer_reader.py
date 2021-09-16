@@ -11,16 +11,17 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
+from abc import ABC, abstractmethod
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from typing import Dict, List, BinaryIO
 
 import numpy as np
-from abc import ABC, abstractmethod
 
-from pyshimmer.device import EChannelType, ticks2sec, dr2sr, ExGRegister, get_exg_ch, ChDataTypeAssignment, is_exg_ch
+from pyshimmer.device import EChannelType, ticks2sec, dr2sr, ExGRegister, get_exg_ch, ChDataTypeAssignment, is_exg_ch, \
+    get_enabled_channels
 from pyshimmer.reader.binary_reader import ShimmerBinaryReader
-from pyshimmer.reader.reader_const import EXG_ADC_REF_VOLT, EXG_ADC_OFFSET
+from pyshimmer.reader.reader_const import EXG_ADC_REF_VOLT, EXG_ADC_OFFSET, TRIAXCAL_SENSORS
 from pyshimmer.util import unwrap
 
 
@@ -98,6 +99,27 @@ class PPGProcessor(SingleChannelProcessor):
         return y / 1000.0
 
 
+class TriAxCalProcessor(ChannelPostProcessor):
+
+    def process(self, channels: Dict[EChannelType, np.ndarray], reader: ShimmerBinaryReader) -> \
+            Dict[EChannelType, np.ndarray]:
+        result = channels.copy()
+
+        active_sensors = [s for s in reader.enabled_sensors if s in TRIAXCAL_SENSORS]
+        for sensor in active_sensors:
+            sensor_channels = get_enabled_channels([sensor])
+            channel_data = np.stack([channels[c] for c in sensor_channels])
+            o, g, a = reader.get_triaxcal_params(sensor)
+
+            g_a = np.matmul(g, a)
+            r = np.linalg.solve(g_a, channel_data - o[..., None])
+
+            for i, ch in enumerate(sensor_channels):
+                result[ch] = r[i]
+
+        return result
+
+
 class ShimmerReader:
 
     def __init__(self, fp: BinaryIO = None, bin_reader: ShimmerBinaryReader = None, realign: bool = True,
@@ -121,6 +143,7 @@ class ShimmerReader:
             self._processors = [
                 ExGProcessor(),
                 PPGProcessor(),
+                TriAxCalProcessor(),
             ]
 
     @staticmethod

@@ -65,10 +65,12 @@ TRIAXCAL_GAIN_SCALING = {
 # Scaling value by which the calibration alignment matrix will be scaled upon deserialization
 TRIAXCAL_ALIGNMENT_SCALING = {
     ESensorGroup.ACCEL_LN: 1.0 / 100.0,
-    ESensorGroup.ACCEL_WR: 1.0,
+    ESensorGroup.ACCEL_WR: 1.0 / 100.0,
     ESensorGroup.GYRO: 1.0 / 100.0,
-    ESensorGroup.MAG: 1.0,
+    ESensorGroup.MAG: 1.0 / 100.0,
 }
+
+TRIAXCAL_SENSORS = list(TRIAXCAL_FILE_OFFSET.keys())
 
 SensorOrder: Dict[ESensorGroup, int] = {
     ESensorGroup.ACCEL_LN: 1,
