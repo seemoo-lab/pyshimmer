@@ -18,7 +18,7 @@ from unittest.mock import Mock, PropertyMock
 
 import numpy as np
 
-from pyshimmer.device import EChannelType, ticks2sec, get_exg_ch
+from pyshimmer.device import EChannelType, ticks2sec, get_exg_ch, ExGRegister
 from pyshimmer.reader.binary_reader import ShimmerBinaryReader
 from pyshimmer.reader.shimmer_reader import ShimmerReader
 from .reader_test_util import get_bin_vs_consensys_pair_fpath, get_synced_bin_vs_consensys_pair_fpath, get_ecg_sample
@@ -26,7 +26,7 @@ from .reader_test_util import get_bin_vs_consensys_pair_fpath, get_synced_bin_vs
 
 class ShimmerReaderTest(TestCase):
 
-    def test_reader_alignment(self):
+    def test_reader_timestep_interpolation(self):
         sr = 5
         ts_dev = np.array([0, 5, 10, 15, 21, 25, 29, 35])
         ts = ticks2sec(ts_dev)
@@ -52,7 +52,7 @@ class ShimmerReaderTest(TestCase):
         vbatt_aligned = reader[EChannelType.VBATT]
         np.testing.assert_equal(vbatt[ts_aligned == ts], vbatt_aligned[ts_aligned == ts])
 
-    def test_ts_unwrap(self):
+    def test_timestamp_unwrapping(self):
         sr = 65
         ts_dev = np.arange(0, 4 * (2 ** 24), sr)
         ts_dev_wrapped = ts_dev % 2 ** 24
@@ -81,7 +81,7 @@ class ShimmerReaderTest(TestCase):
         np.testing.assert_equal(reader[EChannelType.VBATT], vbatt)
         np.testing.assert_equal(reader.timestamp, reader[EChannelType.TIMESTAMP])
 
-    def test_ts_sync(self):
+    def test_timestamp_synchronization(self):
         sr = 5
         ts = np.array([0, 5, 10, 15, 20, 25, 30, 35, 40, 45])
         vbatt = np.array([93, 85, 78, 74, 71, 68, 65, 64, 10, 24])
@@ -112,7 +112,7 @@ class ShimmerReaderTest(TestCase):
         np.testing.assert_equal(vbatt, reader[EChannelType.VBATT])
 
     # noinspection PyMethodMayBeStatic
-    def test_consensys_comparison(self):
+    def test_compare_ppg_processiong_to_consensys(self):
         raw_file, csv_file = get_bin_vs_consensys_pair_fpath()
 
         exp_sr = 504.12
@@ -136,7 +136,7 @@ class ShimmerReaderTest(TestCase):
         np.testing.assert_almost_equal(actual_ts.flatten(), expected_ts.flatten())
         np.testing.assert_almost_equal(actual_ppg, expected_ppg)
 
-    def test_file_wsync(self):
+    def test_compare_sync_processing_to_consensys(self):
         bin_path, csv_path = get_synced_bin_vs_consensys_pair_fpath()
 
         exp_sr = 512.0
@@ -159,8 +159,10 @@ class ShimmerReaderTest(TestCase):
         np.testing.assert_almost_equal(actual_ppg.flatten(), expected_ppg.flatten())
 
     def test_reader_exg_register(self):
-        exp_reg1 = bytes(range(10))
-        exp_reg2 = bytes(range(10, 0, -1))
+        exp_reg1_content = bytes(range(10))
+        exp_reg1 = ExGRegister(exp_reg1_content)
+        exp_reg2_content = bytes(range(10, 0, -1))
+        exp_reg2 = ExGRegister(exp_reg2_content)
         exp_regs = [exp_reg1, exp_reg2]
 
         m_br = Mock(spec=ShimmerBinaryReader)
@@ -170,18 +172,18 @@ class ShimmerReaderTest(TestCase):
         reader = ShimmerReader(bin_reader=m_br)
 
         for i in range(2):
-            self.assertEqual(reader.get_exg_reg(i).binary, exp_regs[i])
+            self.assertEqual(reader.get_exg_reg(i), exp_regs[i])
 
         actual_reg1 = reader.exg_reg1
         actual_reg2 = reader.exg_reg2
-        self.assertEqual(actual_reg1.binary, exp_reg1)
-        self.assertEqual(actual_reg2.binary, exp_reg2)
+        self.assertEqual(actual_reg1, exp_reg1)
+        self.assertEqual(actual_reg2, exp_reg2)
 
     # noinspection PyMethodMayBeStatic
     def test_post_process_exg_signal(self):
-        exg_reg1 = b'\x03\x80\x10\x40\x40\x00\x00\x00\x02\x01'
+        exg_reg1 = ExGRegister(b'\x03\x80\x10\x40\x40\x00\x00\x00\x02\x01')
         exg1_gain = 4
-        exg_reg2 = b'\x03\x80\x10\x20\x20\x00\x00\x00\x02\x01'
+        exg_reg2 = ExGRegister(b'\x03\x80\x10\x20\x20\x00\x00\x00\x02\x01')
         exg2_gain = 2
 
         chip_gain = {
@@ -224,7 +226,7 @@ class ShimmerReaderTest(TestCase):
             np.testing.assert_almost_equal(actual, expected)
 
     # noinspection PyMethodMayBeStatic
-    def test_exg_processing_consensys(self):
+    def test_compare_exg_processing_to_consensys(self):
         bin_path, uncal_path, cal_path = get_ecg_sample()
 
         def verify(bin_file_path, expected, post_process):

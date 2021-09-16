@@ -136,7 +136,7 @@ class ShimmerReader:
             self._ts, self._ch_samples = ts_unaligned, samples
 
     def get_exg_reg(self, chip_id: int) -> ExGRegister:
-        return ExGRegister(self._bin_reader.get_exg_reg(chip_id))
+        return self._bin_reader.get_exg_reg(chip_id)
 
     def __getitem__(self, item: EChannelType) -> np.ndarray:
         if item == EChannelType.TIMESTAMP:
