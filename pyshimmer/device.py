@@ -174,6 +174,9 @@ class ExGRegister:
         obj_str += print_ch(1)
         return obj_str
 
+    def __eq__(self, other: "ExGRegister") -> bool:
+        return self._reg_bin == other._reg_bin
+
     @staticmethod
     def check_ch_id(ch_id: int) -> None:
         if not 0 <= ch_id <= 1:

@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from unittest import TestCase
+import random
 
 from pyshimmer.device import sr2dr, dr2sr, ChannelDataType, ChDataTypeAssignment, SensorChannelAssignment, \
     SensorBitAssignments, sec2ticks, ticks2sec, get_ch_dtypes, EChannelType, ExGRegister, ExGMux, get_firmware_type, \
@@ -21,6 +22,9 @@ from pyshimmer.device import sr2dr, dr2sr, ChannelDataType, ChDataTypeAssignment
 
 
 class DeviceTest(TestCase):
+
+    def setUp(self) -> None:
+        random.seed(0x42)
 
     def test_channel_enum_uniqueness(self):
         try:
@@ -241,3 +245,19 @@ class ExGRegisterTest(TestCase):
         str_repr = str(reg)
         self.assertTrue('Data Rate: 1000' in str_repr)
         self.assertTrue('RLD Powerdown: False' in str_repr)
+
+    def test_equality_operator(self):
+        def do_assert(a: bytes, b: bytes, result: bool) -> None:
+            self.assertEqual(ExGRegister(a) == ExGRegister(b), result)
+
+        x = random.randbytes(10)
+        y = random.randbytes(10)
+
+        do_assert(x, y, False)
+        do_assert(x, x, True)
+        do_assert(y, y, True)
+
+        for i in range(len(x)):
+            y = bytearray(x)
+            y[i] = random.randrange(0, 256)
+            do_assert(x, y, False)
