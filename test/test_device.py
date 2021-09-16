@@ -57,80 +57,6 @@ class DeviceTest(TestCase):
         r = ticks2sec(65536)
         self.assertEqual(r, 2.0)
 
-    def test_exg_register_fail(self):
-        self.assertRaises(ValueError, ExGRegister, bytes())
-
-    def test_exg_register(self):
-        reg1 = bytes([3, 160, 16, 64, 71, 0, 0, 0, 2, 1])
-        reg2 = bytes([0, 171, 16, 21, 21, 0, 0, 0, 2, 1])
-
-        exg_reg1 = ExGRegister(reg1)
-        exg_reg2 = ExGRegister(reg2)
-
-        self.assertEqual(exg_reg1.ch1_gain, 4)
-        self.assertEqual(exg_reg1.ch2_gain, 4)
-        self.assertEqual(exg_reg1.ch1_mux, ExGMux.NORMAL)
-        self.assertEqual(exg_reg1.get_ch_mux_bin(0), 0b0000)
-        self.assertEqual(exg_reg1.ch2_mux, ExGMux.RLD_DRM)
-        self.assertEqual(exg_reg1.get_ch_mux_bin(1), 0b0111)
-        self.assertEqual(exg_reg1.ch1_powerdown, False)
-        self.assertEqual(exg_reg1.ch2_powerdown, False)
-        self.assertEqual(exg_reg1.data_rate, 1000)
-        self.assertEqual(exg_reg1.binary, reg1)
-
-        self.assertEqual(exg_reg2.ch1_gain, 1)
-        self.assertEqual(exg_reg2.ch2_gain, 1)
-        self.assertEqual(exg_reg2.ch1_mux, ExGMux.TEST_SIGNAL)
-        self.assertEqual(exg_reg2.ch2_mux, ExGMux.TEST_SIGNAL)
-        self.assertEqual(exg_reg2.ch1_powerdown, False)
-        self.assertEqual(exg_reg2.ch2_powerdown, False)
-        self.assertEqual(exg_reg2.data_rate, 125)
-        self.assertEqual(exg_reg2.binary, reg2)
-
-        self.assertRaises(ValueError, exg_reg1.get_ch_mux, 2)
-        self.assertRaises(ValueError, exg_reg1.get_ch_mux, -1)
-
-    def test_exg_register_powerdown(self):
-        pd = 0x1 << 7
-        reg_bin = bytes([3, 160, 16, pd, pd, 0, 0, 0, 2, 1])
-        reg = ExGRegister(reg_bin)
-
-        self.assertEqual(reg.ch1_powerdown, True)
-        self.assertEqual(reg.ch2_powerdown, True)
-
-    def test_exg_register_rld_powerdown(self):
-        pd = 0x01 << 5
-        reg_bin = bytes([0, 0, 0, 0, 0, pd, 0, 0, 0, 0])
-        reg = ExGRegister(reg_bin)
-
-        self.assertEqual(reg.rld_powerdown, False)
-
-    def test_exg_register_rld_channels(self):
-        reg_bin = bytes([0x03, 0xA8, 0x10, 0x40, 0x40, 0x2D, 0x00, 0x00, 0x02, 0x03])
-        reg = ExGRegister(reg_bin)
-        self.assertEqual(reg.rld_channels, [ExGRLDLead.RLD1P, ExGRLDLead.RLD2P, ExGRLDLead.RLD2N])
-
-        reg_bin = bytes([0x03, 0xA8, 0x10, 0x40, 0x40, 0x00, 0x00, 0x00, 0x02, 0x03])
-        reg = ExGRegister(reg_bin)
-        self.assertEqual(reg.rld_channels, [])
-
-    def test_exg_register_rld_ref(self):
-        reg_bin = bytes([0x03, 0xA8, 0x10, 0x40, 0x40, 0x2D, 0x00, 0x00, 0x02, 0x03])
-        reg = ExGRegister(reg_bin)
-        self.assertEqual(reg.rld_ref, ERLDRef.INTERNAL)
-
-        reg_bin = bytes([0x03, 0xA8, 0x10, 0x40, 0x40, 0x2D, 0x00, 0x00, 0x02, 0x01])
-        reg = ExGRegister(reg_bin)
-        self.assertEqual(reg.rld_ref, ERLDRef.EXTERNAL)
-
-    def test_exg_register_print(self):
-        reg_bin = bytes([0x03, 0xA8, 0x10, 0x40, 0x40, 0x2D, 0x00, 0x00, 0x02, 0x03])
-        reg = ExGRegister(reg_bin)
-
-        str_repr = str(reg)
-        self.assertTrue('Data Rate: 1000' in str_repr)
-        self.assertTrue('RLD Powerdown: False' in str_repr)
-
     def test_channel_data_type(self):
         def test_both_endianess(byte_val_le: bytes, expected: int, signed: bool):
             blen = len(byte_val_le)
@@ -238,3 +164,80 @@ class DeviceTest(TestCase):
 
         for ch in EChannelType:
             self.assertEqual(is_exg_ch(ch), ch in valid_ch)
+
+
+class ExGRegisterTest(TestCase):
+
+    def test_exg_register_fail(self):
+        self.assertRaises(ValueError, ExGRegister, bytes())
+
+    def test_exg_register(self):
+        reg1 = bytes([3, 160, 16, 64, 71, 0, 0, 0, 2, 1])
+        reg2 = bytes([0, 171, 16, 21, 21, 0, 0, 0, 2, 1])
+
+        exg_reg1 = ExGRegister(reg1)
+        exg_reg2 = ExGRegister(reg2)
+
+        self.assertEqual(exg_reg1.ch1_gain, 4)
+        self.assertEqual(exg_reg1.ch2_gain, 4)
+        self.assertEqual(exg_reg1.ch1_mux, ExGMux.NORMAL)
+        self.assertEqual(exg_reg1.get_ch_mux_bin(0), 0b0000)
+        self.assertEqual(exg_reg1.ch2_mux, ExGMux.RLD_DRM)
+        self.assertEqual(exg_reg1.get_ch_mux_bin(1), 0b0111)
+        self.assertEqual(exg_reg1.ch1_powerdown, False)
+        self.assertEqual(exg_reg1.ch2_powerdown, False)
+        self.assertEqual(exg_reg1.data_rate, 1000)
+        self.assertEqual(exg_reg1.binary, reg1)
+
+        self.assertEqual(exg_reg2.ch1_gain, 1)
+        self.assertEqual(exg_reg2.ch2_gain, 1)
+        self.assertEqual(exg_reg2.ch1_mux, ExGMux.TEST_SIGNAL)
+        self.assertEqual(exg_reg2.ch2_mux, ExGMux.TEST_SIGNAL)
+        self.assertEqual(exg_reg2.ch1_powerdown, False)
+        self.assertEqual(exg_reg2.ch2_powerdown, False)
+        self.assertEqual(exg_reg2.data_rate, 125)
+        self.assertEqual(exg_reg2.binary, reg2)
+
+        self.assertRaises(ValueError, exg_reg1.get_ch_mux, 2)
+        self.assertRaises(ValueError, exg_reg1.get_ch_mux, -1)
+
+    def test_exg_register_powerdown(self):
+        pd = 0x1 << 7
+        reg_bin = bytes([3, 160, 16, pd, pd, 0, 0, 0, 2, 1])
+        reg = ExGRegister(reg_bin)
+
+        self.assertEqual(reg.ch1_powerdown, True)
+        self.assertEqual(reg.ch2_powerdown, True)
+
+    def test_exg_register_rld_powerdown(self):
+        pd = 0x01 << 5
+        reg_bin = bytes([0, 0, 0, 0, 0, pd, 0, 0, 0, 0])
+        reg = ExGRegister(reg_bin)
+
+        self.assertEqual(reg.rld_powerdown, False)
+
+    def test_exg_register_rld_channels(self):
+        reg_bin = bytes([0x03, 0xA8, 0x10, 0x40, 0x40, 0x2D, 0x00, 0x00, 0x02, 0x03])
+        reg = ExGRegister(reg_bin)
+        self.assertEqual(reg.rld_channels, [ExGRLDLead.RLD1P, ExGRLDLead.RLD2P, ExGRLDLead.RLD2N])
+
+        reg_bin = bytes([0x03, 0xA8, 0x10, 0x40, 0x40, 0x00, 0x00, 0x00, 0x02, 0x03])
+        reg = ExGRegister(reg_bin)
+        self.assertEqual(reg.rld_channels, [])
+
+    def test_exg_register_rld_ref(self):
+        reg_bin = bytes([0x03, 0xA8, 0x10, 0x40, 0x40, 0x2D, 0x00, 0x00, 0x02, 0x03])
+        reg = ExGRegister(reg_bin)
+        self.assertEqual(reg.rld_ref, ERLDRef.INTERNAL)
+
+        reg_bin = bytes([0x03, 0xA8, 0x10, 0x40, 0x40, 0x2D, 0x00, 0x00, 0x02, 0x01])
+        reg = ExGRegister(reg_bin)
+        self.assertEqual(reg.rld_ref, ERLDRef.EXTERNAL)
+
+    def test_exg_register_print(self):
+        reg_bin = bytes([0x03, 0xA8, 0x10, 0x40, 0x40, 0x2D, 0x00, 0x00, 0x02, 0x03])
+        reg = ExGRegister(reg_bin)
+
+        str_repr = str(reg)
+        self.assertTrue('Data Rate: 1000' in str_repr)
+        self.assertTrue('RLD Powerdown: False' in str_repr)
