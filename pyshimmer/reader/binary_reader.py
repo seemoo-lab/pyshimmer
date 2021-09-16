@@ -174,7 +174,7 @@ class ShimmerBinaryReader(FileIOBase):
         reg2 = self._read(EXG_REG_LEN)
         return reg1, reg2
 
-    def _read_calibration_params(self, offset: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def _read_triaxcal_params(self, offset: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         fmt = ">" + 6 * 'h' + 9 * 'b'
 
         self._seek(offset)
@@ -208,13 +208,13 @@ class ShimmerBinaryReader(FileIOBase):
         reg_content = self._exg_regs[chip_id]
         return ExGRegister(reg_content)
 
-    def get_calibration_params(self, sensor: ESensorGroup) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def get_triaxcal_params(self, sensor: ESensorGroup) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         offset = TRIAXCAL_FILE_OFFSET[sensor]
         sc_offset = TRIAXCAL_OFFSET_SCALING[sensor]
         sc_gain = TRIAXCAL_GAIN_SCALING[sensor]
         sc_alignment = TRIAXCAL_ALIGNMENT_SCALING[sensor]
 
-        offset, gain, alignment = self._read_calibration_params(offset)
+        offset, gain, alignment = self._read_triaxcal_params(offset)
         return offset * sc_offset, gain * sc_gain, alignment * sc_alignment
 
     @property

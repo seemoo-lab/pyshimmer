@@ -136,7 +136,7 @@ class ShimmerReaderTest(TestCase):
             reader = ShimmerBinaryReader(f)
 
             for sensor, (exp_offset, exp_gain, exp_alignment) in exp_params.items():
-                offset, gain, alignment = reader.get_calibration_params(sensor)
+                offset, gain, alignment = reader.get_triaxcal_params(sensor)
                 np.testing.assert_almost_equal(offset, exp_offset, decimal=10)
                 np.testing.assert_almost_equal(gain, exp_gain, decimal=10)
                 np.testing.assert_almost_equal(alignment, exp_alignment, decimal=10)
