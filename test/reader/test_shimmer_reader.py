@@ -17,10 +17,11 @@ from unittest import TestCase
 from unittest.mock import Mock, PropertyMock
 
 import numpy as np
+from typing import List, Set
 
 from pyshimmer.device import EChannelType, ticks2sec, get_exg_ch, ExGRegister
 from pyshimmer.reader.binary_reader import ShimmerBinaryReader
-from pyshimmer.reader.shimmer_reader import ShimmerReader
+from pyshimmer.reader.shimmer_reader import ShimmerReader, SingleChannelProcessor, PPGProcessor
 from .reader_test_util import get_bin_vs_consensys_pair_fpath, get_synced_bin_vs_consensys_pair_fpath, get_ecg_sample
 
 
@@ -245,3 +246,67 @@ class ShimmerReaderTest(TestCase):
 
         verify(bin_path, expected_uncal, post_process=False)
         verify(bin_path, expected_cal, post_process=True)
+
+
+class SignalPostProcessorTest(TestCase):
+
+    # noinspection PyTypeChecker
+    def test_single_channel_processor(self):
+        class TestProcessor(SingleChannelProcessor):
+
+            def __init__(self, channels: List[EChannelType] = None):
+                super().__init__(channels)
+
+                self._seen = []
+
+            def process_channel(self, ch_type: EChannelType, y: np.ndarray, reader: ShimmerBinaryReader) -> np.ndarray:
+                self._seen.append(ch_type)
+                return y
+
+            @property
+            def seen(self) -> Set[EChannelType]:
+                return set(self._seen)
+
+        ch_data = {
+            EChannelType.TIMESTAMP: np.random.randn(10),
+            EChannelType.VBATT: np.random.randn(10),
+            EChannelType.INTERNAL_ADC_13: np.random.randn(10),
+            EChannelType.ACCEL_LN_X: np.random.randn(10),
+        }
+        ch_types = set(ch_data.keys())
+
+        proc = TestProcessor()
+        proc.process(ch_data, None)
+        self.assertEqual(proc.seen, ch_types)
+
+        proc = TestProcessor([EChannelType.VBATT])
+        proc.process(ch_data, None)
+        self.assertEqual(proc.seen, {EChannelType.VBATT})
+
+        proc = TestProcessor([EChannelType.VBATT, EChannelType.ACCEL_LN_Y])
+        proc.process(ch_data, None)
+        self.assertEqual(proc.seen, {EChannelType.VBATT})
+
+        proc = TestProcessor([EChannelType.VBATT, EChannelType.ACCEL_LN_X])
+        proc.process(ch_data, None)
+        self.assertEqual(proc.seen, {EChannelType.VBATT, EChannelType.ACCEL_LN_X})
+
+    # noinspection PyMethodMayBeStatic
+    def test_ppg_processor(self):
+        ppg_data = np.random.randn(10)
+        ch_data = {
+            EChannelType.TIMESTAMP: np.random.randn(10),
+            EChannelType.VBATT: np.random.randn(10),
+            EChannelType.INTERNAL_ADC_13: ppg_data,
+            EChannelType.ACCEL_LN_X: np.random.randn(10),
+        }
+
+        proc = PPGProcessor()
+        # noinspection PyTypeChecker
+        output = proc.process(ch_data, None)
+
+        for ch, y in output.items():
+            if ch != EChannelType.INTERNAL_ADC_13:
+                np.testing.assert_equal(y, ch_data[ch])
+            else:
+                np.testing.assert_equal(y, ppg_data / 1000.0)

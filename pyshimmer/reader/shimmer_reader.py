@@ -16,6 +16,7 @@
 from typing import Dict, List, BinaryIO
 
 import numpy as np
+from abc import ABC, abstractmethod
 
 from pyshimmer.device import EChannelType, ticks2sec, dr2sr, ExGRegister, get_exg_ch, ChDataTypeAssignment, is_exg_ch
 from pyshimmer.reader.binary_reader import ShimmerBinaryReader
@@ -34,10 +35,73 @@ def fit_linear_1d(xp, fp, x):
     return fn(x)
 
 
+class ChannelPostProcessor(ABC):
+
+    @abstractmethod
+    def process(self, channels: Dict[EChannelType, np.ndarray], reader: ShimmerBinaryReader) -> \
+            Dict[EChannelType, np.ndarray]:
+        pass
+
+
+class SingleChannelProcessor(ChannelPostProcessor, ABC):
+
+    def __init__(self, ch_types: List[EChannelType] = None):
+        super().__init__()
+        self._ch_types = ch_types
+
+    def process(self, channels: Dict[EChannelType, np.ndarray], reader: ShimmerBinaryReader) -> \
+            Dict[EChannelType, np.ndarray]:
+
+        if self._ch_types is None:
+            ch_types = list(channels.keys())
+        else:
+            ch_types = [t for t in self._ch_types if t in channels]
+
+        result = channels.copy()
+        for ch_type in ch_types:
+            result[ch_type] = self.process_channel(ch_type, channels[ch_type], reader)
+
+        return result
+
+    @abstractmethod
+    def process_channel(self, ch_type: EChannelType, y: np.ndarray, reader: ShimmerBinaryReader) -> np.ndarray:
+        pass
+
+
+class ExGProcessor(SingleChannelProcessor):
+
+    def __init__(self):
+        exg_channels = [t for t in EChannelType if is_exg_ch(t)]
+        super().__init__(exg_channels)
+
+    def process_channel(self, ch_type: EChannelType, y: np.ndarray, reader: ShimmerBinaryReader) -> np.ndarray:
+        chip_id, ch_id = get_exg_ch(ch_type)
+        exg_reg = reader.get_exg_reg(chip_id)
+        gain = exg_reg.get_ch_gain(ch_id)
+
+        ch_dtype = ChDataTypeAssignment[ch_type]
+        resolution = 8 * ch_dtype.size
+        sensitivity = EXG_ADC_REF_VOLT / (2 ** (resolution - 1) - 1)
+
+        # According to formula in Shimmer ECG User Guide
+        y_volt = (y - EXG_ADC_OFFSET) * sensitivity / gain
+        return y_volt
+
+
+class PPGProcessor(SingleChannelProcessor):
+
+    def __init__(self):
+        super().__init__([EChannelType.INTERNAL_ADC_13])
+
+    def process_channel(self, ch_type: EChannelType, y: np.ndarray, reader: ShimmerBinaryReader) -> np.ndarray:
+        # Convert from mV to V
+        return y / 1000.0
+
+
 class ShimmerReader:
 
     def __init__(self, fp: BinaryIO = None, bin_reader: ShimmerBinaryReader = None, realign: bool = True,
-                 sync: bool = True, post_process: bool = True):
+                 sync: bool = True, post_process: bool = True, processors: List[ChannelPostProcessor] = None):
         if fp is not None:
             self._bin_reader = ShimmerBinaryReader(fp)
         elif bin_reader is not None:
@@ -49,7 +113,15 @@ class ShimmerReader:
         self._ch_samples = {}
         self._realign = realign
         self._sync = sync
+
         self._pp = post_process
+        if processors is not None:
+            self._processors = processors
+        else:
+            self._processors = [
+                ExGProcessor(),
+                PPGProcessor(),
+            ]
 
     @staticmethod
     def _apply_synchronization(data_ts: np.ndarray, offset_index: np.ndarray, offsets: np.ndarray):
@@ -90,29 +162,11 @@ class ShimmerReader:
 
         return ts_aligned, samples_aligned
 
-    def _process_exg_signal(self, ch_type: EChannelType, y: np.ndarray) -> np.ndarray:
-        chip_id, ch_id = get_exg_ch(ch_type)
-        exg_reg = self.get_exg_reg(chip_id)
-        gain = exg_reg.get_ch_gain(ch_id)
-
-        ch_dtype = ChDataTypeAssignment[ch_type]
-        resolution = 8 * ch_dtype.size
-        sensitivity = EXG_ADC_REF_VOLT / (2 ** (resolution - 1) - 1)
-
-        # According to formula in Shimmer ECG User Guide
-        y_volt = (y - EXG_ADC_OFFSET) * sensitivity / gain
-        return y_volt
-
     def _process_signals(self, channels: Dict[EChannelType, np.ndarray]) -> Dict[EChannelType, np.ndarray]:
-        result = {}
-        for ch, y in channels.items():
-            if is_exg_ch(ch):
-                result[ch] = self._process_exg_signal(ch, y)
-            elif ch == EChannelType.INTERNAL_ADC_13:
-                # Adjust the signal unit from mV to V
-                result[ch] = y / 1000.0
-            else:
-                result[ch] = y
+        result = channels.copy()
+
+        for processor in self._processors:
+            result = processor.process(result, self._bin_reader)
 
         return result
 
