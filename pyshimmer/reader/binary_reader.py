@@ -19,7 +19,7 @@ from typing import List, Tuple, Union, BinaryIO
 import numpy as np
 
 from pyshimmer.device import ESensorGroup, EChannelType, ChannelDataType, SensorBitAssignments, \
-    get_enabled_channels, get_ch_dtypes
+    get_enabled_channels, get_ch_dtypes, ExGRegister
 from pyshimmer.util import FileIOBase, unpack, bit_is_set
 from .reader_const import RTC_CLOCK_DIFF_OFFSET, ENABLED_SENSORS_OFFSET, ENABLED_SENSORS_LEN, SR_OFFSET, \
     START_TS_OFFSET, START_TS_LEN, TRIAL_CONFIG_OFFSET, TRIAL_CONFIG_MASTER, TRIAL_CONFIG_SYNC, BLOCK_LEN, \
@@ -190,8 +190,9 @@ class ShimmerBinaryReader(FileIOBase):
 
         return samples_dict, sync_data
 
-    def get_exg_reg(self, chip_id: int) -> bytes:
-        return self._exg_regs[chip_id]
+    def get_exg_reg(self, chip_id: int) -> ExGRegister:
+        reg_content = self._exg_regs[chip_id]
+        return ExGRegister(reg_content)
 
     @property
     def sample_rate(self) -> int:
@@ -234,9 +235,9 @@ class ShimmerBinaryReader(FileIOBase):
         return bit_is_set(self._trial_config, TRIAL_CONFIG_MASTER)
 
     @property
-    def exg_reg1(self) -> bytes:
-        return self._exg_regs[0]
+    def exg_reg1(self) -> ExGRegister:
+        return self.get_exg_reg(0)
 
     @property
-    def exg_reg2(self) -> bytes:
-        return self._exg_regs[1]
+    def exg_reg2(self) -> ExGRegister:
+        return self.get_exg_reg(1)

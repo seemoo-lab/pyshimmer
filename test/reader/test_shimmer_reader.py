@@ -18,7 +18,7 @@ from unittest.mock import Mock, PropertyMock
 
 import numpy as np
 
-from pyshimmer.device import EChannelType, ticks2sec, get_exg_ch
+from pyshimmer.device import EChannelType, ticks2sec, get_exg_ch, ExGRegister
 from pyshimmer.reader.binary_reader import ShimmerBinaryReader
 from pyshimmer.reader.shimmer_reader import ShimmerReader
 from .reader_test_util import get_bin_vs_consensys_pair_fpath, get_synced_bin_vs_consensys_pair_fpath, get_ecg_sample
@@ -159,8 +159,10 @@ class ShimmerReaderTest(TestCase):
         np.testing.assert_almost_equal(actual_ppg.flatten(), expected_ppg.flatten())
 
     def test_reader_exg_register(self):
-        exp_reg1 = bytes(range(10))
-        exp_reg2 = bytes(range(10, 0, -1))
+        exp_reg1_content = bytes(range(10))
+        exp_reg1 = ExGRegister(exp_reg1_content)
+        exp_reg2_content = bytes(range(10, 0, -1))
+        exp_reg2 = ExGRegister(exp_reg2_content)
         exp_regs = [exp_reg1, exp_reg2]
 
         m_br = Mock(spec=ShimmerBinaryReader)
@@ -170,18 +172,18 @@ class ShimmerReaderTest(TestCase):
         reader = ShimmerReader(bin_reader=m_br)
 
         for i in range(2):
-            self.assertEqual(reader.get_exg_reg(i).binary, exp_regs[i])
+            self.assertEqual(reader.get_exg_reg(i), exp_regs[i])
 
         actual_reg1 = reader.exg_reg1
         actual_reg2 = reader.exg_reg2
-        self.assertEqual(actual_reg1.binary, exp_reg1)
-        self.assertEqual(actual_reg2.binary, exp_reg2)
+        self.assertEqual(actual_reg1, exp_reg1)
+        self.assertEqual(actual_reg2, exp_reg2)
 
     # noinspection PyMethodMayBeStatic
     def test_post_process_exg_signal(self):
-        exg_reg1 = b'\x03\x80\x10\x40\x40\x00\x00\x00\x02\x01'
+        exg_reg1 = ExGRegister(b'\x03\x80\x10\x40\x40\x00\x00\x00\x02\x01')
         exg1_gain = 4
-        exg_reg2 = b'\x03\x80\x10\x20\x20\x00\x00\x00\x02\x01'
+        exg_reg2 = ExGRegister(b'\x03\x80\x10\x20\x20\x00\x00\x00\x02\x01')
         exg2_gain = 2
 
         chip_gain = {
