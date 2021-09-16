@@ -22,9 +22,9 @@ _synced_pair_csv_name = 'sdlog_sync_slave.csv.gz'
 _pair_raw_name = 'pair_raw.bin'
 _pair_csv_name = 'pair_consensys.csv'
 
-_acc_gyro_sample_name = "acc_gyro_sample.bin"
-_acc_gyro_uncal_name = "acc_gyro_uncalibrated.csv.gz"
-_acc_gyro_cal_name = "acc_gyro_calibrated.csv.gz"
+_acc_gyro_sample_name = "triaxcal_sample.bin"
+_acc_gyro_uncal_name = "triaxcal_uncalibrated.csv.gz"
+_acc_gyro_cal_name = "triaxcal_calibrated.csv.gz"
 
 _ecg_sample_bin = 'ecg.bin'
 _ecg_sample_uncal = 'ecg_uncalibrated.csv.gz'
