@@ -24,7 +24,7 @@ from .reader_test_util import get_binary_sample_fpath, get_synced_bin_vs_consens
 
 class ShimmerReaderTest(TestCase):
 
-    def test_binary_reader_no_sync_file(self):
+    def test_parsing_wo_sync(self):
         fpath = get_binary_sample_fpath()
         with open(fpath, 'rb') as f:
             reader = ShimmerBinaryReader(f)
@@ -59,7 +59,7 @@ class ShimmerReaderTest(TestCase):
             correct_diff = np.sum(ts_diff == exp_dr)
             self.assertTrue(correct_diff / len(ts_diff) > 0.98)
 
-    def test_binary_reader_sync_file(self):
+    def test_parsing_w_sync(self):
         fpath, _ = get_synced_bin_vs_consensys_pair_fpath()
         with open(fpath, 'rb') as f:
             reader = ShimmerBinaryReader(f)
