@@ -11,18 +11,20 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
+from typing import List, Set
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from unittest import TestCase
 from unittest.mock import Mock, PropertyMock
 
 import numpy as np
-from typing import List, Set
+import pandas as pd
 
-from pyshimmer.device import EChannelType, ticks2sec, get_exg_ch, ExGRegister
+from pyshimmer.device import EChannelType, ticks2sec, get_exg_ch, ExGRegister, ESensorGroup, get_enabled_channels
 from pyshimmer.reader.binary_reader import ShimmerBinaryReader
-from pyshimmer.reader.shimmer_reader import ShimmerReader, SingleChannelProcessor, PPGProcessor
-from .reader_test_util import get_bin_vs_consensys_pair_fpath, get_synced_bin_vs_consensys_pair_fpath, get_ecg_sample
+from pyshimmer.reader.shimmer_reader import ShimmerReader, SingleChannelProcessor, PPGProcessor, TriAxCalProcessor
+from .reader_test_util import get_bin_vs_consensys_pair_fpath, get_synced_bin_vs_consensys_pair_fpath, get_ecg_sample, \
+    get_triaxcal_sample
 
 
 class ShimmerReaderTest(TestCase):
@@ -40,6 +42,7 @@ class ShimmerReaderTest(TestCase):
         m_br = Mock(spec=ShimmerBinaryReader)
         m_br.read_data.return_value = (samples, [])
         type(m_br).sample_rate = PropertyMock(return_value=sr)
+        type(m_br).enabled_sensors = PropertyMock(return_value=[])
         type(m_br).has_sync = PropertyMock(return_value=False)
         type(m_br).has_global_clock = PropertyMock(return_value=False)
         type(m_br).start_timestamp = PropertyMock(return_value=0)
@@ -63,6 +66,7 @@ class ShimmerReaderTest(TestCase):
 
         m_br = Mock(spec=ShimmerBinaryReader)
         type(m_br).has_sync = PropertyMock(return_value=False)
+        type(m_br).enabled_sensors = PropertyMock(return_value=[])
         type(m_br).sample_rate = PropertyMock(return_value=sr)
         type(m_br).has_global_clock = PropertyMock(return_value=False)
         type(m_br).start_timestamp = PropertyMock(return_value=0)
@@ -97,6 +101,7 @@ class ShimmerReaderTest(TestCase):
         m_br = Mock(spec=ShimmerBinaryReader)
         m_br.read_data.return_value = (samples, [sync_index, sync_offset])
         type(m_br).sample_rate = PropertyMock(return_value=sr)
+        type(m_br).enabled_sensors = PropertyMock(return_value=[])
         type(m_br).has_sync = PropertyMock(return_value=True)
         type(m_br).has_global_clock = PropertyMock(return_value=False)
         type(m_br).start_timestamp = PropertyMock(return_value=0)
@@ -205,6 +210,7 @@ class ShimmerReaderTest(TestCase):
         m_br.get_exg_reg.side_effect = lambda x: exg_reg1 if x == 0 else exg_reg2
         m_br.read_data.side_effect = lambda: (dict(samples_w_ts), ((), ()))
         type(m_br).sample_rate = PropertyMock(return_value=1)
+        type(m_br).enabled_sensors = PropertyMock(return_value=[])
         type(m_br).has_sync = PropertyMock(return_value=False)
         type(m_br).has_global_clock = PropertyMock(return_value=False)
         type(m_br).start_timestamp = PropertyMock(return_value=0)
@@ -246,6 +252,35 @@ class ShimmerReaderTest(TestCase):
 
         verify(bin_path, expected_uncal, post_process=False)
         verify(bin_path, expected_cal, post_process=True)
+
+    # noinspection PyMethodMayBeStatic
+    def test_compare_triaxcal_to_consensys(self):
+        bin_path, uncal_path, cal_path = get_triaxcal_sample()
+
+        consensys_csv = pd.read_csv(cal_path, sep=",", skiprows=(0, 2), usecols=list(range(14)))
+        col_mapping = {
+            EChannelType.ACCEL_LN_X: "Shimmer_952D_Accel_LN_X_CAL",
+            EChannelType.ACCEL_LN_Y: "Shimmer_952D_Accel_LN_Y_CAL",
+            EChannelType.ACCEL_LN_Z: "Shimmer_952D_Accel_LN_Z_CAL",
+            EChannelType.ACCEL_LSM303DLHC_X: "Shimmer_952D_Accel_WR_X_CAL",
+            EChannelType.ACCEL_LSM303DLHC_Y: "Shimmer_952D_Accel_WR_Y_CAL",
+            EChannelType.ACCEL_LSM303DLHC_Z: "Shimmer_952D_Accel_WR_Z_CAL",
+            EChannelType.GYRO_MPU9150_X: "Shimmer_952D_Gyro_X_CAL",
+            EChannelType.GYRO_MPU9150_Y: "Shimmer_952D_Gyro_Y_CAL",
+            EChannelType.GYRO_MPU9150_Z: "Shimmer_952D_Gyro_Z_CAL",
+            EChannelType.MAG_LSM303DLHC_X: "Shimmer_952D_Mag_X_CAL",
+            EChannelType.MAG_LSM303DLHC_Y: "Shimmer_952D_Mag_Y_CAL",
+            EChannelType.MAG_LSM303DLHC_Z: "Shimmer_952D_Mag_Z_CAL",
+        }
+
+        with open(bin_path, 'rb') as f:
+            reader = ShimmerReader(f)
+            reader.load_file_data()
+
+            for rdr_col, csv_col in col_mapping.items():
+                rdr_channel = reader[rdr_col]
+                csv_channel = consensys_csv[csv_col]
+                np.testing.assert_almost_equal(rdr_channel, csv_channel.to_numpy())
 
 
 class SignalPostProcessorTest(TestCase):
@@ -310,3 +345,26 @@ class SignalPostProcessorTest(TestCase):
                 np.testing.assert_equal(y, ch_data[ch])
             else:
                 np.testing.assert_equal(y, ppg_data / 1000.0)
+
+    # noinspection PyMethodMayBeStatic
+    def test_triaxcal_processor(self):
+        o, g, a = np.array([1, 2, 3]), np.diag([4, 5, 6]), np.diag([7, 8, 9])
+        params = {ESensorGroup.ACCEL_LN: (o, g, a)}
+
+        ch_types = get_enabled_channels(list(params.keys()))
+
+        data_arr = np.random.randn(3, 100)
+        data_dict = {c: data_arr[i] for i, c in enumerate(ch_types)}
+
+        mock_reader = Mock(spec=ShimmerBinaryReader)
+        mock_reader.get_triaxcal_params.side_effect = lambda x: params[x]
+        type(mock_reader).enabled_sensors = PropertyMock(return_value=list(params.keys()))
+
+        proc = TriAxCalProcessor()
+        actual_dict = proc.process(data_dict, mock_reader)
+        actual_arr = np.stack([actual_dict[c] for c in ch_types])
+
+        k = np.matmul(np.linalg.inv(a), np.linalg.inv(g))
+        exp_arr = np.matmul(k, data_arr - o[..., None])
+
+        np.testing.assert_almost_equal(actual_arr, exp_arr)
