@@ -11,14 +11,20 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
+import random
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from unittest import TestCase
-import random
 
 from pyshimmer.device import sr2dr, dr2sr, ChannelDataType, ChDataTypeAssignment, SensorChannelAssignment, \
     SensorBitAssignments, sec2ticks, ticks2sec, get_ch_dtypes, EChannelType, ExGRegister, ExGMux, get_firmware_type, \
     EFirmwareType, ExGRLDLead, ERLDRef, get_exg_ch, is_exg_ch
+
+
+def randbytes(k: int) -> bytes:
+    population = list(range(256))
+    seq = random.choices(population, k=k)
+    return bytes(seq)
 
 
 class DeviceTest(TestCase):
@@ -250,8 +256,8 @@ class ExGRegisterTest(TestCase):
         def do_assert(a: bytes, b: bytes, result: bool) -> None:
             self.assertEqual(ExGRegister(a) == ExGRegister(b), result)
 
-        x = random.randbytes(10)
-        y = random.randbytes(10)
+        x = randbytes(10)
+        y = randbytes(10)
 
         do_assert(x, y, False)
         do_assert(x, x, True)
