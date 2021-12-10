@@ -22,4 +22,10 @@ jobs:
           pip install .[test]
       - name: Test with pytest
         run: |
-          pytest --cov-config=.coveragerc --cov=./
+          pytest --cov-config=.coveragerc --cov-report=xml --cov=./
+      - name: Upload coverage to codecov.io
+        uses: codecov/codecov-action@v2
+        with:
+          files: ./coverage.xml
+          env_vars: OS,PYTHON
+          verbose: true
