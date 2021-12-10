@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.6, 3.7, 3.8, 3.9]
+        python-version: ['3.6', '3.7', '3.8', '3.9', '3.10']
 
     steps:
       - uses: actions/checkout@v2
@@ -22,4 +22,10 @@ jobs:
           pip install .[test]
       - name: Test with pytest
         run: |
-          pytest --cov-config=.coveragerc --cov=./
+          pytest --cov-config=.coveragerc --cov-report=xml --cov=./
+      - name: Upload coverage to codecov.io
+        uses: codecov/codecov-action@v2
+        with:
+          files: ./coverage.xml
+          env_vars: OS,PYTHON
+          verbose: true
