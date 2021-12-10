@@ -25,7 +25,7 @@ three major components:
 
 .. _Shimmer: http://www.shimmersensing.com/
 
-Please note that the following README does not provide a general introduction into the Shimmer devices. For this, please
+Please note that the following README does not provide a general introduction to the Shimmer devices. For this, please
 consult the corresponding `documentation page <http://www.shimmersensing.com/support/wireless-sensor-networks-documentation/>`_
 of the vendor and take a closer look at:
 
@@ -43,7 +43,7 @@ missing required calls.
 Installation
 ------------
 
-The targeted plattform for this library is **Linux**. It has not been tested under other operating systems. In order to
+The targeted plattform for this library is **Linux**. It has not been tested on other operating systems. In order to
 use all aspects of the library, you need to install the package itself, set up the Bluetooth interface, and possibly
 configure udev rules to ensure that the device names are consistent.
 
@@ -88,7 +88,7 @@ SDLog         v0.19.0   Compatible
 If you want to use the *LogAndStream* firmware with the pyshimmer library, you will need to compile and program a
 patched version of the firmware. We provide a forked repository which features the necessary fixes
 `here <https://github.com/seemoo-lab/shimmer3/>`_. It also contains instructions on how to compile and program the
-firwmare.
+firmware.
 
 Creating udev rules for persistent device filenames
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -103,19 +103,17 @@ the internal SD card of the Shimmer:
 When working with multiple docks and devices, keeping track of the names of the serial interfaces can be quite
 cumbersome, since udev simply names the devices in the order they are plugged in to the system. You can use udev rules
 to assign persistent names to the device files. Note that the rules do not actually match the Shimmer but the dock that
-it is located in. **This means that you need to always place the device in its respective dock**.
+it is located in. **This means that you should always place the Shimmer in the same dock**.
 
-The following section provides an example of how to handle two Shimmer docks, one of which is an ECG and the other a
+The following section provides an example of how to handle two Shimmer docks, one of which holds an ECG and the other a
 PPG device:
 
 Distinguishing the Shimmer booloader and device interfaces based on their udev attributes is somewhat difficult because
-the distinguishing attributes are spread across multiple devices in the USB device tree.
-We first differentiate between different Shimmer docks based on the serial ID attribute of the dock. This allows us to
-distinguish between the ECG and the PPG dock. The second step is to check the bInterfaceNumber of the tty device.
-With this check, we determine if the tty file is the bootloader device, i.e. bInterfaceNumber == 00, or the interface
-to the Shimmer itself, i.e. bInterfaceNumber == 01. Unfortunately, it is not possible to check attributes from different
-parents in a single rule and we need to use the Goto action to create an if clause around the bInterfaceNumber. You can
-see the full udev ruleset in the following code snippet:
+the distinguishing attributes are spread across multiple devices in the USB device tree. The rules first check the
+bInterfaceNumber of the tty device that is being processed. If the device is the bootloader device, its bInterfaceNumber
+is equal to 00. If the device is the interface to the Shimmer itself, bInterfaceNumber is equal to 01.
+In a second step, the rule set differentiates between the ECG dock and the PPG dock based on the serial number of
+the device. The entire udev ruleset is shown in the following code snippet:
 
 .. code-block::
 
