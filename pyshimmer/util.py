@@ -19,6 +19,7 @@ from queue import Queue
 from typing import BinaryIO, Tuple, Union, List
 
 import numpy as np
+import math
 
 
 def bit_is_set(bitfield: int, mask: int) -> bool:
@@ -118,6 +119,35 @@ def resp_code_to_bytes(code: Union[int, Tuple[int, ...], bytes]) -> bytes:
         code = bytes(code)
 
     return code
+
+
+def calibrate_u12_adc_value(uncalibratedData, offset, vRefP, gain):
+    """Convert the uncalibrated data to calibrated data
+
+    :param uncalibratedData: Raw voltage measurement from device
+    :param offset: Voltage offset in measured data
+    :param vRefP: Voltage reference signal in Volt
+    :param gain: gain factor
+    :return: Calibrated voltage in Volt
+    """
+    return ((uncalibratedData - offset) * ((vRefP/gain)/4095))
+
+
+def battery_voltage_to_percent(battery_voltage):
+    """Convert battery voltage to percent
+
+    :param battery_voltage: Battery voltage in Volt
+    :return: approximated battery state in percent based on manual 
+    """
+    if (battery_voltage < 3.811):
+        battery_percent = 20.6808 * np.log(39.0718 * battery_voltage - 142.743) + 18.0264
+    else:
+        battery_percent = 1.14146 * math.exp(1.22694 * battery_voltage) - 75.1616
+
+    battery_percent = min(battery_percent, 100)
+    battery_percent = max(battery_percent, 0)
+
+    return battery_percent
 
 
 class PeekQueue(Queue):
