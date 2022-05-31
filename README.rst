@@ -40,6 +40,9 @@ complete. Especially the Bluetooth and Dock API do not feature all calls support
 provides a solid foundation to extend it where necessary. Please feel free to make contributions in case the code is
 missing required calls.
 
+Please submit pull requests against the develop branch. When a new version is released, the current state of the
+develop branch is merged into master to produce the new version.
+
 Installation
 ------------
 
