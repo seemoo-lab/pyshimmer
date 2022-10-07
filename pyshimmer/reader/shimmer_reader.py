@@ -122,7 +122,7 @@ class TriAxCalProcessor(ChannelPostProcessor):
 
 class ShimmerReader:
 
-    def __init__(self, fp: BinaryIO = None, bin_reader: ShimmerBinaryReader = None, realign: bool = True,
+    def __init__(self, fp: BinaryIO = None, bin_reader: ShimmerBinaryReader = None,
                  sync: bool = True, post_process: bool = True, processors: List[ChannelPostProcessor] = None):
         if fp is not None:
             self._bin_reader = ShimmerBinaryReader(fp)
@@ -133,7 +133,6 @@ class ShimmerReader:
 
         self._ts = None
         self._ch_samples = {}
-        self._realign = realign
         self._sync = sync
 
         self._pp = post_process
@@ -173,18 +172,6 @@ class ShimmerReader:
         ts_diff = np.diff(ts_dev)
         return np.all(ts_diff == self._bin_reader.sample_rate)
 
-    def _realign_samples(self, ts: np.ndarray, samples: Dict[EChannelType, np.ndarray]):
-        n = len(ts)
-        offset = ts[0]
-
-        ts_aligned = offset + np.arange(n) / self.sample_rate
-
-        samples_aligned = {}
-        for ch in samples.keys():
-            samples_aligned[ch] = np.interp(ts_aligned, ts, samples[ch])
-
-        return ts_aligned, samples_aligned
-
     def _process_signals(self, channels: Dict[EChannelType, np.ndarray]) -> Dict[EChannelType, np.ndarray]:
         result = channels.copy()
 
@@ -204,13 +191,11 @@ class ShimmerReader:
             ts_sane = self._apply_synchronization(ts_sane, *sync_offsets)
 
         if self._pp:
-            samples = self._process_signals(samples)
-
-        ts_unaligned = ticks2sec(ts_sane)
-        if self._realign and not self._is_spaced_equally(ts_sane):
-            self._ts, self._ch_samples = self._realign_samples(ts_unaligned, samples)
+            self._ch_samples = self._process_signals(samples)
         else:
-            self._ts, self._ch_samples = ts_unaligned, samples
+            self._ch_samples = samples
+
+        self._ts = ticks2sec(ts_sane)
 
     def get_exg_reg(self, chip_id: int) -> ExGRegister:
         return self._bin_reader.get_exg_reg(chip_id)
