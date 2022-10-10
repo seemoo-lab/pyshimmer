@@ -294,7 +294,7 @@ Using the Reader API
 If the data was recorded using the :code:`SDLog` firmware and features synchronization information, the API
 automatically interpolates the data to the common timestamp information of the master.
 
-Please be aware that although you have configured a sampling frequency f for your measurements, it can happen
-that not all timestamps are spaced according to the configured sampling period 1 / f. So far, we have only
-observed this with the first timestamp in a measurement. Please take this caveat into consideration
-when you design your code.
+**Note**: Please be aware that although you have configured a sampling frequency f for your measurements, it can happen that observations are missing.
+Usually the observed time difference is a multiple of the sampling period 1 / f.
+However, this is not the case for the time difference between the first two observations.
+Please take this caveat into consideration when you design your code.
