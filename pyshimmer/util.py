@@ -139,10 +139,13 @@ def battery_voltage_to_percent(battery_voltage):
     :param battery_voltage: Battery voltage in Volt
     :return: approximated battery state in percent based on manual 
     """
-    if (battery_voltage < 3.811):
-        battery_percent = 20.6808 * np.log(39.0718 * battery_voltage - 142.743) + 18.0264
-    else:
-        battery_percent = 1.14146 * math.exp(1.22694 * battery_voltage) - 75.1616
+    # reference values from: https://shimmersensing.com/wp-content/docs/support/documentation/Shimmer_User_Manual_rev3p.pdf (Page 53)
+    reference_data_voltages = [3.2, 3.627, 3.645, 3.663, 3.681, 3.699, 3.717, 3.7314, 3.735, 3.7386, 3.7566, 3.771, 3.789, 3.8034, 3.8106, 3.8394, 3.861, \
+        3.8826, 3.9078, 3.933, 3.969, 4.0086, 4.041, 4.0734, 4.113, 4.167]
+    reference_data_percentages = [0, 5.9, 9.8, 13.8, 17.7, 21.6, 25.6, 29.5, 33.4, 37.4, 41.3, 45.2, 49.2, 53.1, 57, 61, 64.9, 68.9, 72.8, 76.7, 80.7, 84.6, \
+        88.5, 92.5, 96.4, 100]
+
+    battery_percent = np.interp(battery_voltage, reference_data_voltages, reference_data_percentages)
 
     battery_percent = min(battery_percent, 100)
     battery_percent = max(battery_percent, 0)
