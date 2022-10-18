@@ -21,7 +21,8 @@ import numpy as np
 from unittest.mock import Mock
 
 from io import BytesIO
-from pyshimmer.util import bit_is_set, raise_to_next_pow, flatten_list, fmt_hex, unpack, unwrap, FileIOBase
+from pyshimmer.util import bit_is_set, raise_to_next_pow, flatten_list, fmt_hex, unpack, unwrap, calibrate_u12_adc_value, battery_voltage_to_percent, \
+     FileIOBase
 
 
 class UtilTest(TestCase):
@@ -127,6 +128,24 @@ class UtilTest(TestCase):
 
         r = unwrap(x, 2 ** 24)
         np.testing.assert_equal(r, e)
+
+    def test_calibrate_u12_adc_value(self):
+        uncalibratedData = 2863
+        offset = 0
+        vRefP = 3.0
+        gain = 1.0
+        
+        actual = calibrate_u12_adc_value(uncalibratedData, offset, vRefP, gain)
+
+        desired = 2.0974358974358975
+        np.testing.assert_almost_equal(actual, desired)
+
+    def test_battery_voltage_to_percent(self):
+        voltage = 3.9078
+        desired = 72.8
+
+        actual = battery_voltage_to_percent(voltage)
+        np.testing.assert_equal(actual, desired)
 
     def test_peek_queue(self):
         queue = PeekQueue()

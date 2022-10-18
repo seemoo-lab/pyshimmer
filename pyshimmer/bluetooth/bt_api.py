@@ -23,7 +23,7 @@ from pyshimmer.bluetooth.bt_commands import ShimmerCommand, GetSamplingRateComma
     SetConfigTimeCommand, GetRealTimeClockCommand, SetRealTimeClockCommand, GetStatusCommand, \
     GetFirmwareVersionCommand, InquiryCommand, StartStreamingCommand, StopStreamingCommand, DataPacket, \
     GetEXGRegsCommand, SetEXGRegsCommand, StartLoggingCommand, StopLoggingCommand, GetExperimentIDCommand, \
-    SetExperimentIDCommand, GetDeviceNameCommand, SetDeviceNameCommand, DummyCommand
+    SetExperimentIDCommand, GetDeviceNameCommand, SetDeviceNameCommand, DummyCommand, GetBatteryCommand
 from pyshimmer.bluetooth.bt_const import ACK_COMMAND_PROCESSED, DATA_PACKET, FULL_STATUS_RESPONSE, INSTREAM_CMD_RESPONSE
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
 from pyshimmer.device import EChannelType, ChDataTypeAssignment, ExGRegister, EFirmwareType, ChannelDataType
@@ -339,6 +339,13 @@ class ShimmerBluetooth:
         :return: The sampling rate as floating point value in samples per second
         """
         return self._process_and_wait(GetSamplingRateCommand())
+
+    def get_battery_state(self, in_percent: bool) -> float:
+        """Retrieve the battery state of the device
+        :param in_percent: True: calculate battery state in percent; False: calculate battery state in Volt
+        :return: The battery state in percent / Volt
+        """
+        return self._process_and_wait(GetBatteryCommand(in_percent))
 
     def get_config_time(self) -> int:
         """Get the config time from the device as configured in the configuration file

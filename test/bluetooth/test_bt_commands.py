@@ -16,8 +16,8 @@
 from typing import Tuple, Union
 from unittest import TestCase
 
-from pyshimmer.bluetooth.bt_commands import ShimmerCommand, GetSamplingRateCommand, GetConfigTimeCommand, \
-    SetConfigTimeCommand, GetRealTimeClockCommand, SetRealTimeClockCommand, GetStatusCommand, \
+from pyshimmer.bluetooth.bt_commands import ShimmerCommand, GetSamplingRateCommand, GetBatteryCommand, \
+    GetConfigTimeCommand, SetConfigTimeCommand, GetRealTimeClockCommand, SetRealTimeClockCommand, GetStatusCommand, \
     GetFirmwareVersionCommand, InquiryCommand, StartStreamingCommand, StopStreamingCommand, StartLoggingCommand, \
     StopLoggingCommand, GetEXGRegsCommand, SetEXGRegsCommand, GetExperimentIDCommand, SetExperimentIDCommand, \
     GetDeviceNameCommand, SetDeviceNameCommand, DummyCommand, DataPacket, ResponseCommand
@@ -86,6 +86,13 @@ class BluetoothCommandsTest(TestCase):
     def test_get_sampling_rate_command(self):
         cmd = GetSamplingRateCommand()
         self.assert_cmd(cmd, b'\x03', b'\x04', b'\x04\x40\x00', 512.0)
+
+    def test_get_battery_state_command(self):
+        cmd = GetBatteryCommand(in_percent=True)
+        self.assert_cmd(cmd, b'\x95', b'\x8a\x94', b'\x8a\x94\x30\x0b\x80', 100)
+
+        cmd = GetBatteryCommand(in_percent=False)
+        self.assert_cmd(cmd, b'\x95', b'\x8a\x94', b'\x8a\x94\x2e\x0b\x80', 4.168246153846154)
 
     def test_get_config_time_command(self):
         cmd = GetConfigTimeCommand()

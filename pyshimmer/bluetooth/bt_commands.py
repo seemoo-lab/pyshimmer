@@ -21,7 +21,7 @@ from pyshimmer.bluetooth.bt_const import *
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
 from pyshimmer.device import dr2sr, EChannelType, ChannelDataType, sec2ticks, ticks2sec, ExGRegister, \
     get_firmware_type
-from pyshimmer.util import bit_is_set, resp_code_to_bytes
+from pyshimmer.util import bit_is_set, resp_code_to_bytes, calibrate_u12_adc_value, battery_voltage_to_percent
 
 
 class DataPacket:
@@ -192,6 +192,29 @@ class GetSamplingRateCommand(ResponseCommand):
         sr = dr2sr(sr_clock)
         return sr
 
+class GetBatteryCommand(ResponseCommand):
+    """Retrieve the battery state
+
+    """
+
+    def __init__(self, in_percent: bool):
+        super().__init__(FULL_BATTERY_RESPONSE)
+        self._in_percent = in_percent
+
+    def send(self, ser: BluetoothSerial) -> None:
+        ser.write_command(GET_BATTERY_COMMAND)
+
+    def receive(self, ser: BluetoothSerial) -> any:
+        batt = ser.read_response(self.get_response_code(), arg_format='BBB')
+        # Calculation see: 
+        # http://shimmersensing.com/wp-content/docs/support/documentation/LogAndStream_for_Shimmer3_Firmware_User_Manual_rev0.11a.pdf (Page 17)
+        # https://shimmersensing.com/wp-content/docs/support/documentation/Shimmer_User_Manual_rev3p.pdf (Page 53)
+        raw_values = batt[1] * 256 + batt[0]
+        batt_voltage = calibrate_u12_adc_value(raw_values, 0, 3.0, 1.0) * 1.988
+        if (self._in_percent):
+            return battery_voltage_to_percent(batt_voltage)
+        else: 
+            return batt_voltage
 
 class GetConfigTimeCommand(ResponseCommand):
     """Retrieve the config time that is stored in the Shimmer device configuration file
