@@ -106,7 +106,7 @@ class ShimmerReaderTest(TestCase):
         type(m_br).has_global_clock = PropertyMock(return_value=False)
         type(m_br).start_timestamp = PropertyMock(return_value=0)
 
-        reader = ShimmerReader(bin_reader=m_br, realign=False)
+        reader = ShimmerReader(bin_reader=m_br)
         reader.load_file_data()
 
         ts_sync_dev = ts - np.linspace(1, 0, len(ts))
@@ -126,7 +126,7 @@ class ShimmerReaderTest(TestCase):
                         EChannelType.INTERNAL_ADC_13]
 
         with open(raw_file, 'rb') as f:
-            reader = ShimmerReader(f, realign=False)
+            reader = ShimmerReader(f)
             reader.load_file_data()
 
         self.assertEqual(exp_channels, reader.channels)
@@ -149,7 +149,7 @@ class ShimmerReaderTest(TestCase):
         exp_channels = [EChannelType.INTERNAL_ADC_13]
 
         with open(bin_path, 'rb') as f:
-            reader = ShimmerReader(f, realign=False, sync=True)
+            reader = ShimmerReader(f, sync=True)
             reader.load_file_data()
 
         csv_data = np.loadtxt(csv_path, delimiter='\t', skiprows=3, usecols=(0, 1))
@@ -238,7 +238,7 @@ class ShimmerReaderTest(TestCase):
 
         def verify(bin_file_path, expected, post_process):
             with open(bin_file_path, 'rb') as f:
-                reader = ShimmerReader(f, post_process=post_process, realign=False, sync=False)
+                reader = ShimmerReader(f, post_process=post_process, sync=False)
                 reader.load_file_data()
 
             actual = reader[EChannelType.EXG_ADS1292R_1_CH1_24BIT]

@@ -40,6 +40,9 @@ complete. Especially the Bluetooth and Dock API do not feature all calls support
 provides a solid foundation to extend it where necessary. Please feel free to make contributions in case the code is
 missing required calls.
 
+Please submit pull requests against the develop branch. When a new version is released, the current state of the
+develop branch is merged into master to produce the new version.
+
 Installation
 ------------
 
@@ -290,3 +293,8 @@ Using the Reader API
 
 If the data was recorded using the :code:`SDLog` firmware and features synchronization information, the API
 automatically interpolates the data to the common timestamp information of the master.
+
+**Note**: Please be aware that although you have configured a sampling frequency f for your measurements, it can happen that observations are missing.
+Usually the observed time difference is a multiple of the sampling period 1 / f.
+However, this is not the case for the time difference between the first two observations.
+Please take this caveat into consideration when you design your code.
