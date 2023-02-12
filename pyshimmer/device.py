@@ -89,6 +89,12 @@ class ChannelDataType:
         else:
             return suffix + val
 
+    def _truncate_value(self, val: bytes) -> bytes:
+        if self.little_endian:
+            return val[:self._size]
+        else:
+            return val[self._valid_size - self._size:]
+
     def _get_struct_format(self) -> str:
         stype = self._struct_dtypes[self._valid_size]
         if self.signed:
@@ -108,6 +114,15 @@ class ChannelDataType:
         struct_format = self._get_struct_format()
         r_tpl = struct.unpack(struct_format, val_bin)
         return unpack(r_tpl)
+
+    def encode(self, val: int) -> bytes:
+        struct_format = self._get_struct_format()
+        val_packed = struct.pack(struct_format, val)
+
+        if self._needs_extend:
+            return self._truncate_value(val_packed)
+
+        return val_packed
 
 
 class ExGMux(Enum):
