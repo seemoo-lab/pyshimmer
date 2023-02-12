@@ -15,12 +15,12 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import struct
 from abc import ABC, abstractmethod
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Iterable
 
 from pyshimmer.bluetooth.bt_const import *
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
 from pyshimmer.device import dr2sr, EChannelType, ChannelDataType, sec2ticks, ticks2sec, ExGRegister, \
-    get_firmware_type
+    get_firmware_type, ESensorGroup, serialize_sensorlist
 from pyshimmer.util import bit_is_set, resp_code_to_bytes, calibrate_u12_adc_value, battery_voltage_to_percent
 
 
@@ -192,6 +192,7 @@ class GetSamplingRateCommand(ResponseCommand):
         sr = dr2sr(sr_clock)
         return sr
 
+
 class GetBatteryCommand(ResponseCommand):
     """Retrieve the battery state
 
@@ -213,8 +214,9 @@ class GetBatteryCommand(ResponseCommand):
         batt_voltage = calibrate_u12_adc_value(raw_values, 0, 3.0, 1.0) * 1.988
         if (self._in_percent):
             return battery_voltage_to_percent(batt_voltage)
-        else: 
+        else:
             return batt_voltage
+
 
 class GetConfigTimeCommand(ResponseCommand):
     """Retrieve the config time that is stored in the Shimmer device configuration file
@@ -434,6 +436,16 @@ class SetExperimentIDCommand(SetStringCommand):
 
     def __init__(self, exp_id: str):
         super().__init__(SET_EXPID_COMMAND, exp_id)
+
+
+class SetSensorsCommand(ShimmerCommand):
+
+    def __init__(self, sensors: Iterable[ESensorGroup]):
+        self._sensors = list(sensors)
+
+    def send(self, ser: BluetoothSerial) -> None:
+        bitfield_bin = serialize_sensorlist(self._sensors)
+        ser.write_command(SET_SENSORS_COMMAND, "<3s", bitfield_bin)
 
 
 class GetDeviceNameCommand(GetStringCommand):
