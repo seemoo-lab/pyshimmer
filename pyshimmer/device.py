@@ -668,7 +668,7 @@ def bitfield2sensors(bitfield: int) -> List[ESensorGroup]:
         if bit_is_set(bitfield, bit_pos):
             enabled_sensors += [sensor]
 
-    return enabled_sensors
+    return sort_sensors(enabled_sensors)
 
 
 SensorOrder: Dict[ESensorGroup, int] = {
@@ -696,7 +696,7 @@ SensorOrder: Dict[ESensorGroup, int] = {
 }
 
 
-def sort_sensors(sensors: List[ESensorGroup]) -> List[ESensorGroup]:
+def sort_sensors(sensors: Iterable[ESensorGroup]) -> List[ESensorGroup]:
     """Sorts the sensors in the list according to the sensor order
 
     This function is useful to determine the order in which sensor data will appear in a data file by ordering

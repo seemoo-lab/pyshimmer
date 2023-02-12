@@ -68,7 +68,7 @@ class ShimmerBinaryReader(FileIOBase):
         sensor_bitfield = sensor_dtype.decode(self._read(ENABLED_SENSORS_LEN))
         enabled_sensors = bitfield2sensors(sensor_bitfield)
 
-        return sort_sensors(enabled_sensors)
+        return enabled_sensors
 
     def _read_rtc_clock_diff(self) -> int:
         self._seek(RTC_CLOCK_DIFF_OFFSET)
