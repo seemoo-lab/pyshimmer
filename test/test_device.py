@@ -18,7 +18,8 @@ from unittest import TestCase
 
 from pyshimmer.device import sr2dr, dr2sr, ChannelDataType, ChDataTypeAssignment, SensorChannelAssignment, \
     SensorBitAssignments, sec2ticks, ticks2sec, get_ch_dtypes, EChannelType, ExGRegister, ExGMux, get_firmware_type, \
-    EFirmwareType, ExGRLDLead, ERLDRef, get_exg_ch, is_exg_ch, ESensorGroup, sensors2bitfield, bitfield2sensors
+    EFirmwareType, ExGRLDLead, ERLDRef, get_exg_ch, is_exg_ch, ESensorGroup, sensors2bitfield, bitfield2sensors, \
+    sort_sensors
 
 
 def randbytes(k: int) -> bytes:
@@ -194,6 +195,17 @@ class DeviceTest(TestCase):
         bitfield = 0x040140
         actual = bitfield2sensors(bitfield)
         self.assertEqual(expected, actual)
+
+    def test_sort_sensors(self):
+        sensors = [ESensorGroup.BATTERY, ESensorGroup.ACCEL_LN]
+        expected = [ESensorGroup.ACCEL_LN, ESensorGroup.BATTERY]
+        r = sort_sensors(sensors)
+        self.assertEqual(r, expected)
+
+        sensors = [ESensorGroup.CH_A15, ESensorGroup.MAG_MPU, ESensorGroup.ACCEL_LN, ESensorGroup.CH_A15]
+        expected = [ESensorGroup.ACCEL_LN, ESensorGroup.CH_A15, ESensorGroup.CH_A15, ESensorGroup.MAG_MPU]
+        r = sort_sensors(sensors)
+        self.assertEqual(r, expected)
 
 
 class ExGRegisterTest(TestCase):
