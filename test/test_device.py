@@ -19,7 +19,7 @@ from unittest import TestCase
 from pyshimmer.device import sr2dr, dr2sr, ChannelDataType, ChDataTypeAssignment, SensorChannelAssignment, \
     SensorBitAssignments, sec2ticks, ticks2sec, get_ch_dtypes, EChannelType, ExGRegister, ExGMux, get_firmware_type, \
     EFirmwareType, ExGRLDLead, ERLDRef, get_exg_ch, is_exg_ch, ESensorGroup, sensors2bitfield, bitfield2sensors, \
-    sort_sensors
+    sort_sensors, serialize_sensorlist, deserialize_sensors
 
 
 def randbytes(k: int) -> bytes:
@@ -199,6 +199,9 @@ class DeviceTest(TestCase):
         bitfield = sensors2bitfield(sensors)
         self.assertEqual(bitfield, 0x040140)
 
+        bitfield_bin = serialize_sensorlist(sensors)
+        self.assertEqual(bitfield_bin, b'\x40\x01\x04')
+
     def test_bitfield2sensors(self):
         expected = [
             ESensorGroup.CH_A13,
@@ -206,8 +209,12 @@ class DeviceTest(TestCase):
             ESensorGroup.PRESSURE
         ]
 
+        bitfield_bin = b'\x40\x01\x04'
         bitfield = 0x040140
         actual = bitfield2sensors(bitfield)
+        self.assertEqual(expected, actual)
+
+        actual = deserialize_sensors(bitfield_bin)
         self.assertEqual(expected, actual)
 
     def test_sort_sensors(self):

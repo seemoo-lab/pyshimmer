@@ -663,6 +663,7 @@ SensorBitAssignments: Dict[ESensorGroup, int] = {
 
 
 ENABLED_SENSORS_LEN = 0x03
+SENSOR_DTYPE = ChannelDataType(size=ENABLED_SENSORS_LEN, signed=False, le=True)
 
 
 def sensors2bitfield(sensors: Iterable[ESensorGroup]) -> int:
@@ -679,7 +680,22 @@ def sensors2bitfield(sensors: Iterable[ESensorGroup]) -> int:
     return bitfield
 
 
+def serialize_sensorlist(sensors: Iterable[ESensorGroup]) -> bytes:
+    """Serialize a list of sensors to the three-byte bitfield accepted by the Shimmer
+
+    :param sensors: The list of sensors
+    :return: A byte string with length 3 that encodes the sensors
+    """
+    bitfield = sensors2bitfield(sensors)
+    return SENSOR_DTYPE.encode(bitfield)
+
+
 def bitfield2sensors(bitfield: int) -> List[ESensorGroup]:
+    """Decode a bitfield returned from the Shimmer to a list of active sensors
+
+    :param bitfield: The bitfield received from the Shimmer encoding the active sensors
+    :return: The corresponding list of active sensors
+    """
     enabled_sensors = []
     for sensor in ESensorGroup:
         bit_pos = SensorBitAssignments[sensor]
@@ -687,6 +703,16 @@ def bitfield2sensors(bitfield: int) -> List[ESensorGroup]:
             enabled_sensors += [sensor]
 
     return sort_sensors(enabled_sensors)
+
+
+def deserialize_sensors(bitfield_bin: bytes) -> List[ESensorGroup]:
+    """Deserialize the list of active sensors from the three-byte input received from the Shimmer
+
+    :param bitfield_bin: The input bitfield as byte string with length 3
+    :return: The list of active sensors
+    """
+    bitfield = SENSOR_DTYPE.decode(bitfield_bin)
+    return bitfield2sensors(bitfield)
 
 
 SensorOrder: Dict[ESensorGroup, int] = {
