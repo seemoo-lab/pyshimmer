@@ -19,7 +19,6 @@ from pyshimmer.device import ESensorGroup
 SR_OFFSET = 0x00
 
 ENABLED_SENSORS_OFFSET = 0x03
-ENABLED_SENSORS_LEN = 0x03
 
 RTC_CLOCK_DIFF_OFFSET = 0x2C
 

@@ -647,6 +647,9 @@ SensorBitAssignments: Dict[ESensorGroup, int] = {
 # @formatter:on
 
 
+ENABLED_SENSORS_LEN = 0x03
+
+
 def sensors2bitfield(sensors: Iterable[ESensorGroup]) -> int:
     """Convert an iterable of sensors into the corresponding bitfield transmitted to the Shimmer
 
