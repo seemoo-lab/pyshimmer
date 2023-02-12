@@ -16,7 +16,7 @@
 import re
 import struct
 from enum import Enum, auto, unique
-from typing import Dict, List, Union, overload, Tuple
+from typing import Dict, List, Union, overload, Tuple, Iterable
 
 import numpy as np
 
@@ -645,3 +645,27 @@ SensorBitAssignments: Dict[ESensorGroup, int] = {
     ESensorGroup.TEMP:          0x02 << 2 * 8,
 }
 # @formatter:on
+
+
+def sensors2bitfield(sensors: Iterable[ESensorGroup]) -> int:
+    """Convert an iterable of sensors into the corresponding bitfield transmitted to the Shimmer
+
+    :param sensors: A list of active sensors
+    :return: A bitfield that conveys the set of active sensors to the Shimmer
+    """
+    bitfield = 0
+    for sensor in sensors:
+        bit_pos = SensorBitAssignments[sensor]
+        bitfield |= bit_pos
+
+    return bitfield
+
+
+def bitfield2sensors(bitfield: int) -> List[ESensorGroup]:
+    enabled_sensors = []
+    for sensor in ESensorGroup:
+        bit_pos = SensorBitAssignments[sensor]
+        if bit_is_set(bitfield, bit_pos):
+            enabled_sensors += [sensor]
+
+    return enabled_sensors

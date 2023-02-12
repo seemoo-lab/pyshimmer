@@ -18,7 +18,7 @@ from typing import List, Tuple, Union, BinaryIO
 
 import numpy as np
 
-from pyshimmer.device import ESensorGroup, EChannelType, ChannelDataType, SensorBitAssignments, \
+from pyshimmer.device import ESensorGroup, EChannelType, ChannelDataType, bitfield2sensors, \
     get_enabled_channels, get_ch_dtypes, ExGRegister
 from pyshimmer.util import FileIOBase, unpack, bit_is_set
 from .reader_const import RTC_CLOCK_DIFF_OFFSET, ENABLED_SENSORS_OFFSET, ENABLED_SENSORS_LEN, SR_OFFSET, \
@@ -67,12 +67,7 @@ class ShimmerBinaryReader(FileIOBase):
         self._seek(ENABLED_SENSORS_OFFSET)
         sensor_dtype = ChannelDataType(size=ENABLED_SENSORS_LEN, signed=False, le=True)
         sensor_bitfield = sensor_dtype.decode(self._read(ENABLED_SENSORS_LEN))
-
-        enabled_sensors = []
-        for sensor in ESensorGroup:
-            bit_pos = SensorBitAssignments[sensor]
-            if bit_is_set(sensor_bitfield, bit_pos):
-                enabled_sensors += [sensor]
+        enabled_sensors = bitfield2sensors(sensor_bitfield)
 
         return sort_sensors(enabled_sensors)
 
