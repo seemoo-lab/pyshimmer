@@ -77,6 +77,8 @@ DUMMY_COMMAND = 0x96
 START_LOGGING_COMMAND = 0x92
 STOP_LOGGING_COMMAND = 0x93
 
+ENABLE_STATUS_ACK_COMMAND = 0xA3
+
 """
 The Bluetooth LogAndStream API assigns a numerical index to each channel type. This dictionary maps each index to the
 corresponding channel type.
