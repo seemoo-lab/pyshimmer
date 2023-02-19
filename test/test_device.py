@@ -18,7 +18,7 @@ from unittest import TestCase
 
 from pyshimmer.device import sr2dr, dr2sr, ChannelDataType, ChDataTypeAssignment, SensorChannelAssignment, \
     SensorBitAssignments, sec2ticks, ticks2sec, get_ch_dtypes, EChannelType, ExGRegister, ExGMux, get_firmware_type, \
-    EFirmwareType, ExGRLDLead, ERLDRef, get_exg_ch, is_exg_ch
+    EFirmwareType, ExGRLDLead, ERLDRef, get_exg_ch, is_exg_ch, FirmwareVersion
 
 
 def randbytes(k: int) -> bytes:
@@ -267,3 +267,52 @@ class ExGRegisterTest(TestCase):
             y = bytearray(x)
             y[i] = random.randrange(0, 256)
             do_assert(x, y, False)
+
+
+class FirmwareVersionTest(TestCase):
+
+    def test_version_equality(self):
+        a = FirmwareVersion(1, 2, 3)
+        b = FirmwareVersion(1, 2, 3)
+        c = FirmwareVersion(3, 2, 1)
+
+        self.assertEqual(a, a)
+        self.assertEqual(a, b)
+
+        self.assertNotEqual(a, None)
+        self.assertNotEqual(a, False)
+        self.assertNotEqual(a, 10)
+        self.assertNotEqual(a, c)
+
+    def test_attributes(self):
+        ver = FirmwareVersion(1, 2, 3)
+        self.assertEqual(ver.major, 1)
+        self.assertEqual(ver.minor, 2)
+        self.assertEqual(ver.rel, 3)
+
+    def test_greater_less(self):
+        a = FirmwareVersion(3, 2, 1)
+
+        b = FirmwareVersion(3, 2, 1)
+        self.assertFalse(b > a)
+        self.assertTrue(b >= a)
+        self.assertFalse(b < a)
+        self.assertTrue(b <= a)
+
+        b = FirmwareVersion(2, 2, 1)
+        self.assertFalse(b > a)
+        self.assertFalse(b >= a)
+        self.assertTrue(b < a)
+        self.assertTrue(b <= a)
+
+        b = FirmwareVersion(3, 1, 1)
+        self.assertFalse(b > a)
+        self.assertFalse(b >= a)
+        self.assertTrue(b < a)
+        self.assertTrue(b <= a)
+
+        b = FirmwareVersion(3, 2, 0)
+        self.assertFalse(b > a)
+        self.assertFalse(b >= a)
+        self.assertTrue(b < a)
+        self.assertTrue(b <= a)

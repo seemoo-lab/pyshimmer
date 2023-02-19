@@ -26,7 +26,8 @@ from pyshimmer.bluetooth.bt_commands import ShimmerCommand, GetSamplingRateComma
     SetExperimentIDCommand, GetDeviceNameCommand, SetDeviceNameCommand, DummyCommand, GetBatteryCommand
 from pyshimmer.bluetooth.bt_const import ACK_COMMAND_PROCESSED, DATA_PACKET, FULL_STATUS_RESPONSE, INSTREAM_CMD_RESPONSE
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
-from pyshimmer.device import EChannelType, ChDataTypeAssignment, ExGRegister, EFirmwareType, ChannelDataType
+from pyshimmer.device import EChannelType, ChDataTypeAssignment, ExGRegister, EFirmwareType, ChannelDataType, \
+    FirmwareVersion
 from pyshimmer.serial_base import ReadAbort
 from pyshimmer.util import fmt_hex, PeekQueue
 
@@ -385,16 +386,16 @@ class ShimmerBluetooth:
         """
         return self._process_and_wait(GetStatusCommand())
 
-    def get_firmware_version(self) -> Tuple[EFirmwareType, int, int, int]:
+    def get_firmware_version(self) -> Tuple[EFirmwareType, FirmwareVersion]:
         """Get the version of the running firmware
 
-        :return: A tuple of four values:
-            - The firmware type as enum, i.e. SDLog, LogAndStream, ...
-            - the major version as int
-            - the minor version as int
-            - the patch level as int
+        :return: The firmware type as enum, i.e. SDLog or LogAndStream
+            and the numeric firmware version
         """
-        return self._process_and_wait(GetFirmwareVersionCommand())
+        fw_type, major, minor, rel = self._process_and_wait(GetFirmwareVersionCommand())
+        fw_version = FirmwareVersion(major, minor, rel)
+
+        return fw_type, fw_version
 
     def get_exg_register(self, chip_id: int) -> ExGRegister:
         """Get the current configuration of one of the two ExG registers of the device

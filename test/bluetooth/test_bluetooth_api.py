@@ -21,7 +21,7 @@ from pyshimmer.bluetooth.bt_api import BluetoothRequestHandler, ShimmerBluetooth
 from pyshimmer.bluetooth.bt_commands import GetDeviceNameCommand, SetDeviceNameCommand, DataPacket, GetStatusCommand, \
     GetStringCommand, ResponseCommand
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
-from pyshimmer.device import ChDataTypeAssignment, EChannelType
+from pyshimmer.device import ChDataTypeAssignment, EChannelType, EFirmwareType, FirmwareVersion
 from pyshimmer.test_util import PTYSerialMockCreator
 
 
@@ -401,3 +401,10 @@ class ShimmerBluetoothIntegrationTest(TestCase):
         pkt = pkts[0]
 
         self.assertEqual(pkt, [False, False, False, False, False, True, False, False])
+
+    def test_get_firmware_version(self):
+        self._submit_req_resp_handler(1, b'\xFF\x2F\x03\x00\x01\x00\x02\x03')
+        fwtype, fwver = self._sot.get_firmware_version()
+
+        self.assertEqual(fwtype, EFirmwareType.LogAndStream)
+        self.assertEqual(fwver, FirmwareVersion(1, 2, 3))
