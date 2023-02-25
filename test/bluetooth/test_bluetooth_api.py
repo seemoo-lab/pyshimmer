@@ -324,12 +324,14 @@ class ShimmerBluetoothIntegrationTest(TestCase):
 
         return self._submit_handler_fn(master_fn)
 
-    def setUp(self) -> None:
+    def do_setup(self, initialize: bool = True) -> None:
         self._mock_creator = PTYSerialMockCreator()
         serial, self._master = self._mock_creator.create_mock()
 
         self._sot = ShimmerBluetooth(serial)
-        self._sot.initialize()
+
+        if initialize:
+            self._sot.initialize()
 
     def tearDown(self) -> None:
         self._sot.shutdown()
@@ -337,16 +339,14 @@ class ShimmerBluetoothIntegrationTest(TestCase):
 
     # noinspection PyMethodMayBeStatic
     def test_context_manager(self):
-        mock_creator = PTYSerialMockCreator()
-        serial, master = mock_creator.create_mock()
+        self.do_setup(initialize=False)
 
-        sot = ShimmerBluetooth(serial)
-        with sot:
+        with self._sot:
             pass
 
-        mock_creator.close()
-
     def test_get_sampling_rate(self):
+        self.do_setup()
+
         ftr = self._submit_req_resp_handler(1, b'\xff\x04\x40\x00')
         r = self._sot.get_sampling_rate()
 
@@ -354,6 +354,8 @@ class ShimmerBluetoothIntegrationTest(TestCase):
         self.assertEqual(r, 512.0)
 
     def test_get_data_types(self):
+        self.do_setup()
+
         ftr = self._submit_req_resp_handler(1, b'\xff\x02\x40\x00\x01\xff\x01\x09\x01\x01\x12')
         r = self._sot.get_data_types()
 
@@ -361,6 +363,8 @@ class ShimmerBluetoothIntegrationTest(TestCase):
         self.assertEqual(r, [EChannelType.TIMESTAMP, EChannelType.INTERNAL_ADC_13])
 
     def test_streaming(self):
+        self.do_setup()
+
         pkts = []
 
         def pkt_handler(new_pkt: DataPacket) -> None:
@@ -387,6 +391,8 @@ class ShimmerBluetoothIntegrationTest(TestCase):
         self.assertEqual(pkt[EChannelType.INTERNAL_ADC_13], 1866)
 
     def test_status_update(self):
+        self.do_setup()
+
         pkts = []
 
         def status_handler(new_pkt: List[bool]) -> None:
@@ -404,6 +410,8 @@ class ShimmerBluetoothIntegrationTest(TestCase):
         self.assertEqual(pkt, [False, False, False, False, False, True, False, False])
 
     def test_get_firmware_version(self):
+        self.do_setup()
+
         self._submit_req_resp_handler(1, b'\xFF\x2F\x03\x00\x01\x00\x02\x03')
         fwtype, fwver = self._sot.get_firmware_version()
 
