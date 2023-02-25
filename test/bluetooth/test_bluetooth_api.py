@@ -324,11 +324,11 @@ class ShimmerBluetoothIntegrationTest(TestCase):
 
         return self._submit_handler_fn(master_fn)
 
-    def do_setup(self, initialize: bool = True) -> None:
+    def do_setup(self, initialize: bool = True, **kwargs) -> None:
         self._mock_creator = PTYSerialMockCreator()
         serial, self._master = self._mock_creator.create_mock()
 
-        self._sot = ShimmerBluetooth(serial)
+        self._sot = ShimmerBluetooth(serial, **kwargs)
 
         if initialize:
             future = self._submit_req_resp_handler(req_len=1, resp=b'\xff\x2f\x03\x00\x00\x00\x0b\x00')
@@ -346,8 +346,10 @@ class ShimmerBluetoothIntegrationTest(TestCase):
 
         # We prepare the response for the GetFirmwareVersion command issued
         # at initialization.
-        self._submit_req_resp_handler(req_len=1, resp=b'\xff\x2f\x03\x00\x00\x00\x0b\x00')
+        req_future = self._submit_req_resp_handler(req_len=1, resp=b'\xff\x2f\x03\x00\x00\x00\x0b\x00')
         with self._sot:
+            req_data = req_future.result()
+            self.assertEqual(req_data, b'\x2e')
             self.assertTrue(self._sot.initialized)
 
     def test_version_and_capabilities(self):
@@ -431,3 +433,22 @@ class ShimmerBluetoothIntegrationTest(TestCase):
 
         self.assertEqual(fwtype, EFirmwareType.LogAndStream)
         self.assertEqual(fwver, FirmwareVersion(1, 2, 3))
+
+    def test_status_ack_disable(self):
+        self.do_setup(initialize=False)
+
+        # Queue response for version command
+        self._submit_req_resp_handler(1, b'\xFF\x2F\x03\x00\x00\x00\x0F\x04')
+        # Queue response for disabling the status acknowledgment
+        req_future = self._submit_req_resp_handler(2, b'\xFF')
+
+        self._sot.initialize()
+        req_data = req_future.result()
+        self.assertEqual(req_data, b'\xA3\x00')
+
+    def test_status_ack_not_disable(self):
+        self.do_setup(initialize=False, disable_status_ack=False)
+
+        # Queue response for version command
+        self._submit_req_resp_handler(1, b'\xFF\x2F\x03\x00\x00\x00\x0F\x04')
+        self._sot.initialize()

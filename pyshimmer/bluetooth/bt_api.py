@@ -24,7 +24,7 @@ from pyshimmer.bluetooth.bt_commands import ShimmerCommand, GetSamplingRateComma
     GetFirmwareVersionCommand, InquiryCommand, StartStreamingCommand, StopStreamingCommand, DataPacket, \
     GetEXGRegsCommand, SetEXGRegsCommand, StartLoggingCommand, StopLoggingCommand, GetExperimentIDCommand, \
     SetExperimentIDCommand, GetDeviceNameCommand, SetDeviceNameCommand, DummyCommand, GetBatteryCommand, \
-    SetSamplingRateCommand, SetSensorsCommand
+    SetSamplingRateCommand, SetSensorsCommand, SetStatusAckCommand
 from pyshimmer.bluetooth.bt_const import ACK_COMMAND_PROCESSED, DATA_PACKET, FULL_STATUS_RESPONSE, INSTREAM_CMD_RESPONSE
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
 from pyshimmer.dev.channels import ChDataTypeAssignment, ChannelDataType, EChannelType, ESensorGroup
@@ -256,18 +256,31 @@ class BluetoothRequestHandler:
 
 
 class ShimmerBluetooth:
-    """Main API for communicating with the Shimmer via Bluetooth
 
-    :arg serial: The serial interface to use for communication
-    """
+    def __init__(self, serial: Serial, disable_status_ack: bool = True):
+        """API for communicating with the Shimmer via Bluetooth
 
-    def __init__(self, serial: Serial):
+        This class implements support for talking to the Shimmer LogAndStream firmware via Bluetooth.
+        Each command is encapsulated as a method that can be called to invoke the corresponding command.
+        All commands are executed synchronously. This means that the method call will block until the
+        Shimmer has processed the request and responded.
+
+        :param serial: The serial channel that encapsulates the rfcomm Bluetooth connection to the Shimmer
+        :param disable_status_ack: Starting with LogAndStream firmware version 0.15.4, the vanilla firmware
+            supports disabling the acknowledgment byte before status messages. This removes the need for
+            running a custom firmware version on the Shimmer. If this flag is set to True, the API will
+            query the firmware version of the Shimmer and automatically send a command to disable the status
+            acknowledgment byte at startup. You can set it to True if you don't want this or if it causes
+            trouble with your firmware version.
+        """
         self._serial = BluetoothSerial(serial)
         self._bluetooth = BluetoothRequestHandler(self._serial)
 
         self._thread = Thread(target=self._run_readloop, daemon=True)
 
         self._initialized = False
+        self._disable_ack = disable_status_ack
+
         self._fw_version: Optional[FirmwareVersion] = None
         self._fw_caps: Optional[FirmwareCapabilities] = None
 
@@ -303,13 +316,18 @@ class ShimmerBluetooth:
         self._fw_caps = FirmwareCapabilities(fw_type, fw_ver)
 
     def initialize(self) -> None:
-        """Initialize the reading loop of the API
+        """Initialize the Bluetooth connection
 
-        Initialize the reading loop by starting a new thread to handle all reads asynchronously
+        This method must be invoked before sending commands to the Shimmer. It queries the Shimmer version,
+        optionally disables the status acknowledgment and starts the read loop.
         """
         self._thread.start()
 
         self._set_fw_capabilities()
+
+        if self.capabilities.supports_ack_disable and self._disable_ack:
+            self.set_status_ack(enabled=False)
+
         self._initialized = True
 
     def shutdown(self) -> None:
@@ -383,6 +401,7 @@ class ShimmerBluetooth:
 
     def get_battery_state(self, in_percent: bool) -> float:
         """Retrieve the battery state of the device
+
         :param in_percent: True: calculate battery state in percent; False: calculate battery state in Volt
         :return: The battery state in percent / Volt
         """
@@ -554,3 +573,16 @@ class ShimmerBluetooth:
         The command can be used to test the connection. It does not return anything.
         """
         self._process_and_wait(DummyCommand())
+
+    def set_status_ack(self, enabled: bool) -> None:
+        """Send a command to enable or disable the status acknowledgment
+
+        This command should normally not be called directly. If enabled in the constructor, the command
+        will automatically be sent to the Shimmer if the firmware supports it. It can be used to make
+        vanilla firmware versions compatible with the state machine of the Python API.
+
+        :param enabled: If set to True, enable status acknowledgment byte. This will make the
+            firmware incompatible to the Python API. If set to False, disable sending the status ack.
+            In this state, the firmware is compatible to the Python API.
+        """
+        self._process_and_wait(SetStatusAckCommand(enabled))
