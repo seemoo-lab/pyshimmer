@@ -293,7 +293,7 @@ def sr2dr(sr: float) -> int:
     return round(dr_dec)
 
 
-def dr2sr(dr: int):
+def dr2sr(dr: int) -> float:
     """Calculate equivalent sampling rate for a given device-specific rate
 
     Device-specific sample rates are given in absolute clock ticks per unit of time. This function can be used to

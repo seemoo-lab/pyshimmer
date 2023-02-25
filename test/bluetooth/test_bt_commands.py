@@ -20,7 +20,8 @@ from pyshimmer.bluetooth.bt_commands import ShimmerCommand, GetSamplingRateComma
     GetConfigTimeCommand, SetConfigTimeCommand, GetRealTimeClockCommand, SetRealTimeClockCommand, GetStatusCommand, \
     GetFirmwareVersionCommand, InquiryCommand, StartStreamingCommand, StopStreamingCommand, StartLoggingCommand, \
     StopLoggingCommand, GetEXGRegsCommand, SetEXGRegsCommand, GetExperimentIDCommand, SetExperimentIDCommand, \
-    GetDeviceNameCommand, SetDeviceNameCommand, DummyCommand, DataPacket, ResponseCommand, SetSensorsCommand
+    GetDeviceNameCommand, SetDeviceNameCommand, DummyCommand, DataPacket, ResponseCommand, SetSensorsCommand, \
+    SetSamplingRateCommand
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
 from pyshimmer.device import EFirmwareType, EChannelType, ChDataTypeAssignment, ESensorGroup
 from pyshimmer.test_util import MockSerial
@@ -86,6 +87,10 @@ class BluetoothCommandsTest(TestCase):
     def test_get_sampling_rate_command(self):
         cmd = GetSamplingRateCommand()
         self.assert_cmd(cmd, b'\x03', b'\x04', b'\x04\x40\x00', 512.0)
+
+    def test_set_sampling_rate_command(self):
+        cmd = SetSamplingRateCommand(sr=512.0)
+        self.assert_cmd(cmd, b'\x05\x40\x00')
 
     def test_get_battery_state_command(self):
         cmd = GetBatteryCommand(in_percent=True)

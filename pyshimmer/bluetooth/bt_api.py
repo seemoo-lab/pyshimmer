@@ -24,7 +24,7 @@ from pyshimmer.bluetooth.bt_commands import ShimmerCommand, GetSamplingRateComma
     GetFirmwareVersionCommand, InquiryCommand, StartStreamingCommand, StopStreamingCommand, DataPacket, \
     GetEXGRegsCommand, SetEXGRegsCommand, StartLoggingCommand, StopLoggingCommand, GetExperimentIDCommand, \
     SetExperimentIDCommand, GetDeviceNameCommand, SetDeviceNameCommand, DummyCommand, GetBatteryCommand, \
-    SetSensorsCommand
+    SetSamplingRateCommand, SetSensorsCommand
 from pyshimmer.bluetooth.bt_const import ACK_COMMAND_PROCESSED, DATA_PACKET, FULL_STATUS_RESPONSE, INSTREAM_CMD_RESPONSE
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
 from pyshimmer.device import EChannelType, ChDataTypeAssignment, ExGRegister, EFirmwareType, ChannelDataType, \
@@ -341,6 +341,13 @@ class ShimmerBluetooth:
         :return: The sampling rate as floating point value in samples per second
         """
         return self._process_and_wait(GetSamplingRateCommand())
+
+    def set_sampling_rate(self, sr: float) -> None:
+        """Set the active sampling rate for the device
+
+        :param sr: The sampling rate in Hertz
+        """
+        self._process_and_wait(SetSamplingRateCommand(sr))
 
     def get_battery_state(self, in_percent: bool) -> float:
         """Retrieve the battery state of the device
