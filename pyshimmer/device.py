@@ -16,7 +16,7 @@
 import re
 import struct
 from enum import Enum, auto, unique
-from typing import Dict, List, Union, overload, Tuple
+from typing import Dict, List, Union, overload, Tuple, Iterable
 
 import numpy as np
 
@@ -89,6 +89,12 @@ class ChannelDataType:
         else:
             return suffix + val
 
+    def _truncate_value(self, val: bytes) -> bytes:
+        if self.little_endian:
+            return val[:self._size]
+        else:
+            return val[self._valid_size - self._size:]
+
     def _get_struct_format(self) -> str:
         stype = self._struct_dtypes[self._valid_size]
         if self.signed:
@@ -108,6 +114,15 @@ class ChannelDataType:
         struct_format = self._get_struct_format()
         r_tpl = struct.unpack(struct_format, val_bin)
         return unpack(r_tpl)
+
+    def encode(self, val: int) -> bytes:
+        struct_format = self._get_struct_format()
+        val_packed = struct.pack(struct_format, val)
+
+        if self._needs_extend:
+            return self._truncate_value(val_packed)
+
+        return val_packed
 
 
 class ExGMux(Enum):
@@ -645,3 +660,102 @@ SensorBitAssignments: Dict[ESensorGroup, int] = {
     ESensorGroup.TEMP:          0x02 << 2 * 8,
 }
 # @formatter:on
+
+
+ENABLED_SENSORS_LEN = 0x03
+SENSOR_DTYPE = ChannelDataType(size=ENABLED_SENSORS_LEN, signed=False, le=True)
+
+
+def sensors2bitfield(sensors: Iterable[ESensorGroup]) -> int:
+    """Convert an iterable of sensors into the corresponding bitfield transmitted to the Shimmer
+
+    :param sensors: A list of active sensors
+    :return: A bitfield that conveys the set of active sensors to the Shimmer
+    """
+    bitfield = 0
+    for sensor in sensors:
+        bit_pos = SensorBitAssignments[sensor]
+        bitfield |= bit_pos
+
+    return bitfield
+
+
+def serialize_sensorlist(sensors: Iterable[ESensorGroup]) -> bytes:
+    """Serialize a list of sensors to the three-byte bitfield accepted by the Shimmer
+
+    :param sensors: The list of sensors
+    :return: A byte string with length 3 that encodes the sensors
+    """
+    bitfield = sensors2bitfield(sensors)
+    return SENSOR_DTYPE.encode(bitfield)
+
+
+def bitfield2sensors(bitfield: int) -> List[ESensorGroup]:
+    """Decode a bitfield returned from the Shimmer to a list of active sensors
+
+    :param bitfield: The bitfield received from the Shimmer encoding the active sensors
+    :return: The corresponding list of active sensors
+    """
+    enabled_sensors = []
+    for sensor in ESensorGroup:
+        bit_pos = SensorBitAssignments[sensor]
+        if bit_is_set(bitfield, bit_pos):
+            enabled_sensors += [sensor]
+
+    return sort_sensors(enabled_sensors)
+
+
+def deserialize_sensors(bitfield_bin: bytes) -> List[ESensorGroup]:
+    """Deserialize the list of active sensors from the three-byte input received from the Shimmer
+
+    :param bitfield_bin: The input bitfield as byte string with length 3
+    :return: The list of active sensors
+    """
+    bitfield = SENSOR_DTYPE.decode(bitfield_bin)
+    return bitfield2sensors(bitfield)
+
+
+SensorOrder: Dict[ESensorGroup, int] = {
+    ESensorGroup.ACCEL_LN: 1,
+    ESensorGroup.BATTERY: 2,
+    ESensorGroup.CH_A7: 3,
+    ESensorGroup.CH_A6: 4,
+    ESensorGroup.CH_A15: 5,
+    ESensorGroup.CH_A12: 6,
+    ESensorGroup.CH_A13: 7,
+    ESensorGroup.CH_A14: 8,
+    ESensorGroup.STRAIN: 9,
+    ESensorGroup.CH_A1: 10,
+    ESensorGroup.GSR: 11,
+    ESensorGroup.GYRO: 12,
+    ESensorGroup.ACCEL_WR: 13,
+    ESensorGroup.MAG: 14,
+    ESensorGroup.ACCEL_MPU: 15,
+    ESensorGroup.MAG_MPU: 16,
+    ESensorGroup.PRESSURE: 17,
+    ESensorGroup.EXG1_24BIT: 18,
+    ESensorGroup.EXG1_16BIT: 19,
+    ESensorGroup.EXG2_24BIT: 20,
+    ESensorGroup.EXG2_16BIT: 21,
+}
+
+
+def sort_sensors(sensors: Iterable[ESensorGroup]) -> List[ESensorGroup]:
+    """Sorts the sensors in the list according to the sensor order
+
+    This function is useful to determine the order in which sensor data will appear in a data file by ordering
+    the list of sensors according to their order in the file.
+
+    Args:
+        sensors: An unsorted list of sensors
+
+    Returns:
+        A list with the same sensors as content but sorted according to their appearance order in the data file
+
+    """
+
+    def sort_key_fn(x):
+        return SensorOrder[x]
+
+    sensors_sorted = sorted(sensors, key=sort_key_fn)
+    return sensors_sorted

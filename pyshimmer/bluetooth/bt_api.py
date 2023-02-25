@@ -15,7 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from queue import Queue, Empty
 from threading import Event, Thread
-from typing import List, Tuple, Callable
+from typing import List, Tuple, Callable, Iterable
 
 from serial import Serial
 
@@ -24,10 +24,11 @@ from pyshimmer.bluetooth.bt_commands import ShimmerCommand, GetSamplingRateComma
     GetFirmwareVersionCommand, InquiryCommand, StartStreamingCommand, StopStreamingCommand, DataPacket, \
     GetEXGRegsCommand, SetEXGRegsCommand, StartLoggingCommand, StopLoggingCommand, GetExperimentIDCommand, \
     SetExperimentIDCommand, GetDeviceNameCommand, SetDeviceNameCommand, DummyCommand, GetBatteryCommand, \
-    SetSamplingRateCommand
+    SetSamplingRateCommand, SetSensorsCommand
 from pyshimmer.bluetooth.bt_const import ACK_COMMAND_PROCESSED, DATA_PACKET, FULL_STATUS_RESPONSE, INSTREAM_CMD_RESPONSE
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
-from pyshimmer.device import EChannelType, ChDataTypeAssignment, ExGRegister, EFirmwareType, ChannelDataType
+from pyshimmer.device import EChannelType, ChDataTypeAssignment, ExGRegister, EFirmwareType, ChannelDataType, \
+    ESensorGroup
 from pyshimmer.serial_base import ReadAbort
 from pyshimmer.util import fmt_hex, PeekQueue
 
@@ -368,6 +369,15 @@ class ShimmerBluetooth:
         :arg time: The configuration time that will be set in the configuration of the Shimmer
         """
         self._process_and_wait(SetConfigTimeCommand(time))
+
+    def set_sensors(self, sensors: Iterable[ESensorGroup]) -> None:
+        """Set the active sensors for sampling
+
+        This command will activate the specified list of sensors and deactivate all other sensors.
+
+        :param sensors: A list of sensors to activate
+        """
+        self._process_and_wait(SetSensorsCommand(sensors))
 
     def get_rtc(self) -> float:
         """Retrieve the current value of the onboard real-time clock

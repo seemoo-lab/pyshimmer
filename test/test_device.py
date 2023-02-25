@@ -18,7 +18,8 @@ from unittest import TestCase
 
 from pyshimmer.device import sr2dr, dr2sr, ChannelDataType, ChDataTypeAssignment, SensorChannelAssignment, \
     SensorBitAssignments, sec2ticks, ticks2sec, get_ch_dtypes, EChannelType, ExGRegister, ExGMux, get_firmware_type, \
-    EFirmwareType, ExGRLDLead, ERLDRef, get_exg_ch, is_exg_ch
+    EFirmwareType, ExGRLDLead, ERLDRef, get_exg_ch, is_exg_ch, ESensorGroup, sensors2bitfield, bitfield2sensors, \
+    sort_sensors, serialize_sensorlist, deserialize_sensors
 
 
 def randbytes(k: int) -> bytes:
@@ -67,7 +68,7 @@ class DeviceTest(TestCase):
         r = ticks2sec(65536)
         self.assertEqual(r, 2.0)
 
-    def test_channel_data_type(self):
+    def test_channel_data_type_decoding(self):
         def test_both_endianess(byte_val_le: bytes, expected: int, signed: bool):
             blen = len(byte_val_le)
             dt_le = ChannelDataType(blen, signed=signed, le=True)
@@ -111,6 +112,20 @@ class DeviceTest(TestCase):
         test_both_endianess(b'\x00\x80', -2 ** 15, signed=True)
         test_both_endianess(b'\xFF\x7F', 2 ** 15 - 1, signed=True)
         test_both_endianess(b'\xFF\x00', 255, signed=True)
+
+    def test_channel_data_type_encoding(self):
+        def test_both_endianess(val: int, val_len: int, expected: bytes, signed: bool):
+            dt_le = ChannelDataType(val_len, signed=signed, le=True)
+            dt_be = ChannelDataType(val_len, signed=signed, le=False)
+
+            self.assertEqual(expected, dt_le.encode(val))
+            self.assertEqual(expected[::-1], dt_be.encode(val))
+
+        test_both_endianess(0x1234, 2, b'\x34\x12', signed=False)
+        test_both_endianess(-0x10, 2, b'\xF0\xFF', signed=True)
+
+        test_both_endianess(0x12345, 3, b'\x45\x23\x01', signed=False)
+        test_both_endianess(-0x12345, 3, b'\xbb\xdc\xfe', signed=True)
 
     def test_get_ch_dtypes(self):
         channels = [EChannelType.INTERNAL_ADC_13, EChannelType.GYRO_MPU9150_Y]
@@ -174,6 +189,44 @@ class DeviceTest(TestCase):
 
         for ch in EChannelType:
             self.assertEqual(is_exg_ch(ch), ch in valid_ch)
+
+    def test_sensors2bitfield(self):
+        sensors = [
+            ESensorGroup.CH_A13,
+            ESensorGroup.GYRO,
+            ESensorGroup.PRESSURE
+        ]
+        bitfield = sensors2bitfield(sensors)
+        self.assertEqual(bitfield, 0x040140)
+
+        bitfield_bin = serialize_sensorlist(sensors)
+        self.assertEqual(bitfield_bin, b'\x40\x01\x04')
+
+    def test_bitfield2sensors(self):
+        expected = [
+            ESensorGroup.CH_A13,
+            ESensorGroup.GYRO,
+            ESensorGroup.PRESSURE
+        ]
+
+        bitfield_bin = b'\x40\x01\x04'
+        bitfield = 0x040140
+        actual = bitfield2sensors(bitfield)
+        self.assertEqual(expected, actual)
+
+        actual = deserialize_sensors(bitfield_bin)
+        self.assertEqual(expected, actual)
+
+    def test_sort_sensors(self):
+        sensors = [ESensorGroup.BATTERY, ESensorGroup.ACCEL_LN]
+        expected = [ESensorGroup.ACCEL_LN, ESensorGroup.BATTERY]
+        r = sort_sensors(sensors)
+        self.assertEqual(r, expected)
+
+        sensors = [ESensorGroup.CH_A15, ESensorGroup.MAG_MPU, ESensorGroup.ACCEL_LN, ESensorGroup.CH_A15]
+        expected = [ESensorGroup.ACCEL_LN, ESensorGroup.CH_A15, ESensorGroup.CH_A15, ESensorGroup.MAG_MPU]
+        r = sort_sensors(sensors)
+        self.assertEqual(r, expected)
 
 
 class ExGRegisterTest(TestCase):

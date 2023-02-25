@@ -34,6 +34,9 @@ FULL_BATTERY_RESPONSE = bytes((INSTREAM_CMD_RESPONSE, BATTERY_RESPONSE))
 START_STREAMING_COMMAND = 0x07
 # No response for command
 
+SET_SENSORS_COMMAND = 0x08
+# No response for command
+
 STOP_STREAMING_COMMAND = 0x20
 # No response for command
 
