@@ -11,6 +11,12 @@ def ensure_firmware_version(func):
     return wrapper
 
 
+class EFirmwareType(Enum):
+    BtStream = auto()
+    SDLog = auto()
+    LogAndStream = auto()
+
+
 class FirmwareVersion:
 
     def __init__(self, major: int, minor: int, rel: int):
@@ -46,10 +52,24 @@ class FirmwareVersion:
         return self._key <= other._key
 
 
-class EFirmwareType(Enum):
-    BtStream = auto()
-    SDLog = auto()
-    LogAndStream = auto()
+class FirmwareCapabilities:
+
+    def __init__(self, fw_type: EFirmwareType, version: FirmwareVersion):
+        self._fw_type = fw_type
+        self._version = version
+
+    @property
+    def fw_type(self) -> EFirmwareType:
+        return self._fw_type
+
+    @property
+    def version(self) -> FirmwareVersion:
+        return self._version
+
+    @property
+    def supports_ack_disable(self) -> bool:
+        return self._fw_type == EFirmwareType.LogAndStream and \
+               self._version >= FirmwareVersion(major=0, minor=15, rel=4)
 
 
 FirmwareTypeValueAssignment = {

@@ -15,7 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from unittest import TestCase
 
-from pyshimmer.dev.fw_version import FirmwareVersion, get_firmware_type, EFirmwareType
+from pyshimmer.dev.fw_version import FirmwareVersion, get_firmware_type, EFirmwareType, FirmwareCapabilities
 
 
 class DeviceFirmwareVersionTest(TestCase):
@@ -29,6 +29,15 @@ class DeviceFirmwareVersionTest(TestCase):
         self.assertEqual(r, EFirmwareType.LogAndStream)
 
         self.assertRaises(ValueError, get_firmware_type, 0xFF)
+
+
+class FirmwareCapabilitiesTest(TestCase):
+
+    def test_capabilities(self):
+        cap = FirmwareCapabilities(EFirmwareType.LogAndStream, version=FirmwareVersion(1, 2, 3))
+        self.assertTrue(cap.supports_ack_disable)
+        self.assertEqual(cap.version, FirmwareVersion(1, 2, 3))
+        self.assertEqual(cap.fw_type, EFirmwareType.LogAndStream)
 
 
 class FirmwareVersionTest(TestCase):
