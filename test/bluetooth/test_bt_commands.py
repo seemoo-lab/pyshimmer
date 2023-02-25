@@ -20,7 +20,7 @@ from pyshimmer.bluetooth.bt_commands import ShimmerCommand, GetSamplingRateComma
     GetConfigTimeCommand, SetConfigTimeCommand, GetRealTimeClockCommand, SetRealTimeClockCommand, GetStatusCommand, \
     GetFirmwareVersionCommand, InquiryCommand, StartStreamingCommand, StopStreamingCommand, StartLoggingCommand, \
     StopLoggingCommand, GetEXGRegsCommand, SetEXGRegsCommand, GetExperimentIDCommand, SetExperimentIDCommand, \
-    GetDeviceNameCommand, SetDeviceNameCommand, DummyCommand, DataPacket, ResponseCommand, EnableStatusAckCommand, \
+    GetDeviceNameCommand, SetDeviceNameCommand, DummyCommand, DataPacket, ResponseCommand, SetStatusAckCommand, \
     SetSensorsCommand, SetSamplingRateCommand
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
 from pyshimmer.dev.channels import ChDataTypeAssignment, EChannelType, ESensorGroup
@@ -195,11 +195,11 @@ class BluetoothCommandsTest(TestCase):
         cmd = SetDeviceNameCommand('S_PPG')
         self.assert_cmd(cmd, b'\x79\x05S_PPG')
 
-    def test_enable_status_ack_command(self):
-        cmd = EnableStatusAckCommand(enabled=True)
+    def test_set_status_ack_command(self):
+        cmd = SetStatusAckCommand(enabled=True)
         self.assert_cmd(cmd, b'\xA3\x01')
 
-        cmd = EnableStatusAckCommand(enabled=False)
+        cmd = SetStatusAckCommand(enabled=False)
         self.assert_cmd(cmd, b'\xA3\x00')
 
     def test_dummy_command(self):

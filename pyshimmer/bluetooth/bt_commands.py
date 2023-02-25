@@ -481,7 +481,7 @@ class SetDeviceNameCommand(SetStringCommand):
         super().__init__(SET_SHIMMERNAME_COMMAND, dev_name)
 
 
-class EnableStatusAckCommand(ShimmerCommand):
+class SetStatusAckCommand(ShimmerCommand):
 
     def __init__(self, enabled: bool):
         """Command to enable/disable the ACK byte before status messages
