@@ -331,18 +331,32 @@ class ShimmerBluetoothIntegrationTest(TestCase):
         self._sot = ShimmerBluetooth(serial)
 
         if initialize:
+            future = self._submit_req_resp_handler(req_len=1, resp=b'\xff\x2f\x03\x00\x00\x00\x0b\x00')
             self._sot.initialize()
+
+            result = future.result()
+            assert result == b'\x2E'
 
     def tearDown(self) -> None:
         self._sot.shutdown()
         self._mock_creator.close()
 
-    # noinspection PyMethodMayBeStatic
     def test_context_manager(self):
         self.do_setup(initialize=False)
 
+        # We prepare the response for the GetFirmwareVersion command issued
+        # at initialization.
+        self._submit_req_resp_handler(req_len=1, resp=b'\xff\x2f\x03\x00\x00\x00\x0b\x00')
         with self._sot:
-            pass
+            self.assertTrue(self._sot.initialized)
+
+    def test_version_and_capabilities(self):
+        self.do_setup()
+
+        self.assertTrue(self._sot.initialized)
+        self.assertIsNotNone(self._sot.capabilities)
+        self.assertEqual(self._sot.capabilities.fw_type, EFirmwareType.LogAndStream)
+        self.assertEqual(self._sot.capabilities.version, FirmwareVersion(0, 11, 0))
 
     def test_get_sampling_rate(self):
         self.do_setup()

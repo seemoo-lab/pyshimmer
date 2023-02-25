@@ -15,7 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from queue import Queue, Empty
 from threading import Event, Thread
-from typing import List, Tuple, Callable, Iterable
+from typing import List, Tuple, Callable, Iterable, Optional
 
 from serial import Serial
 
@@ -29,7 +29,7 @@ from pyshimmer.bluetooth.bt_const import ACK_COMMAND_PROCESSED, DATA_PACKET, FUL
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
 from pyshimmer.dev.channels import ChDataTypeAssignment, ChannelDataType, EChannelType, ESensorGroup
 from pyshimmer.dev.exg import ExGRegister
-from pyshimmer.dev.fw_version import EFirmwareType, FirmwareVersion
+from pyshimmer.dev.fw_version import EFirmwareType, FirmwareVersion, FirmwareCapabilities
 from pyshimmer.serial_base import ReadAbort
 from pyshimmer.util import fmt_hex, PeekQueue
 
@@ -267,6 +267,30 @@ class ShimmerBluetooth:
 
         self._thread = Thread(target=self._run_readloop, daemon=True)
 
+        self._initialized = False
+        self._fw_version: Optional[FirmwareVersion] = None
+        self._fw_caps: Optional[FirmwareCapabilities] = None
+
+    @property
+    def initialized(self) -> bool:
+        """Specifies if the connection was initialized
+
+        This property helps to determine if the capabilities property will return a valid value.
+
+        :return: True if initialize() was called, otherwise False
+        """
+        return self._initialized
+
+    @property
+    def capabilities(self) -> FirmwareCapabilities:
+        """Return the capabilities of the device firmware
+
+        This property shall only be accessed after invoking initialize().
+
+        :return: A FirmwareCapabilities instance representing the version and capabilities of the firmware
+        """
+        return self._fw_caps
+
     def __enter__(self):
         self.initialize()
         return self
@@ -274,12 +298,19 @@ class ShimmerBluetooth:
     def __exit__(self, exc_type, exc_value, exc_traceback):
         self.shutdown()
 
+    def _set_fw_capabilities(self) -> None:
+        fw_type, fw_ver = self.get_firmware_version()
+        self._fw_caps = FirmwareCapabilities(fw_type, fw_ver)
+
     def initialize(self) -> None:
         """Initialize the reading loop of the API
 
         Initialize the reading loop by starting a new thread to handle all reads asynchronously
         """
         self._thread.start()
+
+        self._set_fw_capabilities()
+        self._initialized = True
 
     def shutdown(self) -> None:
         """Shutdown the read loop
