@@ -15,7 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from unittest import TestCase
 
-from pyshimmer.device import ESensorGroup
+from pyshimmer.dev.channels import ESensorGroup
 from pyshimmer.reader.reader_const import sort_sensors
 
 

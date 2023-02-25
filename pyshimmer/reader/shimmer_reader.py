@@ -18,8 +18,9 @@ from typing import Dict, List, BinaryIO
 
 import numpy as np
 
-from pyshimmer.device import EChannelType, ticks2sec, dr2sr, ExGRegister, get_exg_ch, ChDataTypeAssignment, is_exg_ch, \
-    get_enabled_channels
+from pyshimmer.dev.base import ticks2sec, dr2sr
+from pyshimmer.dev.channels import ChDataTypeAssignment, get_enabled_channels, EChannelType
+from pyshimmer.dev.exg import is_exg_ch, get_exg_ch, ExGRegister
 from pyshimmer.reader.binary_reader import ShimmerBinaryReader
 from pyshimmer.reader.reader_const import EXG_ADC_REF_VOLT, EXG_ADC_OFFSET, TRIAXCAL_SENSORS
 from pyshimmer.util import unwrap

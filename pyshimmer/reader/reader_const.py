@@ -15,7 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from typing import Dict, List
 
-from pyshimmer.device import ESensorGroup
+from pyshimmer.dev.channels import ESensorGroup
 
 SR_OFFSET = 0x00
 

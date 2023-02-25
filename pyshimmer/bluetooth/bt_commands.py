@@ -19,8 +19,10 @@ from typing import List, Tuple, Union
 
 from pyshimmer.bluetooth.bt_const import *
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
-from pyshimmer.device import dr2sr, EChannelType, ChannelDataType, sec2ticks, ticks2sec, ExGRegister, \
-    get_firmware_type
+from pyshimmer.dev.base import dr2sr, sec2ticks, ticks2sec
+from pyshimmer.dev.channels import ChannelDataType, EChannelType
+from pyshimmer.dev.exg import ExGRegister
+from pyshimmer.dev.fw_version import get_firmware_type
 from pyshimmer.util import bit_is_set, resp_code_to_bytes, calibrate_u12_adc_value, battery_voltage_to_percent
 
 

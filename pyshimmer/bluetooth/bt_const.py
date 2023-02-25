@@ -13,7 +13,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from pyshimmer.device import EChannelType
+from pyshimmer.dev.channels import EChannelType
 
 ACK_COMMAND_PROCESSED = 0xFF
 INSTREAM_CMD_RESPONSE = 0x8A

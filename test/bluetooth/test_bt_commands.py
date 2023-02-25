@@ -22,7 +22,8 @@ from pyshimmer.bluetooth.bt_commands import ShimmerCommand, GetSamplingRateComma
     StopLoggingCommand, GetEXGRegsCommand, SetEXGRegsCommand, GetExperimentIDCommand, SetExperimentIDCommand, \
     GetDeviceNameCommand, SetDeviceNameCommand, DummyCommand, DataPacket, ResponseCommand, EnableStatusAckCommand
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
-from pyshimmer.device import EFirmwareType, EChannelType, ChDataTypeAssignment
+from pyshimmer.dev.channels import ChDataTypeAssignment, EChannelType
+from pyshimmer.dev.fw_version import EFirmwareType
 from pyshimmer.test_util import MockSerial
 
 

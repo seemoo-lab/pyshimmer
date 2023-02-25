@@ -16,9 +16,11 @@ import random
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from unittest import TestCase
 
-from pyshimmer.device import sr2dr, dr2sr, ChannelDataType, ChDataTypeAssignment, SensorChannelAssignment, \
-    SensorBitAssignments, sec2ticks, ticks2sec, get_ch_dtypes, EChannelType, ExGRegister, ExGMux, get_firmware_type, \
-    EFirmwareType, ExGRLDLead, ERLDRef, get_exg_ch, is_exg_ch, FirmwareVersion
+from pyshimmer.dev.base import sr2dr, dr2sr, sec2ticks, ticks2sec
+from pyshimmer.dev.channels import ChDataTypeAssignment, get_ch_dtypes, SensorChannelAssignment, SensorBitAssignments, \
+    ChannelDataType, EChannelType
+from pyshimmer.dev.exg import is_exg_ch, get_exg_ch, ExGMux, ExGRLDLead, ERLDRef, ExGRegister
+from pyshimmer.dev.fw_version import FirmwareVersion, get_firmware_type, EFirmwareType
 
 
 def randbytes(k: int) -> bytes:
@@ -35,7 +37,7 @@ class DeviceTest(TestCase):
     def test_channel_enum_uniqueness(self):
         try:
             # The exception will trigger upon import if the enum values are not unique
-            from pyshimmer.device import EChannelType
+            from pyshimmer.dev.channels import EChannelType
         except ValueError as e:
             self.fail(f'Enum not unique: {e}')
 
@@ -130,18 +132,18 @@ class DeviceTest(TestCase):
     def test_sensor_group_uniqueness(self):
         try:
             # The exception will trigger upon import if the enum values are not unique
-            from pyshimmer.device import ESensorGroup
+            from pyshimmer.dev.channels import ESensorGroup
         except ValueError as e:
             self.fail(f'Enum not unique: {e}')
 
     def test_datatype_assignments(self):
-        from pyshimmer.device import EChannelType
+        from pyshimmer.dev.channels import EChannelType
         for ch_type in EChannelType:
             if ch_type not in ChDataTypeAssignment:
                 self.fail(f'No data type assigned to channel type: {ch_type}')
 
     def test_sensor_channel_assignments(self):
-        from pyshimmer.device import ESensorGroup
+        from pyshimmer.dev.channels import ESensorGroup
         for sensor in ESensorGroup:
             if sensor not in SensorChannelAssignment:
                 self.fail(f'No channels assigned to sensor type: {sensor}')

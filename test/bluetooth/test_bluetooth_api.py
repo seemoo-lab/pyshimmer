@@ -21,7 +21,8 @@ from pyshimmer.bluetooth.bt_api import BluetoothRequestHandler, ShimmerBluetooth
 from pyshimmer.bluetooth.bt_commands import GetDeviceNameCommand, SetDeviceNameCommand, DataPacket, GetStatusCommand, \
     GetStringCommand, ResponseCommand
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
-from pyshimmer.device import ChDataTypeAssignment, EChannelType, EFirmwareType, FirmwareVersion
+from pyshimmer.dev.channels import ChDataTypeAssignment, EChannelType
+from pyshimmer.dev.fw_version import FirmwareVersion, EFirmwareType
 from pyshimmer.test_util import PTYSerialMockCreator
 
 

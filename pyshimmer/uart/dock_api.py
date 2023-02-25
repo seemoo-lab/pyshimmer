@@ -18,7 +18,9 @@ from typing import Tuple
 
 from serial import Serial
 
-from pyshimmer.device import sec2ticks, ticks2sec, EFirmwareType, get_firmware_type, ExGRegister
+from pyshimmer.dev.base import sec2ticks, ticks2sec
+from pyshimmer.dev.exg import ExGRegister
+from pyshimmer.dev.fw_version import get_firmware_type, EFirmwareType
 from pyshimmer.uart.dock_const import *
 from pyshimmer.uart.dock_serial import DockSerial
 from pyshimmer.util import unpack

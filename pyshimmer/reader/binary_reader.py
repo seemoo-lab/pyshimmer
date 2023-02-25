@@ -18,8 +18,9 @@ from typing import List, Tuple, Union, BinaryIO
 
 import numpy as np
 
-from pyshimmer.device import ESensorGroup, EChannelType, ChannelDataType, SensorBitAssignments, \
-    get_enabled_channels, get_ch_dtypes, ExGRegister
+from pyshimmer.dev.channels import ESensorGroup, get_ch_dtypes, get_enabled_channels, SensorBitAssignments, \
+    ChannelDataType, EChannelType
+from pyshimmer.dev.exg import ExGRegister
 from pyshimmer.util import FileIOBase, unpack, bit_is_set
 from .reader_const import RTC_CLOCK_DIFF_OFFSET, ENABLED_SENSORS_OFFSET, ENABLED_SENSORS_LEN, SR_OFFSET, \
     START_TS_OFFSET, START_TS_LEN, TRIAL_CONFIG_OFFSET, TRIAL_CONFIG_MASTER, TRIAL_CONFIG_SYNC, BLOCK_LEN, \
