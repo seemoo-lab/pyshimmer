@@ -16,7 +16,7 @@
 from unittest import TestCase
 
 from pyshimmer.dev.channels import ChDataTypeAssignment, get_ch_dtypes, SensorChannelAssignment, SensorBitAssignments, \
-    ChannelDataType, EChannelType
+    ChannelDataType, EChannelType, ESensorGroup, sort_sensors
 
 
 class DeviceChannelsTest(TestCase):
@@ -112,3 +112,14 @@ class DeviceChannelsTest(TestCase):
             for s2 in SensorBitAssignments.keys():
                 if s1 != s2 and SensorBitAssignments[s1] == SensorBitAssignments[s2]:
                     self.fail(f'Colliding bitfield assignments for sensor {s1} and {s2}')
+
+    def test_sort_sensors(self):
+        sensors = [ESensorGroup.BATTERY, ESensorGroup.ACCEL_LN]
+        expected = [ESensorGroup.ACCEL_LN, ESensorGroup.BATTERY]
+        r = sort_sensors(sensors)
+        self.assertEqual(r, expected)
+
+        sensors = [ESensorGroup.CH_A15, ESensorGroup.MAG_MPU, ESensorGroup.ACCEL_LN, ESensorGroup.CH_A15]
+        expected = [ESensorGroup.ACCEL_LN, ESensorGroup.CH_A15, ESensorGroup.CH_A15, ESensorGroup.MAG_MPU]
+        r = sort_sensors(sensors)
+        self.assertEqual(r, expected)

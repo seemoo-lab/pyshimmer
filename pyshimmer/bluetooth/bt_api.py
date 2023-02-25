@@ -15,7 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from queue import Queue, Empty
 from threading import Event, Thread
-from typing import List, Tuple, Callable
+from typing import List, Tuple, Callable, Iterable
 
 from serial import Serial
 
@@ -23,10 +23,11 @@ from pyshimmer.bluetooth.bt_commands import ShimmerCommand, GetSamplingRateComma
     SetConfigTimeCommand, GetRealTimeClockCommand, SetRealTimeClockCommand, GetStatusCommand, \
     GetFirmwareVersionCommand, InquiryCommand, StartStreamingCommand, StopStreamingCommand, DataPacket, \
     GetEXGRegsCommand, SetEXGRegsCommand, StartLoggingCommand, StopLoggingCommand, GetExperimentIDCommand, \
-    SetExperimentIDCommand, GetDeviceNameCommand, SetDeviceNameCommand, DummyCommand, GetBatteryCommand
+    SetExperimentIDCommand, GetDeviceNameCommand, SetDeviceNameCommand, DummyCommand, GetBatteryCommand, \
+    SetSamplingRateCommand, SetSensorsCommand
 from pyshimmer.bluetooth.bt_const import ACK_COMMAND_PROCESSED, DATA_PACKET, FULL_STATUS_RESPONSE, INSTREAM_CMD_RESPONSE
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
-from pyshimmer.dev.channels import ChDataTypeAssignment, ChannelDataType, EChannelType
+from pyshimmer.dev.channels import ChDataTypeAssignment, ChannelDataType, EChannelType, ESensorGroup
 from pyshimmer.dev.exg import ExGRegister
 from pyshimmer.dev.fw_version import EFirmwareType, FirmwareVersion
 from pyshimmer.serial_base import ReadAbort
@@ -342,6 +343,13 @@ class ShimmerBluetooth:
         """
         return self._process_and_wait(GetSamplingRateCommand())
 
+    def set_sampling_rate(self, sr: float) -> None:
+        """Set the active sampling rate for the device
+
+        :param sr: The sampling rate in Hertz
+        """
+        self._process_and_wait(SetSamplingRateCommand(sr))
+
     def get_battery_state(self, in_percent: bool) -> float:
         """Retrieve the battery state of the device
         :param in_percent: True: calculate battery state in percent; False: calculate battery state in Volt
@@ -362,6 +370,15 @@ class ShimmerBluetooth:
         :arg time: The configuration time that will be set in the configuration of the Shimmer
         """
         self._process_and_wait(SetConfigTimeCommand(time))
+
+    def set_sensors(self, sensors: Iterable[ESensorGroup]) -> None:
+        """Set the active sensors for sampling
+
+        This command will activate the specified list of sensors and deactivate all other sensors.
+
+        :param sensors: A list of sensors to activate
+        """
+        self._process_and_wait(SetSensorsCommand(sensors))
 
     def get_rtc(self) -> float:
         """Retrieve the current value of the onboard real-time clock
