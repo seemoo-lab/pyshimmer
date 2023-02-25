@@ -1,5 +1,5 @@
 # pyshimmer - API for Shimmer sensor devices
-# Copyright (C) 2020  Lukas Magel
+# Copyright (C) 2023  Lukas Magel
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
