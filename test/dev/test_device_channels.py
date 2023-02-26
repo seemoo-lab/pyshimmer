@@ -28,7 +28,7 @@ class DeviceChannelsTest(TestCase):
         except ValueError as e:
             self.fail(f'Enum not unique: {e}')
 
-    def test_channel_data_type(self):
+    def test_channel_data_type_decoding(self):
         def test_both_endianess(byte_val_le: bytes, expected: int, signed: bool):
             blen = len(byte_val_le)
             dt_le = ChannelDataType(blen, signed=signed, le=True)
@@ -72,6 +72,20 @@ class DeviceChannelsTest(TestCase):
         test_both_endianess(b'\x00\x80', -2 ** 15, signed=True)
         test_both_endianess(b'\xFF\x7F', 2 ** 15 - 1, signed=True)
         test_both_endianess(b'\xFF\x00', 255, signed=True)
+
+    def test_channel_data_type_encoding(self):
+        def test_both_endianess(val: int, val_len: int, expected: bytes, signed: bool):
+            dt_le = ChannelDataType(val_len, signed=signed, le=True)
+            dt_be = ChannelDataType(val_len, signed=signed, le=False)
+
+            self.assertEqual(expected, dt_le.encode(val))
+            self.assertEqual(expected[::-1], dt_be.encode(val))
+
+        test_both_endianess(0x1234, 2, b'\x34\x12', signed=False)
+        test_both_endianess(-0x10, 2, b'\xF0\xFF', signed=True)
+
+        test_both_endianess(0x12345, 3, b'\x45\x23\x01', signed=False)
+        test_both_endianess(-0x12345, 3, b'\xbb\xdc\xfe', signed=True)
 
     def test_get_ch_dtypes(self):
         channels = [EChannelType.INTERNAL_ADC_13, EChannelType.GYRO_MPU9150_Y]
