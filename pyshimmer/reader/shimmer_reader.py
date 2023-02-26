@@ -168,10 +168,6 @@ class ShimmerReader:
         else:
             return ts_boot
 
-    def _is_spaced_equally(self, ts_dev: np.ndarray):
-        ts_diff = np.diff(ts_dev)
-        return np.all(ts_diff == self._bin_reader.sample_rate)
-
     def _process_signals(self, channels: Dict[EChannelType, np.ndarray]) -> Dict[EChannelType, np.ndarray]:
         result = channels.copy()
 
