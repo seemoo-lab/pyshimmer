@@ -331,9 +331,12 @@ class ShimmerBluetoothIntegrationTest(TestCase):
         self._sot = ShimmerBluetooth(serial, **kwargs)
 
         if initialize:
+            # The Bluetooth API automatically requests the firmware version upon initialization.
+            # We must prepare a proper response beforehand.
             future = self._submit_req_resp_handler(req_len=1, resp=b'\xff\x2f\x03\x00\x00\x00\x0b\x00')
             self._sot.initialize()
 
+            # Check that it properly asked for the firmware version
             result = future.result()
             assert result == b'\x2E'
 
@@ -344,16 +347,19 @@ class ShimmerBluetoothIntegrationTest(TestCase):
     def test_context_manager(self):
         self.do_setup(initialize=False)
 
-        # We prepare the response for the GetFirmwareVersion command issued
-        # at initialization.
+        # The Bluetooth API automatically requests the firmware version upon initialization.
+        # We must prepare a proper response beforehand.
         req_future = self._submit_req_resp_handler(req_len=1, resp=b'\xff\x2f\x03\x00\x00\x00\x0b\x00')
         with self._sot:
+            # We check that the API properly asked for the firmware version
             req_data = req_future.result()
             self.assertEqual(req_data, b'\x2e')
+
+            # It should now be in an initialized state
             self.assertTrue(self._sot.initialized)
 
     def test_version_and_capabilities(self):
-        self.do_setup()
+        self.do_setup(initialize=True)
 
         self.assertTrue(self._sot.initialized)
         self.assertIsNotNone(self._sot.capabilities)
