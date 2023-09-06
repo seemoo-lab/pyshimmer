@@ -4,13 +4,6 @@ pyshimmer: Unofficial Python API for Shimmer Sensor devices
 .. image:: https://github.com/seemoo-lab/pyshimmer/actions/workflows/build.yml/badge.svg
     :target: https://github.com/seemoo-lab/pyshimmer
 
-.. image:: https://www.codefactor.io/repository/github/seemoo-lab/pyshimmer/badge/master
-    :target: https://www.codefactor.io/repository/github/seemoo-lab/pyshimmer/overview/master
-    :alt: CodeFactor
-
-.. image:: https://codecov.io/gh/seemoo-lab/pyshimmer/branch/master/graph/badge.svg?token=EHK1ISJH7Z
-    :target: https://codecov.io/gh/seemoo-lab/pyshimmer
-
 .. contents::
 
 General Information
@@ -75,23 +68,40 @@ You can then run the tests from the repository root by simply issuing:
 Shimmer Firmware
 ^^^^^^^^^^^^^^^^
 
-The vanilla version of the `Shimmer3 firmware <https://github.com/ShimmerResearch/shimmer3>`_ exhibits several
-unfixed bugs (see the `issues page <https://github.com/ShimmerResearch/shimmer3/issues>`_ for more information).
-Depending on the firmware you intend to use, you will need to compile and run a custom patched version of the firmware.
-In the following table, we list the tested firmware versions and their compatibility.
+As of version v0.15.4 of the `Shimmer3 firmware <https://github.com/ShimmerResearch/shimmer3>`_ the Python API is
+fully compatible to the firmware. Older versions of the vanilla firmware exhibit several bugs and are incompatible.
+If you intend to use a firmware version older than 0.15.4, you will need to compile and run a custom patched version of
+the firmware. In the following table, the firmware versions and their compatibility are listed.
+
+Compatibility Table
+"""""""""""""""""""
 
 ============= ========= ============= ======================================================================
 Firmware Type Version   Compatibility Issues
 ============= ========= ============= ======================================================================
+LogAndStream  v0.15.4   Compatible    You will need to use pyshimmer v0.4 or newer
+                        to v0.4.0
 LogAndStream  v0.11.0   Incompatible  - `Issue 7 <https://github.com/ShimmerResearch/shimmer3/issues/7>`_
                                       - `Issue 10 <https://github.com/ShimmerResearch/shimmer3/issues/10>`_
+SDLog         v0.21.0   Compatible    Untested
 SDLog         v0.19.0   Compatible
 ============= ========= ============= ======================================================================
 
-If you want to use the *LogAndStream* firmware with the pyshimmer library, you will need to compile and program a
-patched version of the firmware. We provide a forked repository which features the necessary fixes
-`here <https://github.com/seemoo-lab/shimmer3/>`_. It also contains instructions on how to compile and program the
-firmware.
+It is recommended to use the newest *LogAndStream* firmware that is compatible to the API. If you want to use an older
+version with the pyshimmer library, you will need to compile and program a patched version of the firmware. We provide
+a forked repository which features the necessary fixes `here <https://github.com/seemoo-lab/shimmer3/>`_.
+It also contains instructions on how to compile and program the firmware.
+
+Notes on Firmware Version 0.15.4
+""""""""""""""""""""""""""""""""
+Starting with Firmware version v0.15.4,
+`the race condition issue <https://github.com/ShimmerResearch/shimmer3/issues/7>`_ in the Bluetooth stack has been
+fixed. Additionally, the Shimmer3 now supports an additional command to disable the unsolicited status acknowledgment
+byte (see `Issue 10 <https://github.com/ShimmerResearch/shimmer3/issues/10>`_). The pyshimmer Bluetooth API tries to
+automatically detect if the Shimmer3 runs a firmware newer or equal to v0.15.4 and automatically issues the command
+to disable the unsolicited status acknowledgment at startup. You can optionally disable this feature in the constructor.
+With this new command, the state machine in the Bluetooth API of pyshimmer is compatible to the vanilla firmware
+version.
 
 Creating udev rules for persistent device filenames
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

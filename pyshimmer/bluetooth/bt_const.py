@@ -13,7 +13,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from pyshimmer.device import EChannelType
+from pyshimmer.dev.channels import EChannelType
 
 ACK_COMMAND_PROCESSED = 0xFF
 INSTREAM_CMD_RESPONSE = 0x8A
@@ -25,11 +25,16 @@ INQUIRY_RESPONSE = 0x02
 GET_SAMPLING_RATE_COMMAND = 0x03
 SAMPLING_RATE_RESPONSE = 0x04
 
+SET_SAMPLING_RATE_COMMAND = 0x05
+
 GET_BATTERY_COMMAND = 0x95
 BATTERY_RESPONSE = 0x94
 FULL_BATTERY_RESPONSE = bytes((INSTREAM_CMD_RESPONSE, BATTERY_RESPONSE))
 
 START_STREAMING_COMMAND = 0x07
+# No response for command
+
+SET_SENSORS_COMMAND = 0x08
 # No response for command
 
 STOP_STREAMING_COMMAND = 0x20
@@ -76,6 +81,8 @@ DUMMY_COMMAND = 0x96
 
 START_LOGGING_COMMAND = 0x92
 STOP_LOGGING_COMMAND = 0x93
+
+ENABLE_STATUS_ACK_COMMAND = 0xA3
 
 """
 The Bluetooth LogAndStream API assigns a numerical index to each channel type. This dictionary maps each index to the

@@ -18,8 +18,9 @@ from typing import Dict, List, BinaryIO
 
 import numpy as np
 
-from pyshimmer.device import EChannelType, ticks2sec, dr2sr, ExGRegister, get_exg_ch, ChDataTypeAssignment, is_exg_ch, \
-    get_enabled_channels
+from pyshimmer.dev.base import ticks2sec, dr2sr
+from pyshimmer.dev.channels import ChDataTypeAssignment, get_enabled_channels, EChannelType
+from pyshimmer.dev.exg import is_exg_ch, get_exg_ch, ExGRegister
 from pyshimmer.reader.binary_reader import ShimmerBinaryReader
 from pyshimmer.reader.reader_const import EXG_ADC_REF_VOLT, EXG_ADC_OFFSET, TRIAXCAL_SENSORS
 from pyshimmer.util import unwrap
@@ -167,10 +168,6 @@ class ShimmerReader:
             return ts_boot + self._bin_reader.global_clock_diff
         else:
             return ts_boot
-
-    def _is_spaced_equally(self, ts_dev: np.ndarray):
-        ts_diff = np.diff(ts_dev)
-        return np.all(ts_diff == self._bin_reader.sample_rate)
 
     def _process_signals(self, channels: Dict[EChannelType, np.ndarray]) -> Dict[EChannelType, np.ndarray]:
         result = channels.copy()

@@ -15,12 +15,16 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import struct
 from abc import ABC, abstractmethod
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Iterable
 
 from pyshimmer.bluetooth.bt_const import *
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
-from pyshimmer.device import dr2sr, EChannelType, ChannelDataType, sec2ticks, ticks2sec, ExGRegister, \
-    get_firmware_type
+
+from pyshimmer.dev.base import dr2sr, sr2dr, sec2ticks, ticks2sec
+from pyshimmer.dev.channels import ChannelDataType, EChannelType, ESensorGroup, serialize_sensorlist
+from pyshimmer.dev.exg import ExGRegister
+from pyshimmer.dev.fw_version import get_firmware_type
+
 from pyshimmer.util import bit_is_set, resp_code_to_bytes, calibrate_u12_adc_value, battery_voltage_to_percent
 
 
@@ -187,10 +191,21 @@ class GetSamplingRateCommand(ResponseCommand):
     def send(self, ser: BluetoothSerial) -> None:
         ser.write_command(GET_SAMPLING_RATE_COMMAND)
 
-    def receive(self, ser: BluetoothSerial) -> None:
+    def receive(self, ser: BluetoothSerial) -> float:
         sr_clock = ser.read_response(SAMPLING_RATE_RESPONSE, arg_format='<H')
         sr = dr2sr(sr_clock)
         return sr
+
+
+class SetSamplingRateCommand(ShimmerCommand):
+
+    def __init__(self, sr: float):
+        self._sr = sr
+
+    def send(self, ser: BluetoothSerial) -> None:
+        dr = sr2dr(self._sr)
+        ser.write_command(SET_SAMPLING_RATE_COMMAND, "<H", dr)
+
 
 class GetBatteryCommand(ResponseCommand):
     """Retrieve the battery state
@@ -211,10 +226,11 @@ class GetBatteryCommand(ResponseCommand):
         # https://shimmersensing.com/wp-content/docs/support/documentation/Shimmer_User_Manual_rev3p.pdf (Page 53)
         raw_values = batt[1] * 256 + batt[0]
         batt_voltage = calibrate_u12_adc_value(raw_values, 0, 3.0, 1.0) * 1.988
-        if (self._in_percent):
+        if self._in_percent:
             return battery_voltage_to_percent(batt_voltage)
-        else: 
+        else:
             return batt_voltage
+
 
 class GetConfigTimeCommand(ResponseCommand):
     """Retrieve the config time that is stored in the Shimmer device configuration file
@@ -436,6 +452,16 @@ class SetExperimentIDCommand(SetStringCommand):
         super().__init__(SET_EXPID_COMMAND, exp_id)
 
 
+class SetSensorsCommand(ShimmerCommand):
+
+    def __init__(self, sensors: Iterable[ESensorGroup]):
+        self._sensors = list(sensors)
+
+    def send(self, ser: BluetoothSerial) -> None:
+        bitfield_bin = serialize_sensorlist(self._sensors)
+        ser.write_command(SET_SENSORS_COMMAND, "<3s", bitfield_bin)
+
+
 class GetDeviceNameCommand(GetStringCommand):
     """Get the device name
 
@@ -453,6 +479,26 @@ class SetDeviceNameCommand(SetStringCommand):
 
     def __init__(self, dev_name: str):
         super().__init__(SET_SHIMMERNAME_COMMAND, dev_name)
+
+
+class SetStatusAckCommand(ShimmerCommand):
+
+    def __init__(self, enabled: bool):
+        """Command to enable/disable the ACK byte before status messages
+
+        By default, the Shimmer firmware sends an acknowledgment byte before
+        sending unsolicited status messages to the host. This confuses the state
+        machine of the Python API but is always expected by the official Shimmer
+        software. This command is used by the Python API to automatically disable
+        the acknowledgment when connecting to a Shimmer.
+
+        :param enabled: If set to True, the acknowledgment is sent. If set to False,
+            the acknowledgment is not sent.
+        """
+        self._enabled = enabled
+
+    def send(self, ser: BluetoothSerial) -> None:
+        ser.write_command(ENABLE_STATUS_ACK_COMMAND, "<B", int(self._enabled))
 
 
 class StartLoggingCommand(OneShotCommand):

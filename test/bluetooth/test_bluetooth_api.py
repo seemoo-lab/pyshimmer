@@ -21,7 +21,8 @@ from pyshimmer.bluetooth.bt_api import BluetoothRequestHandler, ShimmerBluetooth
 from pyshimmer.bluetooth.bt_commands import GetDeviceNameCommand, SetDeviceNameCommand, DataPacket, GetStatusCommand, \
     GetStringCommand, ResponseCommand
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
-from pyshimmer.device import ChDataTypeAssignment, EChannelType
+from pyshimmer.dev.channels import ChDataTypeAssignment, EChannelType
+from pyshimmer.dev.fw_version import FirmwareVersion, EFirmwareType
 from pyshimmer.test_util import PTYSerialMockCreator
 
 
@@ -323,29 +324,51 @@ class ShimmerBluetoothIntegrationTest(TestCase):
 
         return self._submit_handler_fn(master_fn)
 
-    def setUp(self) -> None:
+    def do_setup(self, initialize: bool = True, **kwargs) -> None:
         self._mock_creator = PTYSerialMockCreator()
         serial, self._master = self._mock_creator.create_mock()
 
-        self._sot = ShimmerBluetooth(serial)
-        self._sot.initialize()
+        self._sot = ShimmerBluetooth(serial, **kwargs)
+
+        if initialize:
+            # The Bluetooth API automatically requests the firmware version upon initialization.
+            # We must prepare a proper response beforehand.
+            future = self._submit_req_resp_handler(req_len=1, resp=b'\xff\x2f\x03\x00\x00\x00\x0b\x00')
+            self._sot.initialize()
+
+            # Check that it properly asked for the firmware version
+            result = future.result()
+            assert result == b'\x2E'
 
     def tearDown(self) -> None:
         self._sot.shutdown()
         self._mock_creator.close()
 
-    # noinspection PyMethodMayBeStatic
     def test_context_manager(self):
-        mock_creator = PTYSerialMockCreator()
-        serial, master = mock_creator.create_mock()
+        self.do_setup(initialize=False)
 
-        sot = ShimmerBluetooth(serial)
-        with sot:
-            pass
+        # The Bluetooth API automatically requests the firmware version upon initialization.
+        # We must prepare a proper response beforehand.
+        req_future = self._submit_req_resp_handler(req_len=1, resp=b'\xff\x2f\x03\x00\x00\x00\x0b\x00')
+        with self._sot:
+            # We check that the API properly asked for the firmware version
+            req_data = req_future.result()
+            self.assertEqual(req_data, b'\x2e')
 
-        mock_creator.close()
+            # It should now be in an initialized state
+            self.assertTrue(self._sot.initialized)
+
+    def test_version_and_capabilities(self):
+        self.do_setup(initialize=True)
+
+        self.assertTrue(self._sot.initialized)
+        self.assertIsNotNone(self._sot.capabilities)
+        self.assertEqual(self._sot.capabilities.fw_type, EFirmwareType.LogAndStream)
+        self.assertEqual(self._sot.capabilities.version, FirmwareVersion(0, 11, 0))
 
     def test_get_sampling_rate(self):
+        self.do_setup()
+
         ftr = self._submit_req_resp_handler(1, b'\xff\x04\x40\x00')
         r = self._sot.get_sampling_rate()
 
@@ -353,6 +376,8 @@ class ShimmerBluetoothIntegrationTest(TestCase):
         self.assertEqual(r, 512.0)
 
     def test_get_data_types(self):
+        self.do_setup()
+
         ftr = self._submit_req_resp_handler(1, b'\xff\x02\x40\x00\x01\xff\x01\x09\x01\x01\x12')
         r = self._sot.get_data_types()
 
@@ -360,6 +385,8 @@ class ShimmerBluetoothIntegrationTest(TestCase):
         self.assertEqual(r, [EChannelType.TIMESTAMP, EChannelType.INTERNAL_ADC_13])
 
     def test_streaming(self):
+        self.do_setup()
+
         pkts = []
 
         def pkt_handler(new_pkt: DataPacket) -> None:
@@ -386,6 +413,8 @@ class ShimmerBluetoothIntegrationTest(TestCase):
         self.assertEqual(pkt[EChannelType.INTERNAL_ADC_13], 1866)
 
     def test_status_update(self):
+        self.do_setup()
+
         pkts = []
 
         def status_handler(new_pkt: List[bool]) -> None:
@@ -401,3 +430,31 @@ class ShimmerBluetoothIntegrationTest(TestCase):
         pkt = pkts[0]
 
         self.assertEqual(pkt, [False, False, False, False, False, True, False, False])
+
+    def test_get_firmware_version(self):
+        self.do_setup()
+
+        self._submit_req_resp_handler(1, b'\xFF\x2F\x03\x00\x01\x00\x02\x03')
+        fwtype, fwver = self._sot.get_firmware_version()
+
+        self.assertEqual(fwtype, EFirmwareType.LogAndStream)
+        self.assertEqual(fwver, FirmwareVersion(1, 2, 3))
+
+    def test_status_ack_disable(self):
+        self.do_setup(initialize=False)
+
+        # Queue response for version command
+        self._submit_req_resp_handler(1, b'\xFF\x2F\x03\x00\x00\x00\x0F\x04')
+        # Queue response for disabling the status acknowledgment
+        req_future = self._submit_req_resp_handler(2, b'\xFF')
+
+        self._sot.initialize()
+        req_data = req_future.result()
+        self.assertEqual(req_data, b'\xA3\x00')
+
+    def test_status_ack_not_disable(self):
+        self.do_setup(initialize=False, disable_status_ack=False)
+
+        # Queue response for version command
+        self._submit_req_resp_handler(1, b'\xFF\x2F\x03\x00\x00\x00\x0F\x04')
+        self._sot.initialize()
