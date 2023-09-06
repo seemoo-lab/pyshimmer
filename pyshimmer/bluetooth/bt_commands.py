@@ -19,8 +19,12 @@ from typing import List, Tuple, Union, Iterable
 
 from pyshimmer.bluetooth.bt_const import *
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
-from pyshimmer.device import dr2sr, EChannelType, ChannelDataType, sec2ticks, ticks2sec, ExGRegister, \
-    get_firmware_type, sr2dr, ESensorGroup, serialize_sensorlist
+
+from pyshimmer.dev.base import dr2sr, sr2dr, sec2ticks, ticks2sec
+from pyshimmer.dev.channels import ChannelDataType, EChannelType, ESensorGroup, serialize_sensorlist
+from pyshimmer.dev.exg import ExGRegister
+from pyshimmer.dev.fw_version import get_firmware_type
+
 from pyshimmer.util import bit_is_set, resp_code_to_bytes, calibrate_u12_adc_value, battery_voltage_to_percent
 
 
@@ -475,6 +479,26 @@ class SetDeviceNameCommand(SetStringCommand):
 
     def __init__(self, dev_name: str):
         super().__init__(SET_SHIMMERNAME_COMMAND, dev_name)
+
+
+class SetStatusAckCommand(ShimmerCommand):
+
+    def __init__(self, enabled: bool):
+        """Command to enable/disable the ACK byte before status messages
+
+        By default, the Shimmer firmware sends an acknowledgment byte before
+        sending unsolicited status messages to the host. This confuses the state
+        machine of the Python API but is always expected by the official Shimmer
+        software. This command is used by the Python API to automatically disable
+        the acknowledgment when connecting to a Shimmer.
+
+        :param enabled: If set to True, the acknowledgment is sent. If set to False,
+            the acknowledgment is not sent.
+        """
+        self._enabled = enabled
+
+    def send(self, ser: BluetoothSerial) -> None:
+        ser.write_command(ENABLE_STATUS_ACK_COMMAND, "<B", int(self._enabled))
 
 
 class StartLoggingCommand(OneShotCommand):

@@ -20,7 +20,10 @@ from unittest.mock import Mock, PropertyMock
 import numpy as np
 import pandas as pd
 
-from pyshimmer.device import EChannelType, ticks2sec, get_exg_ch, ExGRegister, ESensorGroup, get_enabled_channels
+from pyshimmer import EChannelType, ExGRegister
+from pyshimmer.dev.base import ticks2sec
+from pyshimmer.dev.channels import ESensorGroup, get_enabled_channels
+from pyshimmer.dev.exg import get_exg_ch
 from pyshimmer.reader.binary_reader import ShimmerBinaryReader
 from pyshimmer.reader.shimmer_reader import ShimmerReader, SingleChannelProcessor, PPGProcessor, TriAxCalProcessor
 from .reader_test_util import get_bin_vs_consensys_pair_fpath, get_synced_bin_vs_consensys_pair_fpath, get_ecg_sample, \

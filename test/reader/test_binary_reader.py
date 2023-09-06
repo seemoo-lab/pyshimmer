@@ -17,7 +17,8 @@ from unittest import TestCase
 
 import numpy as np
 
-from pyshimmer.device import ESensorGroup, EChannelType, get_ch_dtypes, ExGRegister
+from pyshimmer.dev.channels import ESensorGroup, get_ch_dtypes
+from pyshimmer import EChannelType, ExGRegister
 from pyshimmer.reader.shimmer_reader import ShimmerBinaryReader
 from .reader_test_util import get_binary_sample_fpath, get_synced_bin_vs_consensys_pair_fpath, get_ecg_sample, \
     get_triaxcal_sample

@@ -1,9 +1,8 @@
-from unittest import TestCase
 from typing import Tuple
+from unittest import TestCase
 
-from pyshimmer.uart.dock_api import ShimmerDock
+from pyshimmer import EFirmwareType, ShimmerDock
 from pyshimmer.test_util import MockSerial
-from pyshimmer.device import EFirmwareType
 
 
 class DockAPITest(TestCase):
