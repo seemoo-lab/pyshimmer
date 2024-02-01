@@ -84,6 +84,9 @@ STOP_LOGGING_COMMAND = 0x93
 
 ENABLE_STATUS_ACK_COMMAND = 0xA3
 
+GET_ALL_CALIBRATION_COMMAND = 0x2C
+ALL_CALIBRATION_RESPONSE = 0x2D
+
 """
 The Bluetooth LogAndStream API assigns a numerical index to each channel type. This dictionary maps each index to the
 corresponding channel type.

@@ -23,6 +23,7 @@ from pyshimmer.bluetooth.bt_serial import BluetoothSerial
 from pyshimmer.dev.base import dr2sr, sr2dr, sec2ticks, ticks2sec
 from pyshimmer.dev.channels import ChannelDataType, EChannelType, ESensorGroup, serialize_sensorlist
 from pyshimmer.dev.exg import ExGRegister
+from pyshimmer.dev.calibration import AllCalibration
 from pyshimmer.dev.fw_version import get_firmware_type
 
 from pyshimmer.util import bit_is_set, resp_code_to_bytes, calibrate_u12_adc_value, battery_voltage_to_percent
@@ -342,6 +343,35 @@ class GetFirmwareVersionCommand(ResponseCommand):
         return fw_type, major, minor, rel
 
 
+
+class GetAllCalibrationCommand(ResponseCommand):
+    """ Returns all the stored calibration values (84 bytes) in the following order:
+
+            ESensorGroup.ACCEL_LN (21 bytes)
+            ESensorGroup.GYRO     (21 bytes)
+            ESensorGroup.MAG      (21 bytes)
+            ESensorGroup.ACCEL_WR (21 bytes)        
+
+        The breakdown of the kinematic (accel x 2, gyro and mag) calibration values is as follows:
+            [bytes  0- 5] offset bias values: 3 (x,y,z) 16-bit signed integers (big endian). 
+            [bytes  6-11] sensitivity values: 3 (x,y,z) 16-bit signed integers (big endian). 
+            [bytes 12-20] alignment matrix:  9 values    8-bit signed integers.
+    """
+
+    def __init__(self):
+        super().__init__(ALL_CALIBRATION_RESPONSE)
+
+        self._offset = 0x0
+        self._rlen = 0x54  # 72 bytes
+
+    def send(self, ser: BluetoothSerial) -> None:
+        ser.write_command(GET_ALL_CALIBRATION_COMMAND)
+
+    def receive(self, ser: BluetoothSerial) -> any:
+        ser.read_response(ALL_CALIBRATION_RESPONSE)
+        reg_data = ser.read(self._rlen)
+        return AllCalibration(reg_data)        
+
 class InquiryCommand(ResponseCommand):
     """Perform an inquiry to determine the sample rate, buffer size, and active data channels
 
@@ -412,7 +442,6 @@ class GetEXGRegsCommand(ResponseCommand):
 
         reg_data = ser.read(rlen)
         return ExGRegister(reg_data)
-
 
 class SetEXGRegsCommand(ShimmerCommand):
     """Set the binary contents of the ExG registers of a chip
