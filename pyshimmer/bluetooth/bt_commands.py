@@ -222,7 +222,7 @@ class GetBatteryCommand(ResponseCommand):
 
     def receive(self, ser: BluetoothSerial) -> any:
         batt = ser.read_response(self.get_response_code(), arg_format='BBB')
-        # Calculation see: 
+        # Calculation see:
         # http://shimmersensing.com/wp-content/docs/support/documentation/LogAndStream_for_Shimmer3_Firmware_User_Manual_rev0.11a.pdf (Page 17)
         # https://shimmersensing.com/wp-content/docs/support/documentation/Shimmer_User_Manual_rev3p.pdf (Page 53)
         raw_values = batt[1] * 256 + batt[0]
@@ -338,10 +338,10 @@ class GetFirmwareVersionCommand(ResponseCommand):
         ser.write_command(GET_FW_VERSION_COMMAND)
 
     def receive(self, ser: BluetoothSerial) -> any:
-        fw_type_bin, major, minor, rel = ser.read_response(FW_VERSION_RESPONSE, arg_format='<HHBB')
+        fw_type_bin, major, minor, rel = ser.read_response(
+            FW_VERSION_RESPONSE, arg_format='<HHBB')
         fw_type = get_firmware_type(fw_type_bin)
         return fw_type, major, minor, rel
-
 
 
 class GetAllCalibrationCommand(ResponseCommand):
@@ -362,7 +362,7 @@ class GetAllCalibrationCommand(ResponseCommand):
         super().__init__(ALL_CALIBRATION_RESPONSE)
 
         self._offset = 0x0
-        self._rlen = 0x54  # 72 bytes
+        self._rlen = 0x54  # 84 bytes
 
     def send(self, ser: BluetoothSerial) -> None:
         ser.write_command(GET_ALL_CALIBRATION_COMMAND)
@@ -370,7 +370,8 @@ class GetAllCalibrationCommand(ResponseCommand):
     def receive(self, ser: BluetoothSerial) -> any:
         ser.read_response(ALL_CALIBRATION_RESPONSE)
         reg_data = ser.read(self._rlen)
-        return AllCalibration(reg_data)        
+        return AllCalibration(reg_data)
+
 
 class InquiryCommand(ResponseCommand):
     """Perform an inquiry to determine the sample rate, buffer size, and active data channels
@@ -390,7 +391,8 @@ class InquiryCommand(ResponseCommand):
         ser.write_command(INQUIRY_COMMAND)
 
     def receive(self, ser: BluetoothSerial) -> any:
-        sr_val, _, n_ch, buf_size = ser.read_response(INQUIRY_RESPONSE, arg_format='<HIBB')
+        sr_val, _, n_ch, buf_size = ser.read_response(
+            INQUIRY_RESPONSE, arg_format='<HIBB')
         channel_conf = ser.read(n_ch)
 
         sr = dr2sr(sr_val)
@@ -433,15 +435,18 @@ class GetEXGRegsCommand(ResponseCommand):
         self._rlen = 0xA
 
     def send(self, ser: BluetoothSerial) -> None:
-        ser.write_command(GET_EXG_REGS_COMMAND, 'BBB', self._chip, self._offset, self._rlen)
+        ser.write_command(GET_EXG_REGS_COMMAND, 'BBB',
+                          self._chip, self._offset, self._rlen)
 
     def receive(self, ser: BluetoothSerial) -> any:
         rlen = ser.read_response(EXG_REGS_RESPONSE, arg_format='B')
         if not rlen == self._rlen:
-            raise ValueError('Response does not contain required amount of bytes')
+            raise ValueError(
+                'Response does not contain required amount of bytes')
 
         reg_data = ser.read(rlen)
         return ExGRegister(reg_data)
+
 
 class SetEXGRegsCommand(ShimmerCommand):
     """Set the binary contents of the ExG registers of a chip
@@ -458,7 +463,8 @@ class SetEXGRegsCommand(ShimmerCommand):
 
     def send(self, ser: BluetoothSerial) -> None:
         dlen = len(self._data)
-        ser.write_command(SET_EXG_REGS_COMMAND, 'BBB', self._chip, self._offset, dlen)
+        ser.write_command(SET_EXG_REGS_COMMAND, 'BBB',
+                          self._chip, self._offset, dlen)
         ser.write(self._data)
 
 
