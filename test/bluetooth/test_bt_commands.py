@@ -21,7 +21,7 @@ from pyshimmer.bluetooth.bt_commands import ShimmerCommand, GetSamplingRateComma
     GetFirmwareVersionCommand, InquiryCommand, StartStreamingCommand, StopStreamingCommand, StartLoggingCommand, \
     StopLoggingCommand, GetEXGRegsCommand, SetEXGRegsCommand, GetExperimentIDCommand, SetExperimentIDCommand, \
     GetDeviceNameCommand, SetDeviceNameCommand, DummyCommand, DataPacket, ResponseCommand, SetStatusAckCommand, \
-    SetSensorsCommand, SetSamplingRateCommand
+    SetSensorsCommand, SetSamplingRateCommand, GetAllCalibrationCommand
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
 from pyshimmer.dev.channels import ChDataTypeAssignment, EChannelType, ESensorGroup
 from pyshimmer.dev.fw_version import EFirmwareType
@@ -95,10 +95,12 @@ class BluetoothCommandsTest(TestCase):
 
     def test_get_battery_state_command(self):
         cmd = GetBatteryCommand(in_percent=True)
-        self.assert_cmd(cmd, b'\x95', b'\x8a\x94', b'\x8a\x94\x30\x0b\x80', 100)
+        self.assert_cmd(cmd, b'\x95', b'\x8a\x94',
+                        b'\x8a\x94\x30\x0b\x80', 100)
 
         cmd = GetBatteryCommand(in_percent=False)
-        self.assert_cmd(cmd, b'\x95', b'\x8a\x94', b'\x8a\x94\x2e\x0b\x80', 4.168246153846154)
+        self.assert_cmd(cmd, b'\x95', b'\x8a\x94',
+                        b'\x8a\x94\x2e\x0b\x80', 4.168246153846154)
 
     def test_set_sensors_command(self):
         sensors = [
@@ -119,7 +121,8 @@ class BluetoothCommandsTest(TestCase):
 
     def test_get_rtc(self):
         cmd = GetRealTimeClockCommand()
-        r = self.assert_cmd(cmd, b'\x91', b'\x90', b'\x90\x1f\xb1\x93\x09\x00\x00\x00\x00')
+        r = self.assert_cmd(cmd, b'\x91', b'\x90',
+                            b'\x90\x1f\xb1\x93\x09\x00\x00\x00\x00')
         self.assertAlmostEqual(r, 4903.3837585)
 
     def test_set_rtc(self):
@@ -129,11 +132,13 @@ class BluetoothCommandsTest(TestCase):
     def test_get_status_command(self):
         cmd = GetStatusCommand()
         expected_result = [True, False, True, False, False, True, False, False]
-        self.assert_cmd(cmd, b'\x72', b'\x8a\x71', b'\x8a\x71\x25', expected_result)
+        self.assert_cmd(cmd, b'\x72', b'\x8a\x71',
+                        b'\x8a\x71\x25', expected_result)
 
     def test_get_firmware_version_command(self):
         cmd = GetFirmwareVersionCommand()
-        fw_type, major, minor, patch = self.assert_cmd(cmd, b'\x2e', b'\x2f', b'\x2f\x03\x00\x00\x00\x0b\x00')
+        fw_type, major, minor, patch = self.assert_cmd(
+            cmd, b'\x2e', b'\x2f', b'\x2f\x03\x00\x00\x00\x0b\x00')
         self.assertEqual(fw_type, EFirmwareType.LogAndStream)
         self.assertEqual(major, 0)
         self.assertEqual(minor, 11)
@@ -141,7 +146,8 @@ class BluetoothCommandsTest(TestCase):
 
     def test_inquiry_command(self):
         cmd = InquiryCommand()
-        sr, buf_size, ctypes = self.assert_cmd(cmd, b'\x01', b'\x02', b'\x02\x40\x00\x01\xff\x01\x09\x01\x01\x12')
+        sr, buf_size, ctypes = self.assert_cmd(
+            cmd, b'\x01', b'\x02', b'\x02\x40\x00\x01\xff\x01\x09\x01\x01\x12')
 
         self.assertEqual(sr, 512.0)
         self.assertEqual(buf_size, 1)
@@ -165,7 +171,8 @@ class BluetoothCommandsTest(TestCase):
 
     def test_get_exg_register_command(self):
         cmd = GetEXGRegsCommand(1)
-        r = self.assert_cmd(cmd, b'\x63\x01\x00\x0a', b'\x62', b'\x62\x0a\x00\x80\x10\x00\x00\x00\x00\x00\x02\x01')
+        r = self.assert_cmd(cmd, b'\x63\x01\x00\x0a', b'\x62',
+                            b'\x62\x0a\x00\x80\x10\x00\x00\x00\x00\x00\x02\x01')
         self.assertEqual(r.binary, b'\x00\x80\x10\x00\x00\x00\x00\x00\x02\x01')
 
     def test_get_exg_reg_fail(self):
@@ -174,6 +181,11 @@ class BluetoothCommandsTest(TestCase):
 
         mock.test_put_read_data(b'\x62\x04\x01\x02\x03\x04')
         self.assertRaises(ValueError, cmd.receive, serial)
+
+    def test_get_allcalibration_command(self):
+        cmd = GetAllCalibrationCommand()
+        r = self.assert_cmd(cmd, b'\x2c', b'\x2d', b'\x2d\x08\xcd\x08\xcd\x08\xcd\x00\x5c\x00\x5c\x00\x5c\x00\x9c\x00\x9c\x00\x00\x00\x00\x9c\x00\x00\x00\x00\x00\x00\x19\x96\x19\x96\x19\x96\x00\x9c\x00\x9c\x00\x00\x00\x00\x9c\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x06\x87\x06\x87\x06\x87\x00\x9c\x00\x64\x00\x00\x00\x00\x9c')
+        self.assertEqual(r.binary, b'\x08\xcd\x08\xcd\x08\xcd\x00\x5c\x00\x5c\x00\x5c\x00\x9c\x00\x9c\x00\x00\x00\x00\x9c\x00\x00\x00\x00\x00\x00\x19\x96\x19\x96\x19\x96\x00\x9c\x00\x9c\x00\x00\x00\x00\x9c\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x06\x87\x06\x87\x06\x87\x00\x9c\x00\x64\x00\x00\x00\x00\x9c')
 
     def test_set_exg_register_command(self):
         cmd = SetEXGRegsCommand(1, 0x02, b'\x10\x00')

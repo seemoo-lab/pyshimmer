@@ -24,7 +24,7 @@ from pyshimmer.bluetooth.bt_commands import ShimmerCommand, GetSamplingRateComma
     GetFirmwareVersionCommand, InquiryCommand, StartStreamingCommand, StopStreamingCommand, DataPacket, \
     GetEXGRegsCommand, SetEXGRegsCommand, StartLoggingCommand, StopLoggingCommand, GetExperimentIDCommand, \
     SetExperimentIDCommand, GetDeviceNameCommand, SetDeviceNameCommand, DummyCommand, GetBatteryCommand, \
-    SetSamplingRateCommand, SetSensorsCommand, SetStatusAckCommand
+    SetSamplingRateCommand, SetSensorsCommand, SetStatusAckCommand, AllCalibration, GetAllCalibrationCommand
 from pyshimmer.bluetooth.bt_const import ACK_COMMAND_PROCESSED, DATA_PACKET, FULL_STATUS_RESPONSE, INSTREAM_CMD_RESPONSE
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
 from pyshimmer.dev.channels import ChDataTypeAssignment, ChannelDataType, EChannelType, ESensorGroup
@@ -474,6 +474,12 @@ class ShimmerBluetooth:
         :return: An ExGRegister object that presents the register contents in an easily processable manner
         """
         return self._process_and_wait(GetEXGRegsCommand(chip_id))
+
+    def get_all_calibration(self) -> AllCalibration:
+        """Gets all calibration data from sensor
+        :return: An AllCalibration object that presents the calibration contents in an easily processable manner
+        """
+        return self._process_and_wait(GetAllCalibrationCommand())
 
     def set_exg_register(self, chip_id: int, offset: int, data: bytes) -> None:
         """Configure part of the memory of the ExG registers

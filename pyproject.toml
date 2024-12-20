@@ -15,6 +15,31 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 [build-system]
-requires = ["setuptools>=42", "wheel", "setuptools_scm[toml]>=3.4"]
+requires = ["setuptools >= 42", "wheel", "setuptools_scm >= 3.4"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyshimmer"
+authors = [{ name = "Lukas Magel" }]
+description = "API for Shimmer sensor devices"
+readme = "README.rst"
+license = { file = "LICENSE" }
+urls = { "Homepage" = "https://github.com/seemoo-lab/pyshimmer" }
+requires-python = ">= 3.7"
+dynamic = ["version"]
+dependencies = [
+    "pyserial>=3.4",
+    "numpy>=1.15",
+    "pandas>=1.1.5",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "pytest-cov",
+]
+
+[tool.setuptools.packages.find]
+include = ["pyshimmer*"]
 
 [tool.setuptools_scm]
