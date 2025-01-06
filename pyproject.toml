@@ -20,13 +20,25 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyshimmer"
-authors = [{ name = "Lukas Magel" }]
+authors = [
+    { name = "Lukas Magel" },
+]
 description = "API for Shimmer sensor devices"
 readme = "README.rst"
-license = { file = "LICENSE" }
 urls = { "Homepage" = "https://github.com/seemoo-lab/pyshimmer" }
-requires-python = ">= 3.7"
+license = { file = "LICENSE" }
+classifiers = [
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Programming Language :: Python :: 3",
+    "Development Status :: 4 - Beta",
+]
+keywords = [
+    "shimmer",
+    "sensor",
+    "streaming"
+]
 dynamic = ["version"]
+requires-python = ">= 3.7"
 dependencies = [
     "pyserial>=3.4",
     "numpy>=1.15",
