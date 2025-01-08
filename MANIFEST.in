@@ -1,0 +1,5 @@
+# Since we use setuptools_scm, all files tracked by git are included in the
+# sdist archive. In this file, we specify exceptions to this list.
+prune .*
+exclude .*
+exclude MANIFEST.in
