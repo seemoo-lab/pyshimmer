@@ -45,18 +45,21 @@ configure udev rules to ensure that the device names are consistent.
 
 pyshimmer Package
 ^^^^^^^^^^^^^^^^^
-In order to install the package itself, clone it and use pip to install it:
+The easiest and quickest way is to install the latest release with pip:
+
+.. code-block::
+
+    pip install pyshimmer
+
+From Source with Tests
+^^^^^^^^^^^^^^^^^^^^^^
+
+You can also install from source in case you would like to run the tests:
 
 .. code-block::
 
     git clone https://github.com/seemoo-lab/pyshimmer.git
     cd pyshimmer
-    pip install .
-
-If you want to run the tests, instead install the package with :code:`test` extras:
-
-.. code-block::
-
     pip install .[test]
 
 You can then run the tests from the repository root by simply issuing:
