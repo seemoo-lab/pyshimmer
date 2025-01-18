@@ -68,7 +68,7 @@ jobs:
     permissions:
       id-token: write
 
-#    if: github.event.release && github.event.action == 'published'
+    if: github.event.release && github.event.action == 'published'
     steps:
       - name: Dowload Artifacts
         uses: actions/download-artifact@v4
@@ -77,6 +77,4 @@ jobs:
           merge-multiple: true
       - name: Publish to PyPi
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          repository-url: https://test.pypi.org/legacy/
 
