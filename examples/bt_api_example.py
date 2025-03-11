@@ -1,4 +1,6 @@
 import time
+import sys
+sys.path.append(r'C:\Users\Acer-User\git\pyshimmer')
 
 from serial import Serial
 
@@ -13,7 +15,7 @@ def stream_cb(pkt: DataPacket) -> None:
     print('') 
 
 def main(args=None):    
-    serial = Serial('/dev/rfcomm42', DEFAULT_BAUDRATE)
+    serial = Serial('COM43', DEFAULT_BAUDRATE)
     shim_dev = ShimmerBluetooth(serial)
 
     shim_dev.initialize()
