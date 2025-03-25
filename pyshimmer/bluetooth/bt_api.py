@@ -19,7 +19,7 @@ from typing import List, Tuple, Callable, Iterable, Optional
 
 from serial import Serial
 
-from pyshimmer.bluetooth.bt_commands import ShimmerCommand, GetSamplingRateCommand, GetConfigTimeCommand, \
+from pyshimmer.bluetooth.bt_commands import GetShimmerHardwareVersion, ShimmerCommand, GetSamplingRateCommand, GetConfigTimeCommand, \
     SetConfigTimeCommand, GetRealTimeClockCommand, SetRealTimeClockCommand, GetStatusCommand, \
     GetFirmwareVersionCommand, InquiryCommand, StartStreamingCommand, StopStreamingCommand, DataPacket, \
     GetEXGRegsCommand, SetEXGRegsCommand, StartLoggingCommand, StopLoggingCommand, GetExperimentIDCommand, \
@@ -32,6 +32,8 @@ from pyshimmer.dev.exg import ExGRegister
 from pyshimmer.dev.fw_version import EFirmwareType, FirmwareVersion, FirmwareCapabilities
 from pyshimmer.serial_base import ReadAbort
 from pyshimmer.util import fmt_hex, PeekQueue
+
+import time
 
 
 class RequestCompletion:
@@ -183,6 +185,12 @@ class BluetoothRequestHandler:
             cb(r)
 
     def _process_resp_from_queue(self):
+        
+        # DEBUGGING
+        time.sleep(0.2)
+        if self._resp_queue.empty():
+            print("DEBUG: Response queue is empty!")
+
         cmd, return_obj = self._resp_queue.get_nowait()
 
         resp_code = cmd.get_response_code()
@@ -503,6 +511,13 @@ class ShimmerBluetooth:
         :param dev_name: The device name to set
         """
         self._process_and_wait(SetDeviceNameCommand(dev_name))
+        
+    def get_device_hardware_version(self) -> any:
+        """Retrieve the device hardware version
+        
+        :return: The device hardware version as string
+        """
+        return self._process_and_wait(GetShimmerHardwareVersion())
 
     def get_experiment_id(self) -> str:
         """Retrieve the experiment id as string
@@ -527,6 +542,14 @@ class ShimmerBluetooth:
             - The active data channels of the device as list, does not include the TIMESTAMP channel
         """
         return self._process_and_wait(InquiryCommand())
+        
+        # print("DEBUG: Sending InquiryCommand()...")  # Print before sending
+
+        # response = self._process_and_wait(InquiryCommand())  # Might be hanging
+
+        # print(f"DEBUG: Raw inquiry response: {response}")  # Should print if it returns
+
+        # return response
 
     def get_data_types(self):
         """Get the active data channels of the device
