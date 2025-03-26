@@ -33,8 +33,6 @@ from pyshimmer.dev.fw_version import EFirmwareType, FirmwareVersion, FirmwareCap
 from pyshimmer.serial_base import ReadAbort
 from pyshimmer.util import fmt_hex, PeekQueue
 
-import time
-
 
 class RequestCompletion:
     """
@@ -186,11 +184,6 @@ class BluetoothRequestHandler:
 
     def _process_resp_from_queue(self):
         
-        # DEBUGGING
-        time.sleep(0.2)
-        if self._resp_queue.empty():
-            print("DEBUG: Response queue is empty!")
-
         cmd, return_obj = self._resp_queue.get_nowait()
 
         resp_code = cmd.get_response_code()
@@ -291,6 +284,7 @@ class ShimmerBluetooth:
 
         self._fw_version: Optional[FirmwareVersion] = None
         self._fw_caps: Optional[FirmwareCapabilities] = None
+        self._hw_version = None
 
     @property
     def initialized(self) -> bool:
@@ -319,6 +313,9 @@ class ShimmerBluetooth:
     def __exit__(self, exc_type, exc_value, exc_traceback):
         self.shutdown()
 
+    def _set_hw_capabilities(self) -> None:
+        self._hw_version = self.get_device_hardware_version()
+
     def _set_fw_capabilities(self) -> None:
         fw_type, fw_ver = self.get_firmware_version()
         self._fw_caps = FirmwareCapabilities(fw_type, fw_ver)
@@ -330,7 +327,7 @@ class ShimmerBluetooth:
         optionally disables the status acknowledgment and starts the read loop.
         """
         self._thread.start()
-
+        self._set_hw_capabilities()
         self._set_fw_capabilities()
 
         if self.capabilities.supports_ack_disable and self._disable_ack:
