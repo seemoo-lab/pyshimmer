@@ -503,7 +503,30 @@ class GetDeviceNameCommand(GetStringCommand):
     """
 
     def __init__(self):
-        super().__init__(GET_SHIMMERNAME_COMMAND, SHIMMERNAME_RESPONSE)
+        super().__init__(GET_SHIMMERNAME_COMMAND, SHIMMERNAME_RESPONSE)     
+
+
+class GetShimmerHardwareVersion(ResponseCommand):
+    """Get the device hardware version
+    
+    """
+    
+    SHIMMER_VERSION_MAP = {
+        0: "SHIMMER1",
+        1: "SHIMMER2",
+        2: "SHIMMER2R",
+        3: "SHIMMER3",
+        10: "SHIMMER3R" }
+    
+    def __init__(self):
+        super().__init__(SHIMMER_VERSION_RESPONSE)
+        
+    def send(self, ser: BluetoothSerial) -> None:
+        ser.write_command(GET_SHIMMER_VERSION_COMMAND)
+        
+    def receive(self, ser: BluetoothSerial) -> any:
+        hw_version = ser.read_response(SHIMMER_VERSION_RESPONSE, arg_format='<B')
+        return self.SHIMMER_VERSION_MAP.get(hw_version, f"Unknown Version: ({hw_version})")
 
 
 class SetDeviceNameCommand(SetStringCommand):
