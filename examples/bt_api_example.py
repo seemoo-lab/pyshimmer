@@ -1,6 +1,7 @@
 import time
 
 from serial import Serial
+
 from pyshimmer import ShimmerBluetooth, DEFAULT_BAUDRATE, DataPacket
 
 
@@ -19,9 +20,6 @@ def main(args=None):
 
     dev_name = shim_dev.get_device_name()
     print(f'My name is: {dev_name}')
-    
-    dev_hardware_ver = shim_dev.get_device_hardware_version()
-    print(f'My hardware version is: {dev_hardware_ver}')
 
     info = shim_dev.get_firmware_version() 
     print("- firmware: [" + str(info[0]) + "]")
