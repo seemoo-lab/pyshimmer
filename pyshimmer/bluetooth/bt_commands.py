@@ -391,26 +391,6 @@ class InquiryCommand(ResponseCommand):
         ser.write_command(INQUIRY_COMMAND)
 
     def receive(self, ser: BluetoothSerial) -> any:
-
-        # # Read Raw Response
-        # raw_response = ser.read_response(INQUIRY_RESPONSE, arg_format='<HIBB')
-        # # Print Raw Response
-        # print(f"DEBUG: Raw Inquiry Response Data: {raw_response}")
-        
-        # raw_data = ser.read_response(INQUIRY_RESPONSE, arg_format='<HIBB')
-    
-        # print(f"DEBUG: Raw Inquiry Response Data: {raw_data}")  # Debugging
-
-        # sr_val, hw_version, n_ch, buf_size = raw_data  # Extract hardware version
-        # channel_conf = ser.read(n_ch)
-
-        # sr = dr2sr(sr_val)
-        # ctypes = self.decode_channel_types(channel_conf)
-        
-        # print(f"DEBUG: Returning - SR: {sr}, Buf Size: {buf_size}, CTypes: {ctypes}, HW Version: {hw_version}")
-
-        # return sr, buf_size, ctypes, hw_version  # Include hardware version
-
         sr_val, _, n_ch, buf_size = ser.read_response(
             INQUIRY_RESPONSE, arg_format='<HIBB')
         channel_conf = ser.read(n_ch)
@@ -531,22 +511,22 @@ class GetShimmerHardwareVersion(ResponseCommand):
     
     """
     
+    SHIMMER_VERSION_MAP = {
+        0: "SHIMMER1",
+        1: "SHIMMER2",
+        2: "SHIMMER2R",
+        3: "SHIMMER3",
+        10: "SHIMMER3R" }
+    
     def __init__(self):
         super().__init__(SHIMMER_VERSION_RESPONSE)
         
     def send(self, ser: BluetoothSerial) -> None:
-        print("DEBUG: Sending GET_SHIMMER_VERSION_COMMAND")
         ser.write_command(GET_SHIMMER_VERSION_COMMAND)
         
-    def received(self, ser: BluetoothSerial) -> any:
-        # bufferbyte = ser.read(1)
-        # hw_version = bufferbyte[0]
-        
+    def receive(self, ser: BluetoothSerial) -> any:
         hw_version = ser.read_response(SHIMMER_VERSION_RESPONSE, arg_format='<B')
-        # hw_version = ser.read_response(SHIMMER_VERSION_RESPONSE, arg_format='<HHBB')
-        # data = ser.read(hw_version)
-        # return data
-        return hw_version
+        return self.SHIMMER_VERSION_MAP.get(hw_version, f"Unknown Version: ({hw_version})")
 
 
 class SetDeviceNameCommand(SetStringCommand):
