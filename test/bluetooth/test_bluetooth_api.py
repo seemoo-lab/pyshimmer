@@ -334,6 +334,7 @@ class ShimmerBluetoothIntegrationTest(TestCase):
         if initialize:
             # The Bluetooth API automatically requests the firmware version upon initialization.
             # We must prepare a proper response beforehand.
+            self._submit_req_resp_handler(req_len=1, resp=b'\xff\x25\x03')
             future = self._submit_req_resp_handler(req_len=1, resp=b'\xff\x2f\x03\x00\x00\x00\x0b\x00')
             self._sot.initialize()
 
@@ -350,6 +351,7 @@ class ShimmerBluetoothIntegrationTest(TestCase):
 
         # The Bluetooth API automatically requests the firmware version upon initialization.
         # We must prepare a proper response beforehand.
+        req_future = self._submit_req_resp_handler(req_len=1, resp=b'\xff\x25\x03')
         req_future = self._submit_req_resp_handler(req_len=1, resp=b'\xff\x2f\x03\x00\x00\x00\x0b\x00')
         with self._sot:
             # We check that the API properly asked for the firmware version
@@ -443,16 +445,24 @@ class ShimmerBluetoothIntegrationTest(TestCase):
 
     def test_get_hardware_version(self):
         self.do_setup()
-        
+    
+        self._submit_req_resp_handler(1, b'\xFF\x25\x03')
+        hw_version = self._sot.get_device_hardware_version()
+        self.assertEqual(hw_version, "SHIMMER3")
+ 
         self._submit_req_resp_handler(1, b'\xFF\x25\x0A')
         hw_version = self._sot.get_device_hardware_version()
-        
-        self.assertEqual(hw_version, "SHIMMER3R")
+        self.assertEqual(hw_version, "SHIMMER3R")    
+ 
+        self._submit_req_resp_handler(1, b'\xFF\x25\x04')
+        hw_version = self._sot.get_device_hardware_version()
+        self.assertEqual(hw_version, "Unknown Version: (4)")
 
     def test_status_ack_disable(self):
         self.do_setup(initialize=False)
 
         # Queue response for version command
+        self._submit_req_resp_handler(1, b'\xFF\x25\x03')
         self._submit_req_resp_handler(1, b'\xFF\x2F\x03\x00\x00\x00\x0F\x04')
         # Queue response for disabling the status acknowledgment
         req_future = self._submit_req_resp_handler(2, b'\xFF')
@@ -465,5 +475,6 @@ class ShimmerBluetoothIntegrationTest(TestCase):
         self.do_setup(initialize=False, disable_status_ack=False)
 
         # Queue response for version command
+        self._submit_req_resp_handler(1, b'\xFF\x25\x03')
         self._submit_req_resp_handler(1, b'\xFF\x2F\x03\x00\x00\x00\x0F\x04')
         self._sot.initialize()
