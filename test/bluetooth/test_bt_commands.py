@@ -16,7 +16,7 @@
 from typing import Tuple, Union
 from unittest import TestCase
 
-from pyshimmer.bluetooth.bt_commands import ShimmerCommand, GetSamplingRateCommand, GetBatteryCommand, \
+from pyshimmer.bluetooth.bt_commands import GetShimmerHardwareVersion, ShimmerCommand, GetSamplingRateCommand, GetBatteryCommand, \
     GetConfigTimeCommand, SetConfigTimeCommand, GetRealTimeClockCommand, SetRealTimeClockCommand, GetStatusCommand, \
     GetFirmwareVersionCommand, InquiryCommand, StartStreamingCommand, StopStreamingCommand, StartLoggingCommand, \
     StopLoggingCommand, GetEXGRegsCommand, SetEXGRegsCommand, GetExperimentIDCommand, SetExperimentIDCommand, \
@@ -202,6 +202,15 @@ class BluetoothCommandsTest(TestCase):
     def test_get_device_name_command(self):
         cmd = GetDeviceNameCommand()
         self.assert_cmd(cmd, b'\x7b', b'\x7a', b'\x7a\x05S_PPG', 'S_PPG')
+
+    def test_get_hardware_version(self):
+        cmd = GetShimmerHardwareVersion()
+        self.assert_cmd(cmd, b'\x3f', b'\x25', b'\x25\x00', 'SHIMMER1')  
+        self.assert_cmd(cmd, b'\x3f', b'\x25', b'\x25\x01', 'SHIMMER2')  
+        self.assert_cmd(cmd, b'\x3f', b'\x25', b'\x25\x02', 'SHIMMER2R')  
+        self.assert_cmd(cmd, b'\x3f', b'\x25', b'\x25\x03', 'SHIMMER3')
+        self.assert_cmd(cmd, b'\x3f', b'\x25', b'\x25\x0a', 'SHIMMER3R')  
+        self.assert_cmd(cmd, b'\x3f', b'\x25', b'\x25\x04', 'Unknown Version: (4)')
 
     def test_set_device_name_command(self):
         cmd = SetDeviceNameCommand('S_PPG')

@@ -16,6 +16,7 @@
 from concurrent.futures import ThreadPoolExecutor, Future
 from typing import Optional, BinaryIO, List, Callable
 from unittest import TestCase
+from urllib.request import HTTPPasswordMgrWithDefaultRealm
 
 from pyshimmer.bluetooth.bt_api import BluetoothRequestHandler, ShimmerBluetooth
 from pyshimmer.bluetooth.bt_commands import GetDeviceNameCommand, SetDeviceNameCommand, DataPacket, GetStatusCommand, \
@@ -439,6 +440,14 @@ class ShimmerBluetoothIntegrationTest(TestCase):
 
         self.assertEqual(fwtype, EFirmwareType.LogAndStream)
         self.assertEqual(fwver, FirmwareVersion(1, 2, 3))
+
+    def test_get_hardware_version(self):
+        self.do_setup()
+        
+        self._submit_req_resp_handler(1, b'\xFF\x25\x0A')
+        hw_version = self._sot.get_device_hardware_version()
+        
+        self.assertEqual(hw_version, "SHIMMER3R")
 
     def test_status_ack_disable(self):
         self.do_setup(initialize=False)
