@@ -484,7 +484,8 @@ class ShimmerBluetooth:
         """Gets all calibration data from sensor
         :return: An AllCalibration object that presents the calibration contents in an easily processable manner
         """
-        return self._process_and_wait(GetAllCalibrationCommand())
+        hw_version = self._process_and_wait(GetShimmerHardwareVersion())
+        return self._process_and_wait(GetAllCalibrationCommand(hw_version))
 
     def set_exg_register(self, chip_id: int, offset: int, data: bytes) -> None:
         """Configure part of the memory of the ExG registers

@@ -358,11 +358,12 @@ class GetAllCalibrationCommand(ResponseCommand):
             [bytes 12-20] alignment matrix:  9 values    8-bit signed integers.
     """
 
-    def __init__(self):
+    def __init__(self, hw_version: str):
         super().__init__(ALL_CALIBRATION_RESPONSE)
 
         self._offset = 0x0
         self._rlen = 0x54  # 84 bytes
+        self.hw_version = hw_version
 
     def send(self, ser: BluetoothSerial) -> None:
         ser.write_command(GET_ALL_CALIBRATION_COMMAND)
@@ -370,7 +371,8 @@ class GetAllCalibrationCommand(ResponseCommand):
     def receive(self, ser: BluetoothSerial) -> any:
         ser.read_response(ALL_CALIBRATION_RESPONSE)
         reg_data = ser.read(self._rlen)
-        return AllCalibration(reg_data)
+        
+        return AllCalibration(reg_data, self.hw_version)
 
 
 class InquiryCommand(ResponseCommand):
