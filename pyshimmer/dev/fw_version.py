@@ -102,10 +102,8 @@ def get_firmware_type(f_type: int) -> EFirmwareType:
 
 
 class HardwareVersion(IntEnum):
-    """Represents supported Shimmer device hardware versions
+    """Represents the supported Shimmer device hardware versions
     
-    Each enum member corresponds to a specific hardware version of the Shimmer device,
-    using an integer identifier returned by the device firmware
     """
     SHIMMER1 = 0
     SHIMMER2 = 1
@@ -116,9 +114,9 @@ class HardwareVersion(IntEnum):
     
     @classmethod
     def from_int(cls, value: int) -> 'HardwareVersion':
-        """Creates a HardwareVersion enum meber from an integer value
+        """Converts an Integer to the corresponding HardwareVersion enum
         
-        :param value: The Integer value returned by the Shimmer device representing hardware version
-        :return: A corresponding HardwareVersion enum member, or UNKNOWN if unsupported
+        :param value: Integer representing device hardware version
+        :return: Corresponding HardwareVersion enum member, or UNKNOWN if unrecognised 
         """
         return cls._value2member_map_.get(value, cls.UNKNOWN)
