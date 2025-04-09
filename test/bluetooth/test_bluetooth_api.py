@@ -16,14 +16,13 @@
 from concurrent.futures import ThreadPoolExecutor, Future
 from typing import Optional, BinaryIO, List, Callable
 from unittest import TestCase
-from urllib.request import HTTPPasswordMgrWithDefaultRealm
 
 from pyshimmer.bluetooth.bt_api import BluetoothRequestHandler, ShimmerBluetooth
 from pyshimmer.bluetooth.bt_commands import GetDeviceNameCommand, SetDeviceNameCommand, DataPacket, GetStatusCommand, \
     GetStringCommand, ResponseCommand
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
 from pyshimmer.dev.channels import ChDataTypeAssignment, EChannelType
-from pyshimmer.dev.fw_version import FirmwareVersion, EFirmwareType
+from pyshimmer.dev.fw_version import FirmwareVersion, EFirmwareType, HardwareVersion
 from pyshimmer.test_util import PTYSerialMockCreator
 
 
@@ -334,13 +333,15 @@ class ShimmerBluetoothIntegrationTest(TestCase):
         if initialize:
             # The Bluetooth API automatically requests the firmware version upon initialization.
             # We must prepare a proper response beforehand.
-            self._submit_req_resp_handler(req_len=1, resp=b'\xff\x25\x03')
-            future = self._submit_req_resp_handler(req_len=1, resp=b'\xff\x2f\x03\x00\x00\x00\x0b\x00')
+            req_future_hw = self._submit_req_resp_handler(req_len=1, resp=b'\xff\x25\x03')
+            req_future_fw = self._submit_req_resp_handler(req_len=1, resp=b'\xff\x2f\x03\x00\x00\x00\x0b\x00')
             self._sot.initialize()
 
             # Check that it properly asked for the firmware version
-            result = future.result()
+            result = req_future_fw.result()
             assert result == b'\x2E'
+            result = req_future_hw.result()
+            assert result == b'\x3F'
 
     def tearDown(self) -> None:
         self._sot.shutdown()
@@ -351,12 +352,14 @@ class ShimmerBluetoothIntegrationTest(TestCase):
 
         # The Bluetooth API automatically requests the firmware version upon initialization.
         # We must prepare a proper response beforehand.
-        req_future = self._submit_req_resp_handler(req_len=1, resp=b'\xff\x25\x03')
-        req_future = self._submit_req_resp_handler(req_len=1, resp=b'\xff\x2f\x03\x00\x00\x00\x0b\x00')
+        req_future_hw = self._submit_req_resp_handler(req_len=1, resp=b'\xff\x25\x03')
+        req_future_fw = self._submit_req_resp_handler(req_len=1, resp=b'\xff\x2f\x03\x00\x00\x00\x0b\x00')
         with self._sot:
             # We check that the API properly asked for the firmware version
-            req_data = req_future.result()
+            req_data = req_future_fw.result()
             self.assertEqual(req_data, b'\x2e')
+            req_data = req_future_hw.result()
+            self.assertEqual(req_data, b'\x3f')
 
             # It should now be in an initialized state
             self.assertTrue(self._sot.initialized)
@@ -448,15 +451,15 @@ class ShimmerBluetoothIntegrationTest(TestCase):
     
         self._submit_req_resp_handler(1, b'\xFF\x25\x03')
         hw_version = self._sot.get_device_hardware_version()
-        self.assertEqual(hw_version, "SHIMMER3")
+        self.assertEqual(hw_version, HardwareVersion.SHIMMER3)
  
         self._submit_req_resp_handler(1, b'\xFF\x25\x0A')
         hw_version = self._sot.get_device_hardware_version()
-        self.assertEqual(hw_version, "SHIMMER3R")    
+        self.assertEqual(hw_version, HardwareVersion.SHIMMER3R)    
  
         self._submit_req_resp_handler(1, b'\xFF\x25\x04')
         hw_version = self._sot.get_device_hardware_version()
-        self.assertEqual(hw_version, "Unknown Version: (4)")
+        self.assertEqual(hw_version, HardwareVersion.UNKNOWN)
 
     def test_status_ack_disable(self):
         self.do_setup(initialize=False)
