@@ -137,13 +137,3 @@ BtChannelsByIndex = {
     0x27: EChannelType.STRAIN_HIGH,
     0x28: EChannelType.STRAIN_LOW,
 }
-
-"""
-Different Device Types
-"""
-SHIMMER_VERSION_MAP = {
-        0: "SHIMMER1",
-        1: "SHIMMER2",
-        2: "SHIMMER2R",
-        3: "SHIMMER3",
-        10: "SHIMMER3R" }

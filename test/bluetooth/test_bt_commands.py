@@ -24,7 +24,7 @@ from pyshimmer.bluetooth.bt_commands import GetShimmerHardwareVersion, ShimmerCo
     SetSensorsCommand, SetSamplingRateCommand, GetAllCalibrationCommand
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
 from pyshimmer.dev.channels import ChDataTypeAssignment, EChannelType, ESensorGroup
-from pyshimmer.dev.fw_version import EFirmwareType
+from pyshimmer.dev.fw_version import EFirmwareType, HardwareVersion
 from pyshimmer.test_util import MockSerial
 
 
@@ -205,12 +205,12 @@ class BluetoothCommandsTest(TestCase):
 
     def test_get_hardware_version(self):
         cmd = GetShimmerHardwareVersion()
-        self.assert_cmd(cmd, b'\x3f', b'\x25', b'\x25\x00', 'SHIMMER1')  
-        self.assert_cmd(cmd, b'\x3f', b'\x25', b'\x25\x01', 'SHIMMER2')  
-        self.assert_cmd(cmd, b'\x3f', b'\x25', b'\x25\x02', 'SHIMMER2R')  
-        self.assert_cmd(cmd, b'\x3f', b'\x25', b'\x25\x03', 'SHIMMER3')
-        self.assert_cmd(cmd, b'\x3f', b'\x25', b'\x25\x0a', 'SHIMMER3R')  
-        self.assert_cmd(cmd, b'\x3f', b'\x25', b'\x25\x04', 'Unknown Version: (4)')
+        self.assert_cmd(cmd, b'\x3f', b'\x25', b'\x25\x00', HardwareVersion.SHIMMER1)  
+        self.assert_cmd(cmd, b'\x3f', b'\x25', b'\x25\x01', HardwareVersion.SHIMMER2)  
+        self.assert_cmd(cmd, b'\x3f', b'\x25', b'\x25\x02', HardwareVersion.SHIMMER2R)  
+        self.assert_cmd(cmd, b'\x3f', b'\x25', b'\x25\x03', HardwareVersion.SHIMMER3)
+        self.assert_cmd(cmd, b'\x3f', b'\x25', b'\x25\x0a', HardwareVersion.SHIMMER3R)  
+        self.assert_cmd(cmd, b'\x3f', b'\x25', b'\x25\x04', HardwareVersion.UNKNOWN)
 
     def test_set_device_name_command(self):
         cmd = SetDeviceNameCommand('S_PPG')
