@@ -24,7 +24,7 @@ from pyshimmer.dev.base import dr2sr, sr2dr, sec2ticks, ticks2sec
 from pyshimmer.dev.channels import ChannelDataType, EChannelType, ESensorGroup, serialize_sensorlist
 from pyshimmer.dev.exg import ExGRegister
 from pyshimmer.dev.calibration import AllCalibration
-from pyshimmer.dev.fw_version import get_firmware_type
+from pyshimmer.dev.fw_version import HardwareVersion, get_firmware_type
 
 from pyshimmer.util import bit_is_set, resp_code_to_bytes, calibrate_u12_adc_value, battery_voltage_to_percent
 
@@ -503,7 +503,22 @@ class GetDeviceNameCommand(GetStringCommand):
     """
 
     def __init__(self):
-        super().__init__(GET_SHIMMERNAME_COMMAND, SHIMMERNAME_RESPONSE)
+        super().__init__(GET_SHIMMERNAME_COMMAND, SHIMMERNAME_RESPONSE)     
+
+
+class GetShimmerHardwareVersion(ResponseCommand):
+    """Get the device hardware version
+    
+    """
+    def __init__(self):
+        super().__init__(SHIMMER_VERSION_RESPONSE)
+        
+    def send(self, ser: BluetoothSerial) -> None:
+        ser.write_command(GET_SHIMMER_VERSION_COMMAND)
+        
+    def receive(self, ser: BluetoothSerial) -> any:
+        hw_version = ser.read_response(SHIMMER_VERSION_RESPONSE, arg_format='<B')
+        return HardwareVersion.from_int(hw_version)
 
 
 class SetDeviceNameCommand(SetStringCommand):

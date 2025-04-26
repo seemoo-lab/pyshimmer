@@ -19,7 +19,7 @@ from typing import List, Tuple, Callable, Iterable, Optional
 
 from serial import Serial
 
-from pyshimmer.bluetooth.bt_commands import ShimmerCommand, GetSamplingRateCommand, GetConfigTimeCommand, \
+from pyshimmer.bluetooth.bt_commands import GetShimmerHardwareVersion, ShimmerCommand, GetSamplingRateCommand, GetConfigTimeCommand, \
     SetConfigTimeCommand, GetRealTimeClockCommand, SetRealTimeClockCommand, GetStatusCommand, \
     GetFirmwareVersionCommand, InquiryCommand, StartStreamingCommand, StopStreamingCommand, DataPacket, \
     GetEXGRegsCommand, SetEXGRegsCommand, StartLoggingCommand, StopLoggingCommand, GetExperimentIDCommand, \
@@ -29,7 +29,7 @@ from pyshimmer.bluetooth.bt_const import ACK_COMMAND_PROCESSED, DATA_PACKET, FUL
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
 from pyshimmer.dev.channels import ChDataTypeAssignment, ChannelDataType, EChannelType, ESensorGroup
 from pyshimmer.dev.exg import ExGRegister
-from pyshimmer.dev.fw_version import EFirmwareType, FirmwareVersion, FirmwareCapabilities
+from pyshimmer.dev.fw_version import EFirmwareType, FirmwareVersion, FirmwareCapabilities, HardwareVersion
 from pyshimmer.serial_base import ReadAbort
 from pyshimmer.util import fmt_hex, PeekQueue
 
@@ -283,6 +283,7 @@ class ShimmerBluetooth:
 
         self._fw_version: Optional[FirmwareVersion] = None
         self._fw_caps: Optional[FirmwareCapabilities] = None
+        self._hw_version: Optional[HardwareVersion] = None
 
     @property
     def initialized(self) -> bool:
@@ -314,6 +315,7 @@ class ShimmerBluetooth:
     def _set_fw_capabilities(self) -> None:
         fw_type, fw_ver = self.get_firmware_version()
         self._fw_caps = FirmwareCapabilities(fw_type, fw_ver)
+        self._hw_version = self.get_device_hardware_version()
 
     def initialize(self) -> None:
         """Initialize the Bluetooth connection
@@ -322,7 +324,6 @@ class ShimmerBluetooth:
         optionally disables the status acknowledgment and starts the read loop.
         """
         self._thread.start()
-
         self._set_fw_capabilities()
 
         if self.capabilities.supports_ack_disable and self._disable_ack:
@@ -503,6 +504,13 @@ class ShimmerBluetooth:
         :param dev_name: The device name to set
         """
         self._process_and_wait(SetDeviceNameCommand(dev_name))
+        
+    def get_device_hardware_version(self) -> HardwareVersion:
+        """Retrieve the device hardware version
+        
+        :return: The device hardware version as string
+        """
+        return self._process_and_wait(GetShimmerHardwareVersion())
 
     def get_experiment_id(self) -> str:
         """Retrieve the experiment id as string
