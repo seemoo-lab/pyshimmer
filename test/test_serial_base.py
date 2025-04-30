@@ -13,12 +13,14 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from __future__ import annotations
+
 from io import BytesIO
 from typing import Tuple
 from unittest import TestCase
 
-from pyshimmer.test_util import MockSerial
 from pyshimmer.serial_base import SerialBase, BufferedReader, ReadAbort
+from pyshimmer.test_util import MockSerial
 
 
 class BufferedReaderTest(TestCase):

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from serial import Serial
 
 from pyshimmer import ShimmerDock, DEFAULT_BAUDRATE, fmt_hex

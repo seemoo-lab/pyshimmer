@@ -13,12 +13,14 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from __future__ import annotations
+
 from unittest import TestCase
 
 import numpy as np
 
-from pyshimmer.dev.channels import ESensorGroup, get_ch_dtypes
 from pyshimmer import EChannelType, ExGRegister
+from pyshimmer.dev.channels import ESensorGroup, get_ch_dtypes
 from pyshimmer.reader.shimmer_reader import ShimmerBinaryReader
 from .reader_test_util import (
     get_binary_sample_fpath,

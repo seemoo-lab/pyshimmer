@@ -13,14 +13,16 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from __future__ import annotations
+
 import struct
 from abc import ABC, abstractmethod
 from typing import List, Tuple, Union, Iterable
 
 from pyshimmer.bluetooth.bt_const import *
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
-
 from pyshimmer.dev.base import dr2sr, sr2dr, sec2ticks, ticks2sec
+from pyshimmer.dev.calibration import AllCalibration
 from pyshimmer.dev.channels import (
     ChannelDataType,
     EChannelType,
@@ -28,9 +30,7 @@ from pyshimmer.dev.channels import (
     serialize_sensorlist,
 )
 from pyshimmer.dev.exg import ExGRegister
-from pyshimmer.dev.calibration import AllCalibration
 from pyshimmer.dev.fw_version import HardwareVersion, get_firmware_type
-
 from pyshimmer.util import (
     bit_is_set,
     resp_code_to_bytes,

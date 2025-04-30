@@ -13,6 +13,8 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from __future__ import annotations
+
 import os
 import pty
 from io import BytesIO, RawIOBase, SEEK_END, SEEK_SET

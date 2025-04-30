@@ -13,13 +13,14 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from __future__ import annotations
+
 import struct
 from io import SEEK_SET, SEEK_CUR
 from queue import Queue
 from typing import BinaryIO, Tuple, Union, List
 
 import numpy as np
-import math
 
 
 def bit_is_set(bitfield: int, mask: int) -> bool:

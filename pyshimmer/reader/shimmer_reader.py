@@ -11,10 +11,11 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
-from abc import ABC, abstractmethod
-
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
 from typing import Dict, List, BinaryIO
 
 import numpy as np

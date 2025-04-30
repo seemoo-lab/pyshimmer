@@ -11,10 +11,12 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
-from typing import Union, Tuple
-
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from __future__ import annotations
+
+from typing import Union, Tuple
+
 from serial import Serial
 
 from pyshimmer.bluetooth.bt_const import ACK_COMMAND_PROCESSED

@@ -13,14 +13,15 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from __future__ import annotations
+
+from io import BytesIO
 from unittest import TestCase
-from pyshimmer.util import PeekQueue
+from unittest.mock import Mock
 
 import numpy as np
 
-from unittest.mock import Mock
-
-from io import BytesIO
+from pyshimmer.util import PeekQueue
 from pyshimmer.util import (
     bit_is_set,
     raise_to_next_pow,
