@@ -16,8 +16,8 @@
 from __future__ import annotations
 
 import struct
+from collections.abc import Iterable
 from enum import Enum, auto, unique
-from typing import Dict, List, Iterable
 
 from pyshimmer.util import raise_to_next_pow, unpack, flatten_list, bit_is_set
 
@@ -233,7 +233,7 @@ class ESensorGroup(Enum):
 """
 Assigns each channel type its appropriate data type.
 """
-ChDataTypeAssignment: Dict[EChannelType, ChannelDataType] = {
+ChDataTypeAssignment: dict[EChannelType, ChannelDataType] = {
     EChannelType.ACCEL_LN_X: ChannelDataType(2, signed=True, le=True),
     EChannelType.ACCEL_LN_Y: ChannelDataType(2, signed=True, le=True),
     EChannelType.ACCEL_LN_Z: ChannelDataType(2, signed=True, le=True),
@@ -282,7 +282,7 @@ ChDataTypeAssignment: Dict[EChannelType, ChannelDataType] = {
 This dictionary contains the mapping from sensor to data channels. Since one sensor can
 record on multiple channels, the mapping is one-to-many.
 """
-SensorChannelAssignment: Dict[ESensorGroup, List[EChannelType]] = {
+SensorChannelAssignment: dict[ESensorGroup, list[EChannelType]] = {
     ESensorGroup.ACCEL_LN: [
         EChannelType.ACCEL_LN_X,
         EChannelType.ACCEL_LN_Y,
@@ -354,7 +354,7 @@ The sensors are enabled via a multi-byte bitfield that currently stretches a tot
 three bytes. This dictionary contains the bitfield position for every sensor in this
 bitfield.
 """
-SensorBitAssignments: Dict[ESensorGroup, int] = {
+SensorBitAssignments: dict[ESensorGroup, int] = {
     ESensorGroup.ACCEL_LN: 0x80 << 0 * 8,
     ESensorGroup.GYRO: 0x40 << 0 * 8,
     ESensorGroup.MAG: 0x20 << 0 * 8,
@@ -380,7 +380,7 @@ SensorBitAssignments: Dict[ESensorGroup, int] = {
     ESensorGroup.TEMP: 0x02 << 2 * 8,
 }
 
-SensorOrder: Dict[ESensorGroup, int] = {
+SensorOrder: dict[ESensorGroup, int] = {
     ESensorGroup.ACCEL_LN: 1,
     ESensorGroup.BATTERY: 2,
     ESensorGroup.CH_A7: 3,
@@ -408,7 +408,7 @@ ENABLED_SENSORS_LEN = 0x03
 SENSOR_DTYPE = ChannelDataType(size=ENABLED_SENSORS_LEN, signed=False, le=True)
 
 
-def get_enabled_channels(sensors: List[ESensorGroup]) -> List[EChannelType]:
+def get_enabled_channels(sensors: list[ESensorGroup]) -> list[EChannelType]:
     """Determine the set of data channels for a set of enabled sensors
 
     There exists a one-to-many mapping between enabled sensors and their corresponding
@@ -426,7 +426,7 @@ def get_enabled_channels(sensors: List[ESensorGroup]) -> List[EChannelType]:
     return flatten_list(channels)
 
 
-def get_ch_dtypes(channels: List[EChannelType]) -> List[ChannelDataType]:
+def get_ch_dtypes(channels: list[EChannelType]) -> list[ChannelDataType]:
     """Return the channel data types for a set of channels
 
     Args:
@@ -463,7 +463,7 @@ def serialize_sensorlist(sensors: Iterable[ESensorGroup]) -> bytes:
     return SENSOR_DTYPE.encode(bitfield)
 
 
-def bitfield2sensors(bitfield: int) -> List[ESensorGroup]:
+def bitfield2sensors(bitfield: int) -> list[ESensorGroup]:
     """Decode a bitfield returned from the Shimmer to a list of active sensors
 
     :param bitfield: The bitfield received from the Shimmer encoding the active sensors
@@ -478,7 +478,7 @@ def bitfield2sensors(bitfield: int) -> List[ESensorGroup]:
     return sort_sensors(enabled_sensors)
 
 
-def deserialize_sensors(bitfield_bin: bytes) -> List[ESensorGroup]:
+def deserialize_sensors(bitfield_bin: bytes) -> list[ESensorGroup]:
     """Deserialize the list of active sensors from the three-byte input received from
     the Shimmer
 
@@ -489,7 +489,7 @@ def deserialize_sensors(bitfield_bin: bytes) -> List[ESensorGroup]:
     return bitfield2sensors(bitfield)
 
 
-def sort_sensors(sensors: Iterable[ESensorGroup]) -> List[ESensorGroup]:
+def sort_sensors(sensors: Iterable[ESensorGroup]) -> list[ESensorGroup]:
     """Sorts the sensors in the list according to the sensor order
 
     This function is useful to determine the order in which sensor data will appear in a

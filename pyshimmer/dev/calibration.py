@@ -16,7 +16,6 @@
 from __future__ import annotations
 
 import struct
-from typing import List
 
 from pyshimmer.util import fmt_hex
 
@@ -62,21 +61,21 @@ class AllCalibration:
         if not 0 <= sens_num < self._num_sensors:
             raise ValueError(f"Sensor num must be 0 to {self._num_sensors-1}")
 
-    def get_offset_bias(self, sens_num: int) -> List[int]:
+    def get_offset_bias(self, sens_num: int) -> list[int]:
         self._check_sens_num(sens_num)
         start_offset = sens_num * self._sensor_bytes
         end_offset = start_offset + 6
         ans = list(struct.unpack(">hhh", self._reg_bin[start_offset:end_offset]))
         return ans
 
-    def get_sensitivity(self, sens_num: int) -> List[int]:
+    def get_sensitivity(self, sens_num: int) -> list[int]:
         self._check_sens_num(sens_num)
         start_offset = sens_num * self._sensor_bytes + 6
         end_offset = start_offset + 6
         ans = list(struct.unpack(">hhh", self._reg_bin[start_offset:end_offset]))
         return ans
 
-    def get_ali_mat(self, sens_num: int) -> List[int]:
+    def get_ali_mat(self, sens_num: int) -> list[int]:
         self._check_sens_num(sens_num)
         start_offset = sens_num * self._sensor_bytes + 12
         end_offset = start_offset + 9

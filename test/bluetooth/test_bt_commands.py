@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from __future__ import annotations
 
-from typing import Tuple, Union
 from unittest import TestCase
 
 from pyshimmer.bluetooth.bt_commands import (
@@ -57,7 +56,7 @@ from pyshimmer.test_util import MockSerial
 class BluetoothCommandsTest(TestCase):
 
     @staticmethod
-    def create_mock() -> Tuple[BluetoothSerial, MockSerial]:
+    def create_mock() -> tuple[BluetoothSerial, MockSerial]:
         mock = MockSerial()
         # noinspection PyTypeChecker
         serial = BluetoothSerial(mock)
@@ -93,7 +92,7 @@ class BluetoothCommandsTest(TestCase):
 
     def test_response_command_code_conversion(self):
         class TestCommand(ResponseCommand):
-            def __init__(self, rcode: Union[int, Tuple[int, ...], bytes]):
+            def __init__(self, rcode: int | bytes | tuple[int, ...]):
                 super().__init__(rcode)
 
             def send(self, ser: BluetoothSerial) -> None:

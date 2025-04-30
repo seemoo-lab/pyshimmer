@@ -15,7 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from __future__ import annotations
 
-from typing import Union, overload
+from typing import overload
 
 import numpy as np
 
@@ -65,7 +65,7 @@ def sec2ticks(t_sec: float) -> int: ...
 def sec2ticks(t_sec: np.ndarray) -> np.ndarray: ...
 
 
-def sec2ticks(t_sec: Union[float, np.ndarray]) -> Union[int, np.ndarray]:
+def sec2ticks(t_sec: float | np.ndarray) -> int | np.ndarray:
     """Calculate equivalent device clock ticks for a time in seconds
 
     Args:
@@ -84,7 +84,7 @@ def ticks2sec(t_ticks: int) -> float: ...
 def ticks2sec(t_ticks: np.ndarray) -> np.ndarray: ...
 
 
-def ticks2sec(t_ticks: Union[int, np.ndarray]) -> Union[float, np.ndarray]:
+def ticks2sec(t_ticks: int | np.ndarray) -> float | np.ndarray:
     """Calculate the time in seconds equivalent to a device clock ticks count
 
     Args:

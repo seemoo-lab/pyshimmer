@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from __future__ import annotations
 
-from typing import Tuple
 from unittest import TestCase
 
 from pyshimmer.test_util import MockSerial
@@ -45,7 +44,7 @@ class CRCCalculationTest(TestCase):
 class DockSerialTest(TestCase):
 
     @staticmethod
-    def create_sot(crc_init: int = 10) -> Tuple[DockSerial, MockSerial]:
+    def create_sot(crc_init: int = 10) -> tuple[DockSerial, MockSerial]:
         mock = MockSerial()
         # noinspection PyTypeChecker
         serial = DockSerial(mock, crc_init=crc_init)

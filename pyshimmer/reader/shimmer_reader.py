@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, BinaryIO
+from typing import BinaryIO
 
 import numpy as np
 
@@ -51,20 +51,20 @@ class ChannelPostProcessor(ABC):
 
     @abstractmethod
     def process(
-        self, channels: Dict[EChannelType, np.ndarray], reader: ShimmerBinaryReader
-    ) -> Dict[EChannelType, np.ndarray]:
+        self, channels: dict[EChannelType, np.ndarray], reader: ShimmerBinaryReader
+    ) -> dict[EChannelType, np.ndarray]:
         pass
 
 
 class SingleChannelProcessor(ChannelPostProcessor, ABC):
 
-    def __init__(self, ch_types: List[EChannelType] = None):
+    def __init__(self, ch_types: list[EChannelType] = None):
         super().__init__()
         self._ch_types = ch_types
 
     def process(
-        self, channels: Dict[EChannelType, np.ndarray], reader: ShimmerBinaryReader
-    ) -> Dict[EChannelType, np.ndarray]:
+        self, channels: dict[EChannelType, np.ndarray], reader: ShimmerBinaryReader
+    ) -> dict[EChannelType, np.ndarray]:
 
         if self._ch_types is None:
             ch_types = list(channels.keys())
@@ -121,8 +121,8 @@ class PPGProcessor(SingleChannelProcessor):
 class TriAxCalProcessor(ChannelPostProcessor):
 
     def process(
-        self, channels: Dict[EChannelType, np.ndarray], reader: ShimmerBinaryReader
-    ) -> Dict[EChannelType, np.ndarray]:
+        self, channels: dict[EChannelType, np.ndarray], reader: ShimmerBinaryReader
+    ) -> dict[EChannelType, np.ndarray]:
         result = channels.copy()
 
         active_sensors = [s for s in reader.enabled_sensors if s in TRIAXCAL_SENSORS]
@@ -148,7 +148,7 @@ class ShimmerReader:
         bin_reader: ShimmerBinaryReader = None,
         sync: bool = True,
         post_process: bool = True,
-        processors: List[ChannelPostProcessor] = None,
+        processors: list[ChannelPostProcessor] = None,
     ):
         if fp is not None:
             self._bin_reader = ShimmerBinaryReader(fp)
@@ -199,8 +199,8 @@ class ShimmerReader:
             return ts_boot
 
     def _process_signals(
-        self, channels: Dict[EChannelType, np.ndarray]
-    ) -> Dict[EChannelType, np.ndarray]:
+        self, channels: dict[EChannelType, np.ndarray]
+    ) -> dict[EChannelType, np.ndarray]:
         result = channels.copy()
 
         for processor in self._processors:
@@ -239,7 +239,7 @@ class ShimmerReader:
         return self._ts
 
     @property
-    def channels(self) -> List[EChannelType]:
+    def channels(self) -> list[EChannelType]:
         # We return all but the first channel which are the timestamps
         return self._bin_reader.enabled_channels[1:]
 

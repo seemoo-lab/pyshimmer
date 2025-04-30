@@ -16,7 +16,6 @@
 from __future__ import annotations
 
 import struct
-from typing import Tuple
 
 from serial import Serial
 
@@ -81,7 +80,7 @@ class ShimmerDock:
         data = struct.pack(fmt, *args)
         self._write_packet(cmd, comp, prop, data)
 
-    def _read_response(self) -> Tuple[int, int, bytes]:
+    def _read_response(self) -> tuple[int, int, bytes]:
         self._serial.start_read_crc_verify()
 
         self._read_resp_type_or_throw(UART_RESPONSE)
@@ -125,7 +124,7 @@ class ShimmerDock:
         """Close the underlying serial interface and release all resources"""
         self._serial.close()
 
-    def get_mac_address(self) -> Tuple[int, ...]:
+    def get_mac_address(self) -> tuple[int, ...]:
         """Retrieve the Bluetooth MAC address of the device
 
         :return: A tuple containing six integer values, each representing a single byte
@@ -182,7 +181,7 @@ class ShimmerDock:
         )
         return ticks2sec(ticks)
 
-    def get_firmware_version(self) -> Tuple[int, EFirmwareType, int, int, int]:
+    def get_firmware_version(self) -> tuple[int, EFirmwareType, int, int, int]:
         """Retrieve the firmware version of the device
 
         :return: A tuple containing the following values:

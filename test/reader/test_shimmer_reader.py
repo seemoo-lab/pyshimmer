@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from __future__ import annotations
 
-from typing import List, Set
 from unittest import TestCase
 from unittest.mock import Mock, PropertyMock
 
@@ -317,7 +316,7 @@ class SignalPostProcessorTest(TestCase):
     def test_single_channel_processor(self):
         class TestProcessor(SingleChannelProcessor):
 
-            def __init__(self, channels: List[EChannelType] = None):
+            def __init__(self, channels: list[EChannelType] = None):
                 super().__init__(channels)
 
                 self._seen = []
@@ -329,7 +328,7 @@ class SignalPostProcessorTest(TestCase):
                 return y
 
             @property
-            def seen(self) -> Set[EChannelType]:
+            def seen(self) -> set[EChannelType]:
                 return set(self._seen)
 
         ch_data = {

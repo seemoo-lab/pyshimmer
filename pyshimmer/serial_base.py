@@ -16,8 +16,8 @@
 from __future__ import annotations
 
 import struct
+from collections.abc import Callable
 from io import RawIOBase
-from typing import Callable
 
 from serial import Serial
 

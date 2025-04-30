@@ -15,8 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from __future__ import annotations
 
-from typing import Union, Tuple
-
 from serial import Serial
 
 from pyshimmer.bluetooth.bt_const import ACK_COMMAND_PROCESSED
@@ -89,7 +87,7 @@ class BluetoothSerial(SerialBase):
             raise ValueError("Byte received is no acknowledgment")
 
     def read_response(
-        self, rcode: Union[int, Tuple[int, ...], bytes], arg_format: str = None
+        self, rcode: int | bytes | tuple[int, ...], arg_format: str = None
     ) -> any:
         """Read a Bluetooth command response from the stream
 

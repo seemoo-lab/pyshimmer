@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from typing import Tuple
 from unittest import TestCase
 
 from pyshimmer import EFirmwareType, ShimmerDock
@@ -10,7 +9,7 @@ from pyshimmer.test_util import MockSerial
 class DockAPITest(TestCase):
 
     @staticmethod
-    def create_sot(flush: bool = False) -> Tuple[ShimmerDock, MockSerial]:
+    def create_sot(flush: bool = False) -> tuple[ShimmerDock, MockSerial]:
         mock = MockSerial()
         # noinspection PyTypeChecker
         dock = ShimmerDock(mock, flush_before_req=flush)

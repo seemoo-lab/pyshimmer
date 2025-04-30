@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from __future__ import annotations
 
-from typing import Tuple
 from unittest import TestCase
 
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
@@ -25,7 +24,7 @@ from pyshimmer.test_util import MockSerial
 class BluetoothSerialTest(TestCase):
 
     @staticmethod
-    def create_sot() -> Tuple[MockSerial, BluetoothSerial]:
+    def create_sot() -> tuple[MockSerial, BluetoothSerial]:
         mock = MockSerial()
         # noinspection PyTypeChecker
         serial = BluetoothSerial(mock)

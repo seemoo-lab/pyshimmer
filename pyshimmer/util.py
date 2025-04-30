@@ -18,7 +18,7 @@ from __future__ import annotations
 import struct
 from io import SEEK_SET, SEEK_CUR
 from queue import Queue
-from typing import BinaryIO, Tuple, Union, List
+from typing import BinaryIO
 
 import numpy as np
 
@@ -51,7 +51,7 @@ def raise_to_next_pow(x: int) -> int:
     return 1 << (x - 1).bit_length()
 
 
-def flatten_list(lst: Union[List, Tuple]) -> List:
+def flatten_list(lst: list | tuple) -> list:
     """Flatten the supplied list by one level
 
     Assumes that the supplied argument consists of lists itself. All elements are taken
@@ -73,7 +73,7 @@ def fmt_hex(val: bytes) -> str:
     return " ".join("{:02x}".format(i) for i in val)
 
 
-def unpack(args: Union[List, Tuple]) -> Union[List, Tuple, any]:
+def unpack(args: list | tuple) -> list | tuple | any:
     """Extract the first object if the list has length 1
 
     If the supplied list or tuple only features a single element, the element is
@@ -111,7 +111,7 @@ def unwrap(x: np.ndarray, shift: int) -> np.ndarray:
     return x
 
 
-def resp_code_to_bytes(code: Union[int, Tuple[int, ...], bytes]) -> bytes:
+def resp_code_to_bytes(code: int | bytes | tuple[int, ...]) -> bytes:
     """Convert the supplied response code to bytes
 
     :param code: The code, can be an int, a tuple of ints, or bytes

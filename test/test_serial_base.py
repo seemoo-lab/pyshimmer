@@ -16,7 +16,6 @@
 from __future__ import annotations
 
 from io import BytesIO
-from typing import Tuple
 from unittest import TestCase
 
 from pyshimmer.serial_base import SerialBase, BufferedReader, ReadAbort
@@ -108,7 +107,7 @@ class BufferedReaderTest(TestCase):
 class SerialBaseTest(TestCase):
 
     @staticmethod
-    def create_sot() -> Tuple[MockSerial, SerialBase]:
+    def create_sot() -> tuple[MockSerial, SerialBase]:
         mock = MockSerial()
 
         # noinspection PyTypeChecker

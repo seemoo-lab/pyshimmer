@@ -15,9 +15,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from __future__ import annotations
 
+from collections.abc import Callable, Iterable
 from queue import Queue, Empty
 from threading import Event, Thread
-from typing import List, Tuple, Callable, Iterable, Optional
 
 from serial import Serial
 
@@ -140,7 +140,7 @@ class BluetoothRequestHandler:
         self._status_cbs = []
 
     def set_stream_types(
-        self, types: List[Tuple[EChannelType, ChannelDataType]]
+        self, types: list[tuple[EChannelType, ChannelDataType]]
     ) -> None:
         """Set the channel types that are streamed as part of the data packets
 
@@ -163,7 +163,7 @@ class BluetoothRequestHandler:
         """
         self._stream_cbs.remove(cb)
 
-    def add_status_callback(self, cb: Callable[[List[bool]], None]) -> None:
+    def add_status_callback(self, cb: Callable[[list[bool]], None]) -> None:
         """Add a status callback which is called when a new status update from the
         Shimmer arrives
 
@@ -173,7 +173,7 @@ class BluetoothRequestHandler:
         """
         self._status_cbs += [cb]
 
-    def remove_status_callback(self, cb: Callable[[List[bool]], None]) -> None:
+    def remove_status_callback(self, cb: Callable[[list[bool]], None]) -> None:
         """Remove the callback from the list of active callbacks
 
         :param cb: The callback function to remove
@@ -265,7 +265,7 @@ class BluetoothRequestHandler:
 
     def queue_command(
         self, cmd: ShimmerCommand
-    ) -> Tuple[RequestCompletion, RequestResponse]:
+    ) -> tuple[RequestCompletion, RequestResponse]:
         """Queue a command request for processing
 
         :param cmd: The command to send to the Shimmer device
@@ -337,9 +337,9 @@ class ShimmerBluetooth:
         self._initialized = False
         self._disable_ack = disable_status_ack
 
-        self._fw_version: Optional[FirmwareVersion] = None
-        self._fw_caps: Optional[FirmwareCapabilities] = None
-        self._hw_version: Optional[HardwareVersion] = None
+        self._fw_version: FirmwareVersion | None = None
+        self._fw_caps: FirmwareCapabilities | None = None
+        self._hw_version: HardwareVersion | None = None
 
     @property
     def initialized(self) -> bool:
@@ -430,7 +430,7 @@ class ShimmerBluetooth:
         """
         self._bluetooth.remove_stream_callback(cb)
 
-    def add_status_callback(self, cb: Callable[[List[bool]], None]) -> None:
+    def add_status_callback(self, cb: Callable[[list[bool]], None]) -> None:
         """Add a status callback which is called when a new status update from the
         Shimmer arrives
 
@@ -440,7 +440,7 @@ class ShimmerBluetooth:
         """
         self._bluetooth.add_status_callback(cb)
 
-    def remove_status_callback(self, cb: Callable[[List[bool]], None]) -> None:
+    def remove_status_callback(self, cb: Callable[[list[bool]], None]) -> None:
         """Remove the callback from the list of active callbacks
 
         :param cb: The callback function to remove
@@ -512,7 +512,7 @@ class ShimmerBluetooth:
         """
         self._process_and_wait(SetRealTimeClockCommand(time_sec))
 
-    def get_status(self) -> List[bool]:
+    def get_status(self) -> list[bool]:
         """Get the status of the device
 
         :return: A list of 8 bools which signal:
@@ -521,7 +521,7 @@ class ShimmerBluetooth:
         """
         return self._process_and_wait(GetStatusCommand())
 
-    def get_firmware_version(self) -> Tuple[EFirmwareType, FirmwareVersion]:
+    def get_firmware_version(self) -> tuple[EFirmwareType, FirmwareVersion]:
         """Get the version of the running firmware
 
         :return: The firmware type as enum, i.e. SDLog or LogAndStream
@@ -595,7 +595,7 @@ class ShimmerBluetooth:
         """
         self._process_and_wait(SetExperimentIDCommand(exp_id))
 
-    def get_inquiry(self) -> Tuple[float, int, List[EChannelType]]:
+    def get_inquiry(self) -> tuple[float, int, list[EChannelType]]:
         """Perform inquiry command
 
         :return: A tuple of 3 values:

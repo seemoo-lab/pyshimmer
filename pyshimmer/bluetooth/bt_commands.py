@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import struct
 from abc import ABC, abstractmethod
-from typing import List, Tuple, Union, Iterable
+from collections.abc import Iterable
 
 from pyshimmer.bluetooth.bt_const import *
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
@@ -46,12 +46,12 @@ class DataPacket:
         data packet as well as the corresponding data type decoder
     """
 
-    def __init__(self, stream_types: List[Tuple[EChannelType, ChannelDataType]]):
+    def __init__(self, stream_types: list[tuple[EChannelType, ChannelDataType]]):
         self._types = stream_types
         self._values = {}
 
     @property
-    def channels(self) -> List[EChannelType]:
+    def channels(self) -> list[EChannelType]:
         """The data channels present in this data packet
 
         :return: The channels as list
@@ -59,7 +59,7 @@ class DataPacket:
         return [t for t, _ in self._types]
 
     @property
-    def channel_types(self) -> List[ChannelDataType]:
+    def channel_types(self) -> list[ChannelDataType]:
         """The channel data types that represent the binary data of each channel
 
         :return: The data types as list
@@ -131,7 +131,7 @@ class ResponseCommand(ShimmerCommand, ABC):
         multi-byte response code
     """
 
-    def __init__(self, rcode: Union[int, Tuple[int, ...], bytes]):
+    def __init__(self, rcode: int | bytes | tuple[int, ...]):
         self._rcode = resp_code_to_bytes(rcode)
 
     def has_response(self) -> bool:
@@ -165,7 +165,7 @@ class GetStringCommand(ResponseCommand):
     def __init__(
         self,
         req_code: int,
-        resp_code: Union[int, Tuple[int], bytes],
+        resp_code: int | bytes | tuple[int],
         encoding: str = "utf8",
     ):
         super().__init__(resp_code)
@@ -335,7 +335,7 @@ class GetStatusCommand(ResponseCommand):
     def __init__(self):
         super().__init__(FULL_STATUS_RESPONSE)
 
-    def unpack_status_bitfields(self, val: int) -> List[bool]:
+    def unpack_status_bitfields(self, val: int) -> list[bool]:
         values = [bit_is_set(val, f) for f in self.STATUS_BITFIELDS]
         return values
 
@@ -404,7 +404,7 @@ class InquiryCommand(ResponseCommand):
         super().__init__(INQUIRY_RESPONSE)
 
     @staticmethod
-    def decode_channel_types(ct_bin: bytes) -> List[EChannelType]:
+    def decode_channel_types(ct_bin: bytes) -> list[EChannelType]:
         ctypes_index = struct.unpack("B" * len(ct_bin), ct_bin)
         ctypes = [BtChannelsByIndex[i] for i in ctypes_index]
         return ctypes
