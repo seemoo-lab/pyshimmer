@@ -95,7 +95,7 @@ class ExGRegister:
         obj_str += print_ch(1)
         return obj_str
 
-    def __eq__(self, other: "ExGRegister") -> bool:
+    def __eq__(self, other: ExGRegister) -> bool:
         return self._reg_bin == other._reg_bin
 
     @staticmethod

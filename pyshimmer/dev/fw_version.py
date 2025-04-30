@@ -49,23 +49,23 @@ class FirmwareVersion:
         self._key = (major, minor, rel)
 
     @ensure_firmware_version
-    def __eq__(self, other: "FirmwareVersion") -> bool:
+    def __eq__(self, other: FirmwareVersion) -> bool:
         return self._key == other._key
 
     @ensure_firmware_version
-    def __gt__(self, other: "FirmwareVersion") -> bool:
+    def __gt__(self, other: FirmwareVersion) -> bool:
         return self._key > other._key
 
     @ensure_firmware_version
-    def __ge__(self, other: "FirmwareVersion") -> bool:
+    def __ge__(self, other: FirmwareVersion) -> bool:
         return self._key >= other._key
 
     @ensure_firmware_version
-    def __lt__(self, other: "FirmwareVersion") -> bool:
+    def __lt__(self, other: FirmwareVersion) -> bool:
         return self._key < other._key
 
     @ensure_firmware_version
-    def __le__(self, other: "FirmwareVersion") -> bool:
+    def __le__(self, other: FirmwareVersion) -> bool:
         return self._key <= other._key
 
 
@@ -116,7 +116,7 @@ class HardwareVersion(IntEnum):
     UNKNOWN = -1
 
     @classmethod
-    def from_int(cls, value: int) -> "HardwareVersion":
+    def from_int(cls, value: int) -> HardwareVersion:
         """Converts an Integer to the corresponding HardwareVersion enum
 
         :param value: Integer representing device hardware version

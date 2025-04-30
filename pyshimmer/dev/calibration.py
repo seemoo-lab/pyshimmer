@@ -55,7 +55,7 @@ class AllCalibration:
     def binary(self):
         return self._reg_bin
 
-    def __eq__(self, other: "AllCalibration") -> bool:
+    def __eq__(self, other: AllCalibration) -> bool:
         return self._reg_bin == other._reg_bin
 
     def _check_sens_num(self, sens_num: int) -> None:
