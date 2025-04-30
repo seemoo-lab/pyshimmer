@@ -21,8 +21,17 @@ import numpy as np
 from unittest.mock import Mock
 
 from io import BytesIO
-from pyshimmer.util import bit_is_set, raise_to_next_pow, flatten_list, fmt_hex, unpack, unwrap, calibrate_u12_adc_value, battery_voltage_to_percent, \
-     FileIOBase
+from pyshimmer.util import (
+    bit_is_set,
+    raise_to_next_pow,
+    flatten_list,
+    fmt_hex,
+    unpack,
+    unwrap,
+    calibrate_u12_adc_value,
+    battery_voltage_to_percent,
+    FileIOBase,
+)
 
 
 class UtilTest(TestCase):
@@ -76,11 +85,11 @@ class UtilTest(TestCase):
         self.assertEqual(r, [10])
 
     def test_fmt_hex(self):
-        r = fmt_hex(b'\x01')
-        self.assertEqual(r, '01')
+        r = fmt_hex(b"\x01")
+        self.assertEqual(r, "01")
 
-        r = fmt_hex(b'\x01\x02')
-        self.assertEqual(r, '01 02')
+        r = fmt_hex(b"\x01\x02")
+        self.assertEqual(r, "01 02")
 
     def test_unpack(self):
         r = unpack([10])
@@ -123,10 +132,10 @@ class UtilTest(TestCase):
         r = unwrap(x, 250)
         np.testing.assert_equal(r, e)
 
-        e = np.arange(0, 4 * (2 ** 24), 65)
-        x = e % (2 ** 24)
+        e = np.arange(0, 4 * (2**24), 65)
+        x = e % (2**24)
 
-        r = unwrap(x, 2 ** 24)
+        r = unwrap(x, 2**24)
         np.testing.assert_equal(r, e)
 
     def test_calibrate_u12_adc_value(self):
@@ -134,7 +143,7 @@ class UtilTest(TestCase):
         offset = 0
         vRefP = 3.0
         gain = 1.0
-        
+
         actual = calibrate_u12_adc_value(uncalibratedData, offset, vRefP, gain)
 
         desired = 2.0974358974358975
@@ -179,9 +188,9 @@ class UtilTest(TestCase):
         self.assertEqual(sut._tell(), 8)
 
         r = sut._read(2)
-        self.assertEqual(r, b'\x08\x09')
+        self.assertEqual(r, b"\x08\x09")
 
-        r = sut._read_packed('<H')
+        r = sut._read_packed("<H")
         self.assertEqual(r, 0x0B0A)
 
     def test_file_io_base_not_seekable(self):

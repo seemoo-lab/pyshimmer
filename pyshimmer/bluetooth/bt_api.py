@@ -19,17 +19,56 @@ from typing import List, Tuple, Callable, Iterable, Optional
 
 from serial import Serial
 
-from pyshimmer.bluetooth.bt_commands import GetShimmerHardwareVersion, ShimmerCommand, GetSamplingRateCommand, GetConfigTimeCommand, \
-    SetConfigTimeCommand, GetRealTimeClockCommand, SetRealTimeClockCommand, GetStatusCommand, \
-    GetFirmwareVersionCommand, InquiryCommand, StartStreamingCommand, StopStreamingCommand, DataPacket, \
-    GetEXGRegsCommand, SetEXGRegsCommand, StartLoggingCommand, StopLoggingCommand, GetExperimentIDCommand, \
-    SetExperimentIDCommand, GetDeviceNameCommand, SetDeviceNameCommand, DummyCommand, GetBatteryCommand, \
-    SetSamplingRateCommand, SetSensorsCommand, SetStatusAckCommand, AllCalibration, GetAllCalibrationCommand
-from pyshimmer.bluetooth.bt_const import ACK_COMMAND_PROCESSED, DATA_PACKET, FULL_STATUS_RESPONSE, INSTREAM_CMD_RESPONSE
+from pyshimmer.bluetooth.bt_commands import (
+    GetShimmerHardwareVersion,
+    ShimmerCommand,
+    GetSamplingRateCommand,
+    GetConfigTimeCommand,
+    SetConfigTimeCommand,
+    GetRealTimeClockCommand,
+    SetRealTimeClockCommand,
+    GetStatusCommand,
+    GetFirmwareVersionCommand,
+    InquiryCommand,
+    StartStreamingCommand,
+    StopStreamingCommand,
+    DataPacket,
+    GetEXGRegsCommand,
+    SetEXGRegsCommand,
+    StartLoggingCommand,
+    StopLoggingCommand,
+    GetExperimentIDCommand,
+    SetExperimentIDCommand,
+    GetDeviceNameCommand,
+    SetDeviceNameCommand,
+    DummyCommand,
+    GetBatteryCommand,
+    SetSamplingRateCommand,
+    SetSensorsCommand,
+    SetStatusAckCommand,
+    AllCalibration,
+    GetAllCalibrationCommand,
+)
+from pyshimmer.bluetooth.bt_const import (
+    ACK_COMMAND_PROCESSED,
+    DATA_PACKET,
+    FULL_STATUS_RESPONSE,
+    INSTREAM_CMD_RESPONSE,
+)
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
-from pyshimmer.dev.channels import ChDataTypeAssignment, ChannelDataType, EChannelType, ESensorGroup
+from pyshimmer.dev.channels import (
+    ChDataTypeAssignment,
+    ChannelDataType,
+    EChannelType,
+    ESensorGroup,
+)
 from pyshimmer.dev.exg import ExGRegister
-from pyshimmer.dev.fw_version import EFirmwareType, FirmwareVersion, FirmwareCapabilities, HardwareVersion
+from pyshimmer.dev.fw_version import (
+    EFirmwareType,
+    FirmwareVersion,
+    FirmwareCapabilities,
+    HardwareVersion,
+)
 from pyshimmer.serial_base import ReadAbort
 from pyshimmer.util import fmt_hex, PeekQueue
 
@@ -97,7 +136,9 @@ class BluetoothRequestHandler:
         self._stream_cbs = []
         self._status_cbs = []
 
-    def set_stream_types(self, types: List[Tuple[EChannelType, ChannelDataType]]) -> None:
+    def set_stream_types(
+        self, types: List[Tuple[EChannelType, ChannelDataType]]
+    ) -> None:
         """Set the channel types that are streamed as part of the data packets
 
         :param types: A List of tuples, each containing a channel type and its corresponding data type
@@ -189,7 +230,9 @@ class BluetoothRequestHandler:
         peek = self._serial.peek(len(resp_code))
 
         if peek != resp_code:
-            raise ValueError(f'Expecting response code {fmt_hex(resp_code)} but found {fmt_hex(peek)}')
+            raise ValueError(
+                f"Expecting response code {fmt_hex(resp_code)} but found {fmt_hex(peek)}"
+            )
 
         result = cmd.receive(self._serial)
         return_obj.set_result(result)
@@ -201,7 +244,7 @@ class BluetoothRequestHandler:
         All data is provided via the completion objects returned when queueing the command.
 
         """
-        peek = self._serial.peek_packed('B')
+        peek = self._serial.peek_packed("B")
 
         if peek == ACK_COMMAND_PROCESSED:
             self._process_ack()
@@ -212,7 +255,9 @@ class BluetoothRequestHandler:
         else:
             self._process_resp_from_queue()
 
-    def queue_command(self, cmd: ShimmerCommand) -> Tuple[RequestCompletion, RequestResponse]:
+    def queue_command(
+        self, cmd: ShimmerCommand
+    ) -> Tuple[RequestCompletion, RequestResponse]:
         """Queue a command request for processing
 
         :param cmd: The command to send to the Shimmer device
@@ -234,9 +279,7 @@ class BluetoothRequestHandler:
         return compl_obj, resp_obj
 
     def clear_queues(self) -> None:
-        """Clear the internal queues and release any locks held by other threads
-
-        """
+        """Clear the internal queues and release any locks held by other threads"""
         try:
             while True:
                 compl, (cmd, resp) = self._ack_queue.get_nowait()
@@ -347,7 +390,7 @@ class ShimmerBluetooth:
                 self._bluetooth.process_single_input_event()
 
         except ReadAbort:
-            print('Read loop exciting after cancel request')
+            print("Read loop exciting after cancel request")
 
     def _process_and_wait(self, cmd):
         compl_obj, return_obj = self._bluetooth.queue_command(cmd)
@@ -504,10 +547,10 @@ class ShimmerBluetooth:
         :param dev_name: The device name to set
         """
         self._process_and_wait(SetDeviceNameCommand(dev_name))
-        
+
     def get_device_hardware_version(self) -> HardwareVersion:
         """Retrieve the device hardware version
-        
+
         :return: The device hardware version as string
         """
         return self._process_and_wait(GetShimmerHardwareVersion())
@@ -550,9 +593,7 @@ class ShimmerBluetooth:
         return ctypes
 
     def start_streaming(self) -> None:
-        """Start streaming data
-
-        """
+        """Start streaming data"""
         ctypes = self.get_data_types()
 
         stream_types = [(t, ChDataTypeAssignment[t]) for t in ctypes]
@@ -570,15 +611,11 @@ class ShimmerBluetooth:
         self._process_and_wait(StopStreamingCommand())
 
     def start_logging(self) -> None:
-        """Start logging data to the SD card of the device
-
-        """
+        """Start logging data to the SD card of the device"""
         self._process_and_wait(StartLoggingCommand())
 
     def stop_logging(self) -> None:
-        """Stop logging data to the SD card of the device
-
-        """
+        """Stop logging data to the SD card of the device"""
         self._process_and_wait(StopLoggingCommand())
 
     def send_ping(self) -> None:

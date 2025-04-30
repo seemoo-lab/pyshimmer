@@ -90,7 +90,7 @@ class PTYSerialMockCreator:
     @staticmethod
     def _create_fobj(fd: int) -> BinaryIO:
         # https://bugs.python.org/issue20074
-        fobj = os.fdopen(fd, 'r+b', 0)
+        fobj = os.fdopen(fd, "r+b", 0)
         assert fobj.fileno() == fd
 
         return fobj

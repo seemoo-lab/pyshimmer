@@ -53,7 +53,7 @@ class BluetoothSerial(SerialBase):
         """
         arg_len = len(arg)
         if arg_len > 255:
-            raise ValueError(f'Variable-length argument is too long: {arg_len:d}')
+            raise ValueError(f"Variable-length argument is too long: {arg_len:d}")
 
         self.write_byte(arg_len)
         self.write(arg)
@@ -82,9 +82,11 @@ class BluetoothSerial(SerialBase):
         """
         r = self.read_byte()
         if r != ACK_COMMAND_PROCESSED:
-            raise ValueError('Byte received is no acknowledgment')
+            raise ValueError("Byte received is no acknowledgment")
 
-    def read_response(self, rcode: Union[int, Tuple[int, ...], bytes], arg_format: str = None) -> any:
+    def read_response(
+        self, rcode: Union[int, Tuple[int, ...], bytes], arg_format: str = None
+    ) -> any:
         """Read a Bluetooth command response from the stream
 
         :param rcode: The expected response code. Can be an int for a single-byte response code,
@@ -98,7 +100,9 @@ class BluetoothSerial(SerialBase):
 
         actual_rcode = self.read(len(rcode))
         if rcode != actual_rcode:
-            raise RuntimeError(f'Received incorrect response code: {fmt_hex(rcode)} != {fmt_hex(actual_rcode)}')
+            raise RuntimeError(
+                f"Received incorrect response code: {fmt_hex(rcode)} != {fmt_hex(actual_rcode)}"
+            )
 
         if arg_format is not None:
             if arg_format == "varlen":

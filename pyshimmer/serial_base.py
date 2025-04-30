@@ -26,6 +26,7 @@ class ReadAbort(Exception):
     """
     Raised by ShimmerSerial when a read operation was cancelled by the user.
     """
+
     pass
 
 
@@ -44,7 +45,7 @@ class BufferedReader:
     def _do_read_or_throw(self, read_len: int) -> bytes:
         result = self._io_obj.read(read_len)
         if len(result) < read_len:
-            raise ReadAbort('Read operation returned prematurely. Read was cancelled.')
+            raise ReadAbort("Read operation returned prematurely. Read was cancelled.")
         return result
 
     def _fill_buffer(self, n: int) -> None:
@@ -87,9 +88,7 @@ class BufferedReader:
         return self._get_from_buf(n)
 
     def reset(self) -> None:
-        """Clear the internal buffer of the reader
-
-        """
+        """Clear the internal buffer of the reader"""
         self._buf = bytearray()
 
 
@@ -101,7 +100,9 @@ class SerialBase:
 
     def __init__(self, serial: Serial):
         if serial.timeout is not None:
-            print('Warning: Serial Read timeout != None. This will interfere with the detection cancelled reads.')
+            print(
+                "Warning: Serial Read timeout != None. This will interfere with the detection cancelled reads."
+            )
 
         self._serial = serial
         self._reader = BufferedReader(serial)
@@ -115,9 +116,7 @@ class SerialBase:
         return unpack(args_unpacked)
 
     def flush_input_buffer(self):
-        """Flush the input buffer and remove any data that has been received but not yet read
-
-        """
+        """Flush the input buffer and remove any data that has been received but not yet read"""
         self._serial.reset_input_buffer()
         self._reader.reset()
 
@@ -137,7 +136,7 @@ class SerialBase:
         :param arg: The byte to write
         :return: The number of bytes written
         """
-        return self.write_packed('B', arg)
+        return self.write_packed("B", arg)
 
     def write_packed(self, wformat: str, *args) -> int:
         """Pack a number of arguments using :mod:`struct` and write them to the stream
@@ -175,7 +174,7 @@ class SerialBase:
 
         :return: The byte that was read
         """
-        r = self.read_packed('B')
+        r = self.read_packed("B")
         return r
 
     def cancel_read(self) -> None:
@@ -202,7 +201,5 @@ class SerialBase:
         return self._retrieve_packed(self.peek, rformat)
 
     def close(self) -> None:
-        """Close the underlying serial stream
-
-        """
+        """Close the underlying serial stream"""
         self._serial.close()

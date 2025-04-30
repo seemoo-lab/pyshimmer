@@ -83,8 +83,10 @@ class FirmwareCapabilities:
 
     @property
     def supports_ack_disable(self) -> bool:
-        return self._fw_type == EFirmwareType.LogAndStream and \
-               self._version >= FirmwareVersion(major=0, minor=15, rel=4)
+        return (
+            self._fw_type == EFirmwareType.LogAndStream
+            and self._version >= FirmwareVersion(major=0, minor=15, rel=4)
+        )
 
 
 FirmwareTypeValueAssignment = {
@@ -96,27 +98,26 @@ FirmwareTypeValueAssignment = {
 
 def get_firmware_type(f_type: int) -> EFirmwareType:
     if f_type not in FirmwareTypeValueAssignment:
-        raise ValueError(f'Unknown firmware type: 0x{f_type:x}')
+        raise ValueError(f"Unknown firmware type: 0x{f_type:x}")
 
     return FirmwareTypeValueAssignment[f_type]
 
 
 class HardwareVersion(IntEnum):
-    """Represents the supported Shimmer device hardware versions
-    
-    """
+    """Represents the supported Shimmer device hardware versions"""
+
     SHIMMER1 = 0
     SHIMMER2 = 1
     SHIMMER2R = 2
     SHIMMER3 = 3
     SHIMMER3R = 10
     UNKNOWN = -1
-    
+
     @classmethod
-    def from_int(cls, value: int) -> 'HardwareVersion':
+    def from_int(cls, value: int) -> "HardwareVersion":
         """Converts an Integer to the corresponding HardwareVersion enum
-        
+
         :param value: Integer representing device hardware version
-        :return: Corresponding HardwareVersion enum member, or UNKNOWN if unrecognised 
+        :return: Corresponding HardwareVersion enum member, or UNKNOWN if unrecognised
         """
         return cls._value2member_map_.get(value, cls.UNKNOWN)

@@ -28,58 +28,56 @@ class AllCalibration:
         self._num_sensors = 4
 
         if len(reg_bin) < self._num_bytes:
-            raise ValueError(
-                f'All calibration data must have length {self._num_bytes}')
+            raise ValueError(f"All calibration data must have length {self._num_bytes}")
 
         self._reg_bin = reg_bin
 
     def __str__(self) -> str:
         def print_sensor(sens_num: int) -> str:
-            return f'Sensor {sens_num + 1:2d}\n' + \
-                   f'\tOffset bias: {self.get_offset_bias(sens_num)}\n' + \
-                   f'\tSensitivity: {self.get_sensitivity(sens_num)}\n' + \
-                   f'\tAlignment Matrix: {self.get_ali_mat(sens_num)}\n'
+            return (
+                f"Sensor {sens_num + 1:2d}\n"
+                + f"\tOffset bias: {self.get_offset_bias(sens_num)}\n"
+                + f"\tSensitivity: {self.get_sensitivity(sens_num)}\n"
+                + f"\tAlignment Matrix: {self.get_ali_mat(sens_num)}\n"
+            )
 
-        obj_str = f''
+        obj_str = f""
         for i in range(0, self._num_sensors):
             obj_str += print_sensor(i)
 
         reg_bin_str = fmt_hex(self._reg_bin)
-        obj_str += f'Binary: {reg_bin_str}\n'
+        obj_str += f"Binary: {reg_bin_str}\n"
 
         return obj_str
 
     @property
     def binary(self):
         return self._reg_bin
-    
+
     def __eq__(self, other: "AllCalibration") -> bool:
         return self._reg_bin == other._reg_bin
 
     def _check_sens_num(self, sens_num: int) -> None:
         if not 0 <= sens_num < (self._num_sensors):
-            raise ValueError(f'Sensor num must be 0 to {self._num_sensors-1}')
+            raise ValueError(f"Sensor num must be 0 to {self._num_sensors-1}")
 
     def get_offset_bias(self, sens_num: int) -> List[int]:
         self._check_sens_num(sens_num)
         start_offset = sens_num * self._sensor_bytes
         end_offset = start_offset + 6
-        ans = list(struct.unpack(
-            '>hhh', self._reg_bin[start_offset:end_offset]))
+        ans = list(struct.unpack(">hhh", self._reg_bin[start_offset:end_offset]))
         return ans
 
     def get_sensitivity(self, sens_num: int) -> List[int]:
         self._check_sens_num(sens_num)
         start_offset = sens_num * self._sensor_bytes + 6
         end_offset = start_offset + 6
-        ans = list(struct.unpack(
-            '>hhh', self._reg_bin[start_offset:end_offset]))
+        ans = list(struct.unpack(">hhh", self._reg_bin[start_offset:end_offset]))
         return ans
 
     def get_ali_mat(self, sens_num: int) -> List[int]:
         self._check_sens_num(sens_num)
         start_offset = sens_num * self._sensor_bytes + 12
         end_offset = start_offset + 9
-        ans = list(struct.unpack(
-            '>bbbbbbbbb', self._reg_bin[start_offset:end_offset]))
+        ans = list(struct.unpack(">bbbbbbbbb", self._reg_bin[start_offset:end_offset]))
         return ans

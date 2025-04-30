@@ -69,7 +69,7 @@ def fmt_hex(val: bytes) -> str:
     :param val: The binary array to format
     :return: The resulting string
     """
-    return ' '.join('{:02x}'.format(i) for i in val)
+    return " ".join("{:02x}".format(i) for i in val)
 
 
 def unpack(args: Union[List, Tuple]) -> Union[List, Tuple, any]:
@@ -130,22 +130,76 @@ def calibrate_u12_adc_value(uncalibratedData, offset, vRefP, gain):
     :param gain: gain factor
     :return: Calibrated voltage in Volt
     """
-    return ((uncalibratedData - offset) * ((vRefP/gain)/4095))
+    return (uncalibratedData - offset) * ((vRefP / gain) / 4095)
 
 
 def battery_voltage_to_percent(battery_voltage):
     """Convert battery voltage to percent
 
     :param battery_voltage: Battery voltage in Volt
-    :return: approximated battery state in percent based on manual 
+    :return: approximated battery state in percent based on manual
     """
     # reference values from: https://shimmersensing.com/wp-content/docs/support/documentation/Shimmer_User_Manual_rev3p.pdf (Page 53)
-    reference_data_voltages = [3.2, 3.627, 3.645, 3.663, 3.681, 3.699, 3.717, 3.7314, 3.735, 3.7386, 3.7566, 3.771, 3.789, 3.8034, 3.8106, 3.8394, 3.861, \
-        3.8826, 3.9078, 3.933, 3.969, 4.0086, 4.041, 4.0734, 4.113, 4.167]
-    reference_data_percentages = [0, 5.9, 9.8, 13.8, 17.7, 21.6, 25.6, 29.5, 33.4, 37.4, 41.3, 45.2, 49.2, 53.1, 57, 61, 64.9, 68.9, 72.8, 76.7, 80.7, 84.6, \
-        88.5, 92.5, 96.4, 100]
+    reference_data_voltages = [
+        3.2,
+        3.627,
+        3.645,
+        3.663,
+        3.681,
+        3.699,
+        3.717,
+        3.7314,
+        3.735,
+        3.7386,
+        3.7566,
+        3.771,
+        3.789,
+        3.8034,
+        3.8106,
+        3.8394,
+        3.861,
+        3.8826,
+        3.9078,
+        3.933,
+        3.969,
+        4.0086,
+        4.041,
+        4.0734,
+        4.113,
+        4.167,
+    ]
+    reference_data_percentages = [
+        0,
+        5.9,
+        9.8,
+        13.8,
+        17.7,
+        21.6,
+        25.6,
+        29.5,
+        33.4,
+        37.4,
+        41.3,
+        45.2,
+        49.2,
+        53.1,
+        57,
+        61,
+        64.9,
+        68.9,
+        72.8,
+        76.7,
+        80.7,
+        84.6,
+        88.5,
+        92.5,
+        96.4,
+        100,
+    ]
 
-    battery_percent = np.interp(battery_voltage, reference_data_voltages, reference_data_percentages)
+    battery_percent = np.interp(
+        battery_voltage, reference_data_voltages, reference_data_percentages
+    )
 
     battery_percent = min(battery_percent, 100)
     battery_percent = max(battery_percent, 0)
@@ -183,7 +237,7 @@ class FileIOBase:
 
     def __init__(self, fp: BinaryIO):
         if not fp.seekable():
-            raise ValueError('IO object must be seekable')
+            raise ValueError("IO object must be seekable")
 
         self._fp = fp
 
@@ -193,7 +247,7 @@ class FileIOBase:
     def _read(self, s: int) -> bytes:
         r = self._fp.read(s)
         if len(r) < s:
-            raise IOError('Read beyond EOF')
+            raise IOError("Read beyond EOF")
 
         return r
 

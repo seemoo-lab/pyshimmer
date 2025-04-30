@@ -18,10 +18,12 @@ import random
 from unittest import TestCase
 from pyshimmer.dev.calibration import AllCalibration
 
+
 def randbytes(k: int) -> bytes:
     population = list(range(256))
     seq = random.choices(population, k=k)
     return bytes(seq)
+
 
 class AllCalibrationTest(TestCase):
 
@@ -48,68 +50,304 @@ class AllCalibrationTest(TestCase):
         self.assertRaises(ValueError, AllCalibration, bytes())
 
     def test_allcalibration(self):
-        bin_reg1 = bytes([0x08, 0xcd, 0x08, 0xcd, 0x08, 0xcd, 0x00, 0x5c, 0x00, 0x5c, 
-                          0x00, 0x5c, 0x00, 0x9c, 0x00, 0x9c, 0x00, 0x00, 0x00, 0x00, 
-                          0x9c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x19, 0x96, 0x19, 
-                          0x96, 0x19, 0x96, 0x00, 0x9c, 0x00, 0x9c, 0x00, 0x00, 0x00, 
-                          0x00, 0x9c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x9b, 
-                          0x02, 0x9b, 0x02, 0x9b, 0x00, 0x9c, 0x00, 0x64, 0x00, 0x00, 
-                          0x00, 0x00, 0x9c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 
-                          0x87, 0x06, 0x87, 0x06, 0x87, 0x00, 0x9c, 0x00, 0x64, 0x00, 
-                          0x00, 0x00, 0x00, 0x9c])
+        bin_reg1 = bytes(
+            [
+                0x08,
+                0xCD,
+                0x08,
+                0xCD,
+                0x08,
+                0xCD,
+                0x00,
+                0x5C,
+                0x00,
+                0x5C,
+                0x00,
+                0x5C,
+                0x00,
+                0x9C,
+                0x00,
+                0x9C,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x9C,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x19,
+                0x96,
+                0x19,
+                0x96,
+                0x19,
+                0x96,
+                0x00,
+                0x9C,
+                0x00,
+                0x9C,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x9C,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x02,
+                0x9B,
+                0x02,
+                0x9B,
+                0x02,
+                0x9B,
+                0x00,
+                0x9C,
+                0x00,
+                0x64,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x9C,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x06,
+                0x87,
+                0x06,
+                0x87,
+                0x06,
+                0x87,
+                0x00,
+                0x9C,
+                0x00,
+                0x64,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x9C,
+            ]
+        )
 
-        bin_reg2 = bytes([0x08, 0xcd, 0x08, 0xcd, 0x08, 0xcd, 0x00, 0x5c, 0x00, 0x5c, 
-                          0x00, 0x5c, 0x00, 0x9c, 0x00, 0x9c, 0x00, 0x00, 0x00, 0x00, 
-                          0x9c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x19, 0x96, 0x19, 
-                          0x96, 0x19, 0x96, 0x00, 0x9c, 0x00, 0x9c, 0x00, 0x00, 0x00, 
-                          0x00, 0x9c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 
-                          0x87, 0x06, 0x87, 0x06, 0x87, 0x00, 0x9c, 0x00, 0x64, 0x00, 
-                          0x00, 0x00, 0x00, 0x9c])
+        bin_reg2 = bytes(
+            [
+                0x08,
+                0xCD,
+                0x08,
+                0xCD,
+                0x08,
+                0xCD,
+                0x00,
+                0x5C,
+                0x00,
+                0x5C,
+                0x00,
+                0x5C,
+                0x00,
+                0x9C,
+                0x00,
+                0x9C,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x9C,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x19,
+                0x96,
+                0x19,
+                0x96,
+                0x19,
+                0x96,
+                0x00,
+                0x9C,
+                0x00,
+                0x9C,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x9C,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x06,
+                0x87,
+                0x06,
+                0x87,
+                0x06,
+                0x87,
+                0x00,
+                0x9C,
+                0x00,
+                0x64,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x9C,
+            ]
+        )
 
         allcalib1 = AllCalibration(bin_reg1)
         allcalib2 = AllCalibration(bin_reg2)
-        self.assertEqual(allcalib1.get_offset_bias(0), [2253, 2253, 2253] )
-        self.assertEqual(allcalib1.get_sensitivity(0), [92, 92, 92] )
-        self.assertEqual(allcalib1.get_ali_mat(0),     [0, -100, 0, -100, 0, 0, 0, 0, -100] )
-        self.assertEqual(allcalib1.get_offset_bias(1), [0, 0, 0] )
-        self.assertEqual(allcalib1.get_sensitivity(1), [6550, 6550, 6550] )
-        self.assertEqual(allcalib1.get_ali_mat(1),     [0, -100, 0, -100, 0, 0, 0, 0, -100] )
-        self.assertEqual(allcalib1.get_offset_bias(2), [0, 0, 0] )
-        self.assertEqual(allcalib1.get_sensitivity(2), [667, 667, 667] )
-        self.assertEqual(allcalib1.get_ali_mat(2),     [0, -100, 0, 100, 0, 0, 0, 0, -100] )
-        self.assertEqual(allcalib1.get_offset_bias(3), [0, 0, 0] )
-        self.assertEqual(allcalib1.get_sensitivity(3), [1671, 1671, 1671] )
-        self.assertEqual(allcalib1.get_ali_mat(3),     [0, -100, 0, 100, 0, 0, 0, 0, -100] )
-        
+        self.assertEqual(allcalib1.get_offset_bias(0), [2253, 2253, 2253])
+        self.assertEqual(allcalib1.get_sensitivity(0), [92, 92, 92])
+        self.assertEqual(allcalib1.get_ali_mat(0), [0, -100, 0, -100, 0, 0, 0, 0, -100])
+        self.assertEqual(allcalib1.get_offset_bias(1), [0, 0, 0])
+        self.assertEqual(allcalib1.get_sensitivity(1), [6550, 6550, 6550])
+        self.assertEqual(allcalib1.get_ali_mat(1), [0, -100, 0, -100, 0, 0, 0, 0, -100])
+        self.assertEqual(allcalib1.get_offset_bias(2), [0, 0, 0])
+        self.assertEqual(allcalib1.get_sensitivity(2), [667, 667, 667])
+        self.assertEqual(allcalib1.get_ali_mat(2), [0, -100, 0, 100, 0, 0, 0, 0, -100])
+        self.assertEqual(allcalib1.get_offset_bias(3), [0, 0, 0])
+        self.assertEqual(allcalib1.get_sensitivity(3), [1671, 1671, 1671])
+        self.assertEqual(allcalib1.get_ali_mat(3), [0, -100, 0, 100, 0, 0, 0, 0, -100])
+
         self.assertEqual(allcalib2.get_offset_bias(0), [2253, 2253, 2253])
         self.assertEqual(allcalib2.get_sensitivity(0), [92, 92, 92])
-        self.assertEqual(allcalib2.get_ali_mat(0),     [0, -100, 0, -100, 0, 0, 0, 0, -100])
+        self.assertEqual(allcalib2.get_ali_mat(0), [0, -100, 0, -100, 0, 0, 0, 0, -100])
         self.assertEqual(allcalib2.get_offset_bias(1), [0, 0, 0])
         self.assertEqual(allcalib2.get_sensitivity(1), [6550, 6550, 6550])
-        self.assertEqual(allcalib2.get_ali_mat(1),     [0, -100, 0, -100, 0, 0, 0, 0, -100])
+        self.assertEqual(allcalib2.get_ali_mat(1), [0, -100, 0, -100, 0, 0, 0, 0, -100])
         self.assertEqual(allcalib2.get_offset_bias(2), [0, 0, 0])
         self.assertEqual(allcalib2.get_sensitivity(2), [0, 0, 0])
-        self.assertEqual(allcalib2.get_ali_mat(2),     [0, 0, 0, 0, 0, 0, 0, 0, 0])
+        self.assertEqual(allcalib2.get_ali_mat(2), [0, 0, 0, 0, 0, 0, 0, 0, 0])
         self.assertEqual(allcalib2.get_offset_bias(3), [0, 0, 0])
         self.assertEqual(allcalib2.get_sensitivity(3), [1671, 1671, 1671])
-        self.assertEqual(allcalib2.get_ali_mat(3),     [0, -100, 0, 100, 0, 0, 0, 0, -100])
+        self.assertEqual(allcalib2.get_ali_mat(3), [0, -100, 0, 100, 0, 0, 0, 0, -100])
 
     def test_exg_register_print(self):
-        bin_reg = bytes([0x08, 0xcd, 0x08, 0xcd, 0x08, 0xcd, 0x00, 0x5c, 0x00, 0x5c, 
-                         0x00, 0x5c, 0x00, 0x9c, 0x00, 0x9c, 0x00, 0x00, 0x00, 0x00, 
-                         0x9c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x19, 0x96, 0x19, 
-                         0x96, 0x19, 0x96, 0x00, 0x9c, 0x00, 0x9c, 0x00, 0x00, 0x00, 
-                         0x00, 0x9c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-                         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-                         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 
-                         0x87, 0x06, 0x87, 0x06, 0x87, 0x00, 0x9c, 0x00, 0x64, 0x00, 
-                         0x00, 0x00, 0x00, 0x9c])
+        bin_reg = bytes(
+            [
+                0x08,
+                0xCD,
+                0x08,
+                0xCD,
+                0x08,
+                0xCD,
+                0x00,
+                0x5C,
+                0x00,
+                0x5C,
+                0x00,
+                0x5C,
+                0x00,
+                0x9C,
+                0x00,
+                0x9C,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x9C,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x19,
+                0x96,
+                0x19,
+                0x96,
+                0x19,
+                0x96,
+                0x00,
+                0x9C,
+                0x00,
+                0x9C,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x9C,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x06,
+                0x87,
+                0x06,
+                0x87,
+                0x06,
+                0x87,
+                0x00,
+                0x9C,
+                0x00,
+                0x64,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x9C,
+            ]
+        )
 
         allcalib = AllCalibration(bin_reg)
 
         str_repr = str(allcalib)
-        self.assertTrue('Offset bias: [0, 0, 0]' in str_repr)
-        self.assertTrue('Sensitivity: [1671,' in str_repr)
-
+        self.assertTrue("Offset bias: [0, 0, 0]" in str_repr)
+        self.assertTrue("Sensitivity: [1671," in str_repr)

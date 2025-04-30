@@ -24,10 +24,10 @@ from pyshimmer.uart.dock_const import CRC_INIT
 
 def generate_crc(msg: bytes, crc_init: int) -> bytes:
     if len(msg) % 2 != 0:
-        msg += b'\x00'
+        msg += b"\x00"
 
     crc = binascii.crc_hqx(msg, crc_init)
-    crc_bin = struct.pack('<H', crc)
+    crc_bin = struct.pack("<H", crc)
     return crc_bin
 
 
@@ -70,7 +70,7 @@ class DockSerial(SerialBase):
         exp_crc = self._create_crc(self._read_crc_buf)
         act_crc = super().read(len(exp_crc))
         if not exp_crc == act_crc:
-            raise IOError('CRC check failed: Received data is invalid')
+            raise IOError("CRC check failed: Received data is invalid")
 
     def start_write_crc(self) -> None:
         self._record_write = True

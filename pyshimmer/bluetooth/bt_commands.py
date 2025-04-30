@@ -21,12 +21,22 @@ from pyshimmer.bluetooth.bt_const import *
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
 
 from pyshimmer.dev.base import dr2sr, sr2dr, sec2ticks, ticks2sec
-from pyshimmer.dev.channels import ChannelDataType, EChannelType, ESensorGroup, serialize_sensorlist
+from pyshimmer.dev.channels import (
+    ChannelDataType,
+    EChannelType,
+    ESensorGroup,
+    serialize_sensorlist,
+)
 from pyshimmer.dev.exg import ExGRegister
 from pyshimmer.dev.calibration import AllCalibration
 from pyshimmer.dev.fw_version import HardwareVersion, get_firmware_type
 
-from pyshimmer.util import bit_is_set, resp_code_to_bytes, calibrate_u12_adc_value, battery_voltage_to_percent
+from pyshimmer.util import (
+    bit_is_set,
+    resp_code_to_bytes,
+    calibrate_u12_adc_value,
+    battery_voltage_to_percent,
+)
 
 
 class DataPacket:
@@ -77,9 +87,7 @@ class DataPacket:
 
 
 class ShimmerCommand(ABC):
-    """Abstract base class that represents a command sent to the Shimmer
-
-    """
+    """Abstract base class that represents a command sent to the Shimmer"""
 
     @abstractmethod
     def send(self, ser: BluetoothSerial) -> None:
@@ -150,7 +158,12 @@ class GetStringCommand(ResponseCommand):
     :arg encoding: The encoding to use when reading the response string
     """
 
-    def __init__(self, req_code: int, resp_code: Union[int, Tuple[int], bytes], encoding: str = 'utf8'):
+    def __init__(
+        self,
+        req_code: int,
+        resp_code: Union[int, Tuple[int], bytes],
+        encoding: str = "utf8",
+    ):
         super().__init__(resp_code)
         self._req_code = req_code
         self._encoding = encoding
@@ -159,7 +172,7 @@ class GetStringCommand(ResponseCommand):
         ser.write_command(self._req_code)
 
     def receive(self, ser: BluetoothSerial) -> any:
-        str_bin = ser.read_response(self._rcode, 'varlen')
+        str_bin = ser.read_response(self._rcode, "varlen")
         return str_bin.decode(self._encoding)
 
 
@@ -171,20 +184,18 @@ class SetStringCommand(ShimmerCommand):
     :arg encoding: The encoding to use when writing the data to the stream
     """
 
-    def __init__(self, req_code: int, str_data: str, encoding: str = 'utf8'):
+    def __init__(self, req_code: int, str_data: str, encoding: str = "utf8"):
         self._req_code = req_code
         self._str_data = str_data
         self._encoding = encoding
 
     def send(self, ser: BluetoothSerial) -> None:
         str_bin = self._str_data.encode(self._encoding)
-        ser.write_command(self._req_code, 'varlen', str_bin)
+        ser.write_command(self._req_code, "varlen", str_bin)
 
 
 class GetSamplingRateCommand(ResponseCommand):
-    """Retrieve the sampling rate in samples per second
-
-    """
+    """Retrieve the sampling rate in samples per second"""
 
     def __init__(self):
         super().__init__(SAMPLING_RATE_RESPONSE)
@@ -193,7 +204,7 @@ class GetSamplingRateCommand(ResponseCommand):
         ser.write_command(GET_SAMPLING_RATE_COMMAND)
 
     def receive(self, ser: BluetoothSerial) -> float:
-        sr_clock = ser.read_response(SAMPLING_RATE_RESPONSE, arg_format='<H')
+        sr_clock = ser.read_response(SAMPLING_RATE_RESPONSE, arg_format="<H")
         sr = dr2sr(sr_clock)
         return sr
 
@@ -209,9 +220,7 @@ class SetSamplingRateCommand(ShimmerCommand):
 
 
 class GetBatteryCommand(ResponseCommand):
-    """Retrieve the battery state
-
-    """
+    """Retrieve the battery state"""
 
     def __init__(self, in_percent: bool):
         super().__init__(FULL_BATTERY_RESPONSE)
@@ -221,7 +230,7 @@ class GetBatteryCommand(ResponseCommand):
         ser.write_command(GET_BATTERY_COMMAND)
 
     def receive(self, ser: BluetoothSerial) -> any:
-        batt = ser.read_response(self.get_response_code(), arg_format='BBB')
+        batt = ser.read_response(self.get_response_code(), arg_format="BBB")
         # Calculation see:
         # http://shimmersensing.com/wp-content/docs/support/documentation/LogAndStream_for_Shimmer3_Firmware_User_Manual_rev0.11a.pdf (Page 17)
         # https://shimmersensing.com/wp-content/docs/support/documentation/Shimmer_User_Manual_rev3p.pdf (Page 53)
@@ -234,9 +243,7 @@ class GetBatteryCommand(ResponseCommand):
 
 
 class GetConfigTimeCommand(ResponseCommand):
-    """Retrieve the config time that is stored in the Shimmer device configuration file
-
-    """
+    """Retrieve the config time that is stored in the Shimmer device configuration file"""
 
     def __init__(self):
         super().__init__(CONFIGTIME_RESPONSE)
@@ -245,7 +252,7 @@ class GetConfigTimeCommand(ResponseCommand):
         ser.write_command(GET_CONFIGTIME_COMMAND)
 
     def receive(self, ser: BluetoothSerial) -> any:
-        r = ser.read_response(CONFIGTIME_RESPONSE, arg_format='varlen')
+        r = ser.read_response(CONFIGTIME_RESPONSE, arg_format="varlen")
         return int(r)
 
 
@@ -259,8 +266,8 @@ class SetConfigTimeCommand(ShimmerCommand):
         self._time = time
 
     def send(self, ser: BluetoothSerial) -> None:
-        time_str = '{:d}'.format(int(self._time))
-        time_bin = time_str.encode('ascii')
+        time_str = "{:d}".format(int(self._time))
+        time_bin = time_str.encode("ascii")
 
         ser.write_command(SET_CONFIGTIME_COMMAND, "varlen", time_bin)
 
@@ -293,13 +300,12 @@ class SetRealTimeClockCommand(ShimmerCommand):
 
     def send(self, ser: BluetoothSerial) -> None:
         t_ticks = sec2ticks(self._time)
-        ser.write_command(SET_RWC_COMMAND, '<Q', t_ticks)
+        ser.write_command(SET_RWC_COMMAND, "<Q", t_ticks)
 
 
 class GetStatusCommand(ResponseCommand):
-    """Retrieve the current status of the device
+    """Retrieve the current status of the device"""
 
-    """
     STATUS_DOCKED_BF = 1 << 0
     STATUS_SENSING_BF = 1 << 1
     STATUS_RTC_SET_BF = 1 << 2
@@ -308,8 +314,16 @@ class GetStatusCommand(ResponseCommand):
     STATUS_SD_PRESENT_BF = 1 << 5
     STATUS_SD_ERROR_BF = 1 << 6
     STATUS_RED_LED_BF = 1 << 7
-    STATUS_BITFIELDS = (STATUS_DOCKED_BF, STATUS_SENSING_BF, STATUS_RTC_SET_BF, STATUS_LOGGING_BF, STATUS_STREAMING_BF,
-                        STATUS_SD_PRESENT_BF, STATUS_SD_ERROR_BF, STATUS_RED_LED_BF)
+    STATUS_BITFIELDS = (
+        STATUS_DOCKED_BF,
+        STATUS_SENSING_BF,
+        STATUS_RTC_SET_BF,
+        STATUS_LOGGING_BF,
+        STATUS_STREAMING_BF,
+        STATUS_SD_PRESENT_BF,
+        STATUS_SD_ERROR_BF,
+        STATUS_RED_LED_BF,
+    )
 
     def __init__(self):
         super().__init__(FULL_STATUS_RESPONSE)
@@ -322,14 +336,12 @@ class GetStatusCommand(ResponseCommand):
         ser.write_command(GET_STATUS_COMMAND)
 
     def receive(self, ser: BluetoothSerial) -> any:
-        bitfields = ser.read_response(self.get_response_code(), arg_format='B')
+        bitfields = ser.read_response(self.get_response_code(), arg_format="B")
         return self.unpack_status_bitfields(bitfields)
 
 
 class GetFirmwareVersionCommand(ResponseCommand):
-    """Retrieve the firmware type and version
-
-    """
+    """Retrieve the firmware type and version"""
 
     def __init__(self):
         super().__init__(FW_VERSION_RESPONSE)
@@ -339,23 +351,24 @@ class GetFirmwareVersionCommand(ResponseCommand):
 
     def receive(self, ser: BluetoothSerial) -> any:
         fw_type_bin, major, minor, rel = ser.read_response(
-            FW_VERSION_RESPONSE, arg_format='<HHBB')
+            FW_VERSION_RESPONSE, arg_format="<HHBB"
+        )
         fw_type = get_firmware_type(fw_type_bin)
         return fw_type, major, minor, rel
 
 
 class GetAllCalibrationCommand(ResponseCommand):
-    """ Returns all the stored calibration values (84 bytes) in the following order:
+    """Returns all the stored calibration values (84 bytes) in the following order:
 
-            ESensorGroup.ACCEL_LN (21 bytes)
-            ESensorGroup.GYRO     (21 bytes)
-            ESensorGroup.MAG      (21 bytes)
-            ESensorGroup.ACCEL_WR (21 bytes)        
+        ESensorGroup.ACCEL_LN (21 bytes)
+        ESensorGroup.GYRO     (21 bytes)
+        ESensorGroup.MAG      (21 bytes)
+        ESensorGroup.ACCEL_WR (21 bytes)
 
-        The breakdown of the kinematic (accel x 2, gyro and mag) calibration values is as follows:
-            [bytes  0- 5] offset bias values: 3 (x,y,z) 16-bit signed integers (big endian). 
-            [bytes  6-11] sensitivity values: 3 (x,y,z) 16-bit signed integers (big endian). 
-            [bytes 12-20] alignment matrix:  9 values    8-bit signed integers.
+    The breakdown of the kinematic (accel x 2, gyro and mag) calibration values is as follows:
+        [bytes  0- 5] offset bias values: 3 (x,y,z) 16-bit signed integers (big endian).
+        [bytes  6-11] sensitivity values: 3 (x,y,z) 16-bit signed integers (big endian).
+        [bytes 12-20] alignment matrix:  9 values    8-bit signed integers.
     """
 
     def __init__(self):
@@ -374,16 +387,14 @@ class GetAllCalibrationCommand(ResponseCommand):
 
 
 class InquiryCommand(ResponseCommand):
-    """Perform an inquiry to determine the sample rate, buffer size, and active data channels
-
-    """
+    """Perform an inquiry to determine the sample rate, buffer size, and active data channels"""
 
     def __init__(self):
         super().__init__(INQUIRY_RESPONSE)
 
     @staticmethod
     def decode_channel_types(ct_bin: bytes) -> List[EChannelType]:
-        ctypes_index = struct.unpack('B' * len(ct_bin), ct_bin)
+        ctypes_index = struct.unpack("B" * len(ct_bin), ct_bin)
         ctypes = [BtChannelsByIndex[i] for i in ctypes_index]
         return ctypes
 
@@ -392,7 +403,8 @@ class InquiryCommand(ResponseCommand):
 
     def receive(self, ser: BluetoothSerial) -> any:
         sr_val, _, n_ch, buf_size = ser.read_response(
-            INQUIRY_RESPONSE, arg_format='<HIBB')
+            INQUIRY_RESPONSE, arg_format="<HIBB"
+        )
         channel_conf = ser.read(n_ch)
 
         sr = dr2sr(sr_val)
@@ -402,18 +414,14 @@ class InquiryCommand(ResponseCommand):
 
 
 class StartStreamingCommand(OneShotCommand):
-    """Start streaming data over the Bluetooth channel
-
-    """
+    """Start streaming data over the Bluetooth channel"""
 
     def __init__(self):
         super().__init__(START_STREAMING_COMMAND)
 
 
 class StopStreamingCommand(OneShotCommand):
-    """Stop streaming data over the Bluetooth channel
-
-    """
+    """Stop streaming data over the Bluetooth channel"""
 
     def __init__(self):
         super().__init__(STOP_STREAMING_COMMAND)
@@ -435,14 +443,14 @@ class GetEXGRegsCommand(ResponseCommand):
         self._rlen = 0xA
 
     def send(self, ser: BluetoothSerial) -> None:
-        ser.write_command(GET_EXG_REGS_COMMAND, 'BBB',
-                          self._chip, self._offset, self._rlen)
+        ser.write_command(
+            GET_EXG_REGS_COMMAND, "BBB", self._chip, self._offset, self._rlen
+        )
 
     def receive(self, ser: BluetoothSerial) -> any:
-        rlen = ser.read_response(EXG_REGS_RESPONSE, arg_format='B')
+        rlen = ser.read_response(EXG_REGS_RESPONSE, arg_format="B")
         if not rlen == self._rlen:
-            raise ValueError(
-                'Response does not contain required amount of bytes')
+            raise ValueError("Response does not contain required amount of bytes")
 
         reg_data = ser.read(rlen)
         return ExGRegister(reg_data)
@@ -463,15 +471,12 @@ class SetEXGRegsCommand(ShimmerCommand):
 
     def send(self, ser: BluetoothSerial) -> None:
         dlen = len(self._data)
-        ser.write_command(SET_EXG_REGS_COMMAND, 'BBB',
-                          self._chip, self._offset, dlen)
+        ser.write_command(SET_EXG_REGS_COMMAND, "BBB", self._chip, self._offset, dlen)
         ser.write(self._data)
 
 
 class GetExperimentIDCommand(GetStringCommand):
-    """Retrieve the experiment id
-
-    """
+    """Retrieve the experiment id"""
 
     def __init__(self):
         super().__init__(GET_EXPID_COMMAND, EXPID_RESPONSE)
@@ -498,26 +503,23 @@ class SetSensorsCommand(ShimmerCommand):
 
 
 class GetDeviceNameCommand(GetStringCommand):
-    """Get the device name
-
-    """
+    """Get the device name"""
 
     def __init__(self):
-        super().__init__(GET_SHIMMERNAME_COMMAND, SHIMMERNAME_RESPONSE)     
+        super().__init__(GET_SHIMMERNAME_COMMAND, SHIMMERNAME_RESPONSE)
 
 
 class GetShimmerHardwareVersion(ResponseCommand):
-    """Get the device hardware version
-    
-    """
+    """Get the device hardware version"""
+
     def __init__(self):
         super().__init__(SHIMMER_VERSION_RESPONSE)
-        
+
     def send(self, ser: BluetoothSerial) -> None:
         ser.write_command(GET_SHIMMER_VERSION_COMMAND)
-        
+
     def receive(self, ser: BluetoothSerial) -> any:
-        hw_version = ser.read_response(SHIMMER_VERSION_RESPONSE, arg_format='<B')
+        hw_version = ser.read_response(SHIMMER_VERSION_RESPONSE, arg_format="<B")
         return HardwareVersion.from_int(hw_version)
 
 
@@ -552,27 +554,21 @@ class SetStatusAckCommand(ShimmerCommand):
 
 
 class StartLoggingCommand(OneShotCommand):
-    """Begin logging data to the SD card
-
-    """
+    """Begin logging data to the SD card"""
 
     def __init__(self):
         super().__init__(START_LOGGING_COMMAND)
 
 
 class StopLoggingCommand(OneShotCommand):
-    """End logging data to the SD card
-
-    """
+    """End logging data to the SD card"""
 
     def __init__(self):
         super().__init__(STOP_LOGGING_COMMAND)
 
 
 class DummyCommand(OneShotCommand):
-    """Dummy command that is only acknowledged by the Shimmer but triggers no response
-
-    """
+    """Dummy command that is only acknowledged by the Shimmer but triggers no response"""
 
     def __init__(self):
         super().__init__(DUMMY_COMMAND)
