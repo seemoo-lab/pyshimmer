@@ -75,8 +75,8 @@ class ShimmerReaderTest(TestCase):
             data, _ = reader.read_data()
             ts = data[EChannelType.TIMESTAMP]
 
-            # Sanity check on the timestamps: they should all be spaced equally apart with a stride that is equal
-            # to the sampling rate.
+            # Sanity check on the timestamps: they should all be spaced equally apart
+            # with a stride that is equal to the sampling rate.
             ts_diff = np.diff(ts)
             correct_diff = np.sum(ts_diff == exp_dr)
             self.assertTrue(correct_diff / len(ts_diff) > 0.98)
@@ -119,8 +119,8 @@ class ShimmerReaderTest(TestCase):
             np.testing.assert_equal(ts[off_index], exp_sync_ts)
             np.testing.assert_equal(sync_off, exp_offsets)
 
-            # Sanity check on the timestamps: they should all be spaced equally apart with a stride that is equal
-            # to the sampling rate.
+            # Sanity check on the timestamps: they should all be spaced equally apart
+            # with a stride that is equal # to the sampling rate.
             ts = samples[EChannelType.TIMESTAMP]
             ts_diff = np.diff(ts)
             correct_diff = np.sum(ts_diff == exp_dr)

@@ -42,8 +42,8 @@ from pyshimmer.util import (
 class DataPacket:
     """Parses data packets received by the Shimmer device
 
-    :arg stream_types: List of tuples that contains each data channel contained in the data packet as well as the
-        corresponding data type decoder
+    :arg stream_types: List of tuples that contains each data channel contained in the
+        data packet as well as the corresponding data type decoder
     """
 
     def __init__(self, stream_types: List[Tuple[EChannelType, ChannelDataType]]):
@@ -91,14 +91,16 @@ class ShimmerCommand(ABC):
 
     @abstractmethod
     def send(self, ser: BluetoothSerial) -> None:
-        """Encodes the command and sends it to the Shimmer via the provided serial interface
+        """Encodes the command and sends it to the Shimmer via the provided serial
+        interface
 
         :param ser: The serial to use for sending the command
         """
         pass
 
     def has_response(self) -> bool:
-        """Specifies if the command has a response that needs to be read from the return stream
+        """Specifies if the command has a response that needs to be read from the
+        return stream
 
         :return: True if the command has a response, else false
         """
@@ -107,7 +109,8 @@ class ShimmerCommand(ABC):
     def get_response_code(self) -> bytes:
         """The response code of the command
 
-        :return: The response code as a series of bytes, is normally one or two bytes long
+        :return: The response code as a series of bytes, is normally one or two
+            bytes long
         """
         return bytes()
 
@@ -123,8 +126,9 @@ class ShimmerCommand(ABC):
 class ResponseCommand(ShimmerCommand, ABC):
     """Abstract base class for all commands that feature a command response
 
-    :arg rcode: The response code of the response. Can be a single int for a single-byte response code or
-        a tuple of ints or a bytes instance for a multi-byte response code
+    :arg rcode: The response code of the response. Can be a single int for a
+        single-byte response code or a tuple of ints or a bytes instance for a
+        multi-byte response code
     """
 
     def __init__(self, rcode: Union[int, Tuple[int, ...], bytes]):
@@ -243,7 +247,9 @@ class GetBatteryCommand(ResponseCommand):
 
 
 class GetConfigTimeCommand(ResponseCommand):
-    """Retrieve the config time that is stored in the Shimmer device configuration file"""
+    """Retrieve the config time that is stored in the Shimmer device
+    configuration file
+    """
 
     def __init__(self):
         super().__init__(CONFIGTIME_RESPONSE)
@@ -257,7 +263,8 @@ class GetConfigTimeCommand(ResponseCommand):
 
 
 class SetConfigTimeCommand(ShimmerCommand):
-    """Set the config time, which will be stored in the Shimmer device configuration file
+    """Set the config time, which will be stored in the Shimmer device configuration
+    file
 
     :arg time: The integer value to send
     """
@@ -365,7 +372,8 @@ class GetAllCalibrationCommand(ResponseCommand):
         ESensorGroup.MAG      (21 bytes)
         ESensorGroup.ACCEL_WR (21 bytes)
 
-    The breakdown of the kinematic (accel x 2, gyro and mag) calibration values is as follows:
+    The breakdown of the kinematic (accel x 2, gyro and mag) calibration values is
+    as follows:
         [bytes  0- 5] offset bias values: 3 (x,y,z) 16-bit signed integers (big endian).
         [bytes  6-11] sensitivity values: 3 (x,y,z) 16-bit signed integers (big endian).
         [bytes 12-20] alignment matrix:  9 values    8-bit signed integers.
@@ -387,7 +395,10 @@ class GetAllCalibrationCommand(ResponseCommand):
 
 
 class InquiryCommand(ResponseCommand):
-    """Perform an inquiry to determine the sample rate, buffer size, and active data channels"""
+    """
+    Perform an inquiry to determine the sample rate, buffer size, and active data
+    channels
+    """
 
     def __init__(self):
         super().__init__(INQUIRY_RESPONSE)
@@ -430,7 +441,8 @@ class StopStreamingCommand(OneShotCommand):
 class GetEXGRegsCommand(ResponseCommand):
     """Retrieve the current state of the ExG chip register
 
-    Queries the values of all registers of the specified chip and returns it as an ExGRegister instance
+    Queries the values of all registers of the specified chip and returns it as an
+    ExGRegister instance
 
     :arg chip_id: The chip id, can be one of [0, 1]
     """
@@ -568,7 +580,9 @@ class StopLoggingCommand(OneShotCommand):
 
 
 class DummyCommand(OneShotCommand):
-    """Dummy command that is only acknowledged by the Shimmer but triggers no response"""
+    """
+    Dummy command that is only acknowledged by the Shimmer but triggers no response
+    """
 
     def __init__(self):
         super().__init__(DUMMY_COMMAND)

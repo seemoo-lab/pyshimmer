@@ -54,8 +54,8 @@ def raise_to_next_pow(x: int) -> int:
 def flatten_list(lst: Union[List, Tuple]) -> List:
     """Flatten the supplied list by one level
 
-    Assumes that the supplied argument consists of lists itself. All elements are taken from the sublists and added
-    to a fresh copy.
+    Assumes that the supplied argument consists of lists itself. All elements are taken
+    from the sublists and added to a fresh copy.
 
     :param lst: A list of lists
     :return: A list with the contents of the sublists
@@ -76,11 +76,13 @@ def fmt_hex(val: bytes) -> str:
 def unpack(args: Union[List, Tuple]) -> Union[List, Tuple, any]:
     """Extract the first object if the list has length 1
 
-    If the supplied list or tuple only features a single element, the element is retrieved and returned. If the list or
-    tuple is longer, the entire list or tuple is returned.
+    If the supplied list or tuple only features a single element, the element is
+    retrieved and returned. If the list or tuple is longer, the entire list or tuple is
+    returned.
 
     :param args: The list or tuple to unpack
-    :return: The list or tuple itself or the single element if the argument has a length of 1
+    :return: The list or tuple itself or the single element if the argument has a
+        length of 1
     """
     if len(args) == 1:
         return args[0]
@@ -90,10 +92,11 @@ def unpack(args: Union[List, Tuple]) -> Union[List, Tuple, any]:
 def unwrap(x: np.ndarray, shift: int) -> np.ndarray:
     """Detect overflows in the data and unwrap them
 
-    The function tries to detect overflows in the input array x, with shape (N, ). It is assumed that x is monotonically
-    increasing everywhere but at the overflows. An overflow occurs if for two consecutive points x_i and x_i+1 in the
-    series x_i > x_i+1. For every such point, the function will add the value of the shift parameter to all following
-    samples, i.e. x_k' = x_k + shift, for every k > i.
+    The function tries to detect overflows in the input array x, with shape (N, ). It
+    is assumed that x is monotonically increasing everywhere but at the overflows. An
+    overflow occurs if for two consecutive points x_i and x_i+1 in the series
+    x_i > x_i+1. For every such point, the function will add the value of the shift
+    parameter to all following samples, i.e. x_k' = x_k + shift, for every k > i.
 
     :param x: The array to unwrap
     :param shift: The value which to add to the series after each overflow point
@@ -209,7 +212,8 @@ def battery_voltage_to_percent(battery_voltage):
 
 
 class PeekQueue(Queue):
-    """A thread-safe queue implementation that allows peeking at the first element in the queue.
+    """A thread-safe queue implementation that allows peeking at the first element in
+    the queue.
 
     Based on a suggestion on StackOverflow:
     https://stackoverflow.com/questions/1293966/best-way-to-obtain-indexed-access-to-a-python-queue-thread-safe

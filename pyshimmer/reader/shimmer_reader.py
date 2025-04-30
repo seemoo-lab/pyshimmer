@@ -187,9 +187,9 @@ class ShimmerReader:
         return aligned_ts
 
     def _apply_clock_offsets(self, ts: np.ndarray):
-        # First, we need calculate absolute timestamps relative to the boot-up time of the Shimmer.
-        # In order to do so, we use the 40bit initial timestamp to calculate an offset to apply to
-        # each timestamp.
+        # First, we need calculate absolute timestamps relative to the boot-up time of
+        # the Shimmer. In order to do so, we use the 40bit initial timestamp to
+        # calculate an offset to apply to each timestamp.
         boot_offset = self._bin_reader.start_timestamp - ts[0]
         ts_boot = ts + boot_offset
 

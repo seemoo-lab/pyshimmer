@@ -353,8 +353,8 @@ class ShimmerBluetoothIntegrationTest(TestCase):
         self._sot = ShimmerBluetooth(serial, **kwargs)
 
         if initialize:
-            # The Bluetooth API automatically requests the firmware version upon initialization.
-            # We must prepare a proper response beforehand.
+            # The Bluetooth API automatically requests the firmware version upon
+            # initialization. We must prepare a proper response beforehand.
             req_future_fw = self._submit_req_resp_handler(
                 req_len=1, resp=b"\xff\x2f\x03\x00\x00\x00\x0b\x00"
             )
@@ -376,8 +376,8 @@ class ShimmerBluetoothIntegrationTest(TestCase):
     def test_context_manager(self):
         self.do_setup(initialize=False)
 
-        # The Bluetooth API automatically requests the firmware version upon initialization.
-        # We must prepare a proper response beforehand.
+        # The Bluetooth API automatically requests the firmware version upon
+        # initialization. We must prepare a proper response beforehand.
         req_future_fw = self._submit_req_resp_handler(
             req_len=1, resp=b"\xff\x2f\x03\x00\x00\x00\x0b\x00"
         )

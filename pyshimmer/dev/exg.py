@@ -75,7 +75,8 @@ class ExGRegister:
                 f"Channel {ch_id + 1:2d}\n"
                 + f"\tPowerdown: {self.is_ch_powerdown(ch_id)}\n"
                 + f"\tGain: {self.get_ch_gain(ch_id):2d}\n"
-                + f"\tMultiplexer: {self.get_ch_mux(ch_id).name} ({self.get_ch_mux_bin(ch_id):#06b})\n"
+                + f"\tMultiplexer: {self.get_ch_mux(ch_id).name} "
+                + f"({self.get_ch_mux_bin(ch_id):#06b})\n"
             )
 
         def fmt_rld_channels(ch_names) -> str:
@@ -197,7 +198,8 @@ ExG_ChType_Chip_Assignment: Dict[EChannelType, Tuple[int, int]] = {
 
 def is_exg_ch(ch_type: EChannelType) -> bool:
     """
-    Returns true if the signal that this channel type describes was recorded by a ExG chip
+    Returns true if the signal that this channel type describes was recorded by a ExG
+    chip
 
     Args:
         ch_type: The EChannelType of the signal
@@ -212,8 +214,9 @@ def is_exg_ch(ch_type: EChannelType) -> bool:
 
 def get_exg_ch(ch_type: EChannelType) -> Tuple[int, int]:
     """
-    Each ExG Chip EChannelType originates from a specific ExG chip and channel. This function returns a tuple that
-    specifices which chip and channel a certain signal EChannelType was recorded with.
+    Each ExG Chip EChannelType originates from a specific ExG chip and channel. This
+    function returns a tuple that specifices which chip and channel a certain signal
+    EChannelType was recorded with.
 
     Args:
         ch_type: The EChannelType of the signal

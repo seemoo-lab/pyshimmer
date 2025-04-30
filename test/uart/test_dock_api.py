@@ -129,7 +129,8 @@ class DockAPITest(TestCase):
     def test_get_exg_register(self):
         dock, mock = self.create_sot()
 
-        # Due to the firmware bug, we first need to emulate the call to set the DAUGHTER_CARD CARD_ID
+        # Due to the firmware bug, we first need to emulate the call to set the
+        # DAUGHTER_CARD CARD_ID
         mock.test_put_read_data(b"\x24\x02\x02\x03\x02\xca\x2b")
         exp_send_data1 = b"\x24\x03\x05\x03\x02\x00\x00\x00\x3a\xd2"
 

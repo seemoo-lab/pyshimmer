@@ -28,8 +28,8 @@ DEFAULT_BAUDRATE = 115200
 def sr2dr(sr: float) -> int:
     """Calculate equivalent device-specific rate for a sample rate in Hz
 
-    Device-specific sample rates are given in absolute clock ticks per unit of time. This function can be used to
-    calculate such a rate for the Shimmer3.
+    Device-specific sample rates are given in absolute clock ticks per unit of time.
+    This function can be used to calculate such a rate for the Shimmer3.
 
     Args:
         sr(float): The sampling rate in Hz
@@ -44,8 +44,9 @@ def sr2dr(sr: float) -> int:
 def dr2sr(dr: int):
     """Calculate equivalent sampling rate for a given device-specific rate
 
-    Device-specific sample rates are given in absolute clock ticks per unit of time. This function can be used to
-    calculate a regular sampling rate in Hz from such a rate.
+    Device-specific sample rates are given in absolute clock ticks per unit of time.
+    This function can be used to calculate a regular sampling rate in Hz from such a
+    rate.
 
     Args:
         dr(int): The absolute device rate as int

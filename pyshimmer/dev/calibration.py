@@ -59,7 +59,7 @@ class AllCalibration:
         return self._reg_bin == other._reg_bin
 
     def _check_sens_num(self, sens_num: int) -> None:
-        if not 0 <= sens_num < (self._num_sensors):
+        if not 0 <= sens_num < self._num_sensors:
             raise ValueError(f"Sensor num must be 0 to {self._num_sensors-1}")
 
     def get_offset_bias(self, sens_num: int) -> List[int]:

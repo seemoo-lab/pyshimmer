@@ -102,8 +102,9 @@ class ShimmerBinaryReader(FileIOBase):
         self._seek(START_TS_OFFSET)
         ts_bin = self._read(START_TS_LEN)
 
-        # The timestamp is 5 byte long in little endian byte order, but has its MSB at offset 0 instead of 4.
-        # Due to this, we need to move the last byte back to the end, pad it to 8 bytes and parse it as 64bit value.
+        # The timestamp is 5 byte long in little endian byte order, but has its MSB at
+        # offset 0 instead of 4. Due to this, we need to move the last byte back to the
+        # end, pad it to 8 bytes and parse it as 64bit value.
         ts_bin_flipped = ts_bin[1:] + ts_bin[0:1]
         ts_bin_padded = ts_bin_flipped + b"\x00" * 3
 
@@ -124,9 +125,10 @@ class ShimmerBinaryReader(FileIOBase):
         return num_samples, block_len
 
     def _read_sync_offset(self) -> Union[None, int]:
-        # For this read operation we assume that every synchronization offset is immediately followed by a
-        # timestamp as it is described in the manuals. We need to pair every sync offset with a timestamp for
-        # interpolation at a later point in time.
+        # For this read operation we assume that every synchronization offset is
+        # immediately followed by a timestamp as it is described in the manuals. We
+        # need to pair every sync offset with a timestamp for interpolation at a later
+        # point in time.
         offset_sign_bool = self._read_packed("B")
         offset_sign = 1 - 2 * offset_sign_bool
         offset_mag = self._read_packed("<Q")
