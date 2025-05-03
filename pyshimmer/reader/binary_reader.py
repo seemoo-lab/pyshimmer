@@ -13,8 +13,10 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from __future__ import annotations
+
 import struct
-from typing import List, Tuple, Union, BinaryIO
+from typing import BinaryIO
 
 import numpy as np
 
@@ -84,7 +86,7 @@ class ShimmerBinaryReader(FileIOBase):
         self._seek(SR_OFFSET)
         return self._read_packed("<H")
 
-    def _read_enabled_sensors(self) -> List[ESensorGroup]:
+    def _read_enabled_sensors(self) -> list[ESensorGroup]:
         self._seek(ENABLED_SENSORS_OFFSET)
         sensor_bitfield = self._read(ENABLED_SENSORS_LEN)
         enabled_sensors = deserialize_sensors(sensor_bitfield)
@@ -100,8 +102,9 @@ class ShimmerBinaryReader(FileIOBase):
         self._seek(START_TS_OFFSET)
         ts_bin = self._read(START_TS_LEN)
 
-        # The timestamp is 5 byte long in little endian byte order, but has its MSB at offset 0 instead of 4.
-        # Due to this, we need to move the last byte back to the end, pad it to 8 bytes and parse it as 64bit value.
+        # The timestamp is 5 byte long in little endian byte order, but has its MSB at
+        # offset 0 instead of 4. Due to this, we need to move the last byte back to the
+        # end, pad it to 8 bytes and parse it as 64bit value.
         ts_bin_flipped = ts_bin[1:] + ts_bin[0:1]
         ts_bin_padded = ts_bin_flipped + b"\x00" * 3
 
@@ -121,10 +124,11 @@ class ShimmerBinaryReader(FileIOBase):
 
         return num_samples, block_len
 
-    def _read_sync_offset(self) -> Union[None, int]:
-        # For this read operation we assume that every synchronization offset is immediately followed by a
-        # timestamp as it is described in the manuals. We need to pair every sync offset with a timestamp for
-        # interpolation at a later point in time.
+    def _read_sync_offset(self) -> int | None:
+        # For this read operation we assume that every synchronization offset is
+        # immediately followed by a timestamp as it is described in the manuals. We
+        # need to pair every sync offset with a timestamp for interpolation at a later
+        # point in time.
         offset_sign_bool = self._read_packed("B")
         offset_sign = 1 - 2 * offset_sign_bool
         offset_mag = self._read_packed("<Q")
@@ -136,7 +140,7 @@ class ShimmerBinaryReader(FileIOBase):
 
         return offset
 
-    def _read_sample(self) -> List:
+    def _read_sample(self) -> list:
         ch_values = []
 
         for ch, dtype in zip(self._channels, self._channel_dtypes):
@@ -145,7 +149,7 @@ class ShimmerBinaryReader(FileIOBase):
 
         return ch_values
 
-    def _read_data_block(self) -> Tuple[List[List], int]:
+    def _read_data_block(self) -> tuple[list[list], int]:
         sync_tuple = None
         samples = []
 
@@ -161,7 +165,7 @@ class ShimmerBinaryReader(FileIOBase):
 
         return samples, sync_tuple
 
-    def _read_contents(self) -> Tuple[List, List[Tuple[int, int]]]:
+    def _read_contents(self) -> tuple[list, list[tuple[int, int]]]:
         sync_offsets = []
         samples = []
         sample_ctr = 0
@@ -182,7 +186,7 @@ class ShimmerBinaryReader(FileIOBase):
 
         return samples, sync_offsets
 
-    def _read_exg_regs(self) -> Tuple[bytes, bytes]:
+    def _read_exg_regs(self) -> tuple[bytes, bytes]:
         self._seek(EXG_REG_OFFSET)
 
         reg1 = self._read(EXG_REG_LEN)
@@ -191,7 +195,7 @@ class ShimmerBinaryReader(FileIOBase):
 
     def _read_triaxcal_params(
         self, offset: int
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         fmt = ">" + 6 * "h" + 9 * "b"
 
         self._seek(offset)
@@ -227,7 +231,7 @@ class ShimmerBinaryReader(FileIOBase):
 
     def get_triaxcal_params(
         self, sensor: ESensorGroup
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         offset = TRIAXCAL_FILE_OFFSET[sensor]
         sc_offset = TRIAXCAL_OFFSET_SCALING[sensor]
         sc_gain = TRIAXCAL_GAIN_SCALING[sensor]
@@ -249,11 +253,11 @@ class ShimmerBinaryReader(FileIOBase):
         return self._samples_per_block
 
     @property
-    def enabled_sensors(self) -> List[ESensorGroup]:
+    def enabled_sensors(self) -> list[ESensorGroup]:
         return self._sensors
 
     @property
-    def enabled_channels(self) -> List[EChannelType]:
+    def enabled_channels(self) -> list[EChannelType]:
         return self._channels
 
     @property

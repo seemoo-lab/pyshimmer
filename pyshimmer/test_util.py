@@ -13,10 +13,12 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from __future__ import annotations
+
 import os
 import pty
 from io import BytesIO, RawIOBase, SEEK_END, SEEK_SET
-from typing import Optional, Union, Tuple, BinaryIO
+from typing import BinaryIO
 
 from serial import Serial
 
@@ -44,10 +46,10 @@ class MockSerial(RawIOBase):
 
         self.test_closed = True
 
-    def readinto(self, b: bytearray) -> Optional[int]:
+    def readinto(self, b: bytearray) -> int | None:
         return self._read_buf.readinto(b)
 
-    def write(self, b: Union[bytes, bytearray]) -> Optional[int]:
+    def write(self, b: bytes | bytearray) -> int | None:
         return self._write_buf.write(b)
 
     def reset_input_buffer(self):
@@ -95,7 +97,7 @@ class PTYSerialMockCreator:
 
         return fobj
 
-    def create_mock(self) -> Tuple[Serial, BinaryIO]:
+    def create_mock(self) -> tuple[Serial, BinaryIO]:
         master_fd, slave_fd = pty.openpty()
 
         self._master_fobj = self._create_fobj(master_fd)

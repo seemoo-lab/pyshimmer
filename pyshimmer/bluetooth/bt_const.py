@@ -13,6 +13,8 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from __future__ import annotations
+
 from pyshimmer.dev.channels import EChannelType
 
 ACK_COMMAND_PROCESSED = 0xFF
@@ -91,8 +93,8 @@ GET_ALL_CALIBRATION_COMMAND = 0x2C
 ALL_CALIBRATION_RESPONSE = 0x2D
 
 """
-The Bluetooth LogAndStream API assigns a numerical index to each channel type. This dictionary maps each index to the
-corresponding channel type.
+The Bluetooth LogAndStream API assigns a numerical index to each channel type. This
+dictionary maps each index to the corresponding channel type.
 """
 BtChannelsByIndex = {
     0x00: EChannelType.ACCEL_LN_X,

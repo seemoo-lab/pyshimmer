@@ -13,9 +13,11 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from __future__ import annotations
+
 import struct
+from collections.abc import Iterable
 from enum import Enum, auto, unique
-from typing import Dict, List, Iterable
 
 from pyshimmer.util import raise_to_next_pow, unpack, flatten_list, bit_is_set
 
@@ -23,8 +25,9 @@ from pyshimmer.util import raise_to_next_pow, unpack, flatten_list, bit_is_set
 class ChannelDataType:
     """Represents the binary data type and format of a Shimmer data channel
 
-    Every channel that is recorded by a Shimmer device has a specific data type. This class represents the data type
-    of a single such channel, and is capable of decoding binary data into the appropriate form.
+    Every channel that is recorded by a Shimmer device has a specific data type. This
+    class represents the data type of a single such channel, and is capable of decoding
+    binary data into the appropriate form.
     """
 
     def __init__(self, size: int, signed: bool = True, le: bool = True):
@@ -171,8 +174,9 @@ class EChannelType(Enum):
 @unique
 class ESensorGroup(Enum):
     """
-    Represents a sensor of the Shimmer device that can be enabled/disabled via the Bluetooth/Consensys/... API.
-    Since one sensor can record more than one channel, there is a one-to-many mapping between sensor and channels.
+    Represents a sensor of the Shimmer device that can be enabled/disabled via the
+    Bluetooth/Consensys/... API. Since one sensor can record more than one channel,
+    there is a one-to-many mapping between sensor and channels.
     """
 
     # Low-noise accelerometer chip KXRB5-2042
@@ -207,24 +211,29 @@ class ESensorGroup(Enum):
     ACCEL_MPU = auto()
     # Mag sensor on the MPU9150 chip
     MAG_MPU = auto()
-    # Temperature sensor on the MPU9150 chip, not yet available as channel in the LogAndStream firmware
+    # Temperature sensor on the MPU9150 chip, not yet available as channel in the
+    # LogAndStream firmware
     TEMP = auto()
     # Pressure sensor on the BMPX80 chip
     PRESSURE = auto()
-    # 24 bit channels of the first ADS1292R chip, conflicts with the corresponding 16 bit channel
+    # 24 bit channels of the first ADS1292R chip, conflicts with the corresponding
+    # 16 bit channel
     EXG1_24BIT = auto()
-    # 16 bit channels of the first ADS1292R chip, conflicts with the corresponding 24 bit channel
+    # 16 bit channels of the first ADS1292R chip, conflicts with the corresponding
+    # 24 bit channel
     EXG1_16BIT = auto()
-    # 24 bit channels of the second ADS1292R chip, conflicts with the corresponding 16 bit channel
+    # 24 bit channels of the second ADS1292R chip, conflicts with the corresponding
+    # 16 bit channel
     EXG2_24BIT = auto()
-    # 16 bit channels of the second ADS1292R chip, conflicts with the corresponding 24 bit channel
+    # 16 bit channels of the second ADS1292R chip, conflicts with the corresponding
+    # 24 bit channel
     EXG2_16BIT = auto()
 
 
 """
 Assigns each channel type its appropriate data type.
 """
-ChDataTypeAssignment: Dict[EChannelType, ChannelDataType] = {
+ChDataTypeAssignment: dict[EChannelType, ChannelDataType] = {
     EChannelType.ACCEL_LN_X: ChannelDataType(2, signed=True, le=True),
     EChannelType.ACCEL_LN_Y: ChannelDataType(2, signed=True, le=True),
     EChannelType.ACCEL_LN_Z: ChannelDataType(2, signed=True, le=True),
@@ -270,10 +279,10 @@ ChDataTypeAssignment: Dict[EChannelType, ChannelDataType] = {
 }
 
 """
-This dictionary contains the mapping from sensor to data channels. Since one sensor can record on multiple channels,
-the mapping is one-to-many.
+This dictionary contains the mapping from sensor to data channels. Since one sensor can
+record on multiple channels, the mapping is one-to-many.
 """
-SensorChannelAssignment: Dict[ESensorGroup, List[EChannelType]] = {
+SensorChannelAssignment: dict[ESensorGroup, list[EChannelType]] = {
     ESensorGroup.ACCEL_LN: [
         EChannelType.ACCEL_LN_X,
         EChannelType.ACCEL_LN_Y,
@@ -335,15 +344,17 @@ SensorChannelAssignment: Dict[ESensorGroup, List[EChannelType]] = {
         EChannelType.EXG_ADS1292R_2_CH1_16BIT,
         EChannelType.EXG_ADS1292R_2_CH2_16BIT,
     ],
-    # The MPU9150 Temp sensor is not yet available as a channel in the LogAndStream firmware
+    # The MPU9150 Temp sensor is not yet available as a channel in the LogAndStream
+    # firmware
     ESensorGroup.TEMP: [],
 }
 
 """
-The sensors are enabled via a multi-byte bitfield that currently stretches a total of three bytes. This dictionary
-contains the bitfield position for every sensor in this bitfield.
+The sensors are enabled via a multi-byte bitfield that currently stretches a total of
+three bytes. This dictionary contains the bitfield position for every sensor in this
+bitfield.
 """
-SensorBitAssignments: Dict[ESensorGroup, int] = {
+SensorBitAssignments: dict[ESensorGroup, int] = {
     ESensorGroup.ACCEL_LN: 0x80 << 0 * 8,
     ESensorGroup.GYRO: 0x40 << 0 * 8,
     ESensorGroup.MAG: 0x20 << 0 * 8,
@@ -369,7 +380,7 @@ SensorBitAssignments: Dict[ESensorGroup, int] = {
     ESensorGroup.TEMP: 0x02 << 2 * 8,
 }
 
-SensorOrder: Dict[ESensorGroup, int] = {
+SensorOrder: dict[ESensorGroup, int] = {
     ESensorGroup.ACCEL_LN: 1,
     ESensorGroup.BATTERY: 2,
     ESensorGroup.CH_A7: 3,
@@ -397,11 +408,12 @@ ENABLED_SENSORS_LEN = 0x03
 SENSOR_DTYPE = ChannelDataType(size=ENABLED_SENSORS_LEN, signed=False, le=True)
 
 
-def get_enabled_channels(sensors: List[ESensorGroup]) -> List[EChannelType]:
+def get_enabled_channels(sensors: list[ESensorGroup]) -> list[EChannelType]:
     """Determine the set of data channels for a set of enabled sensors
 
-    There exists a one-to-many mapping between enabled sensors and their corresponding data channels. This function
-    determines the set of necessary channels for a given set of enabled sensors.
+    There exists a one-to-many mapping between enabled sensors and their corresponding
+    data channels. This function determines the set of necessary channels for a given
+    set of enabled sensors.
 
     Args:
         sensors: A list of sensors that are enabled on a Shimmer
@@ -414,7 +426,7 @@ def get_enabled_channels(sensors: List[ESensorGroup]) -> List[EChannelType]:
     return flatten_list(channels)
 
 
-def get_ch_dtypes(channels: List[EChannelType]) -> List[ChannelDataType]:
+def get_ch_dtypes(channels: list[EChannelType]) -> list[ChannelDataType]:
     """Return the channel data types for a set of channels
 
     Args:
@@ -427,7 +439,8 @@ def get_ch_dtypes(channels: List[EChannelType]) -> List[ChannelDataType]:
 
 
 def sensors2bitfield(sensors: Iterable[ESensorGroup]) -> int:
-    """Convert an iterable of sensors into the corresponding bitfield transmitted to the Shimmer
+    """Convert an iterable of sensors into the corresponding bitfield transmitted to
+    the Shimmer
 
     :param sensors: A list of active sensors
     :return: A bitfield that conveys the set of active sensors to the Shimmer
@@ -450,7 +463,7 @@ def serialize_sensorlist(sensors: Iterable[ESensorGroup]) -> bytes:
     return SENSOR_DTYPE.encode(bitfield)
 
 
-def bitfield2sensors(bitfield: int) -> List[ESensorGroup]:
+def bitfield2sensors(bitfield: int) -> list[ESensorGroup]:
     """Decode a bitfield returned from the Shimmer to a list of active sensors
 
     :param bitfield: The bitfield received from the Shimmer encoding the active sensors
@@ -465,8 +478,9 @@ def bitfield2sensors(bitfield: int) -> List[ESensorGroup]:
     return sort_sensors(enabled_sensors)
 
 
-def deserialize_sensors(bitfield_bin: bytes) -> List[ESensorGroup]:
-    """Deserialize the list of active sensors from the three-byte input received from the Shimmer
+def deserialize_sensors(bitfield_bin: bytes) -> list[ESensorGroup]:
+    """Deserialize the list of active sensors from the three-byte input received from
+    the Shimmer
 
     :param bitfield_bin: The input bitfield as byte string with length 3
     :return: The list of active sensors
@@ -475,17 +489,18 @@ def deserialize_sensors(bitfield_bin: bytes) -> List[ESensorGroup]:
     return bitfield2sensors(bitfield)
 
 
-def sort_sensors(sensors: Iterable[ESensorGroup]) -> List[ESensorGroup]:
+def sort_sensors(sensors: Iterable[ESensorGroup]) -> list[ESensorGroup]:
     """Sorts the sensors in the list according to the sensor order
 
-    This function is useful to determine the order in which sensor data will appear in a data file by ordering
-    the list of sensors according to their order in the file.
+    This function is useful to determine the order in which sensor data will appear in a
+    data file by ordering the list of sensors according to their order in the file.
 
     Args:
         sensors: An unsorted list of sensors
 
     Returns:
-        A list with the same sensors as content but sorted according to their appearance order in the data file
+        A list with the same sensors as content but sorted according to their appearance
+        order in the data file
 
     """
 

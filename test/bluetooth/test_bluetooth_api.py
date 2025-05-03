@@ -13,8 +13,11 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from __future__ import annotations
+
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, Future
-from typing import Optional, BinaryIO, List, Callable
+from typing import BinaryIO
 from unittest import TestCase
 
 from pyshimmer.bluetooth.bt_api import BluetoothRequestHandler, ShimmerBluetooth
@@ -37,10 +40,10 @@ class BluetoothRequestHandlerTest(TestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self._mock_creator: Optional[PTYSerialMockCreator] = None
-        self._sot: Optional[BluetoothRequestHandler] = None
+        self._mock_creator: PTYSerialMockCreator | None = None
+        self._sot: BluetoothRequestHandler | None = None
 
-        self._master: Optional[BinaryIO] = None
+        self._master: BinaryIO | None = None
 
     def setUp(self) -> None:
         self._mock_creator = PTYSerialMockCreator()
@@ -209,7 +212,7 @@ class BluetoothRequestHandlerTest(TestCase):
         self.assertRaises(ValueError, self._sot.process_single_input_event)
 
     def test_data_packet(self):
-        results: List[DataPacket] = []
+        results: list[DataPacket] = []
 
         data_pkt_1 = b"\x00\xde\xd0\xb2\x26\x07"
         data_pkt_2 = b"\x00\x1e\xd1\xb2\xfc\x06"
@@ -238,7 +241,7 @@ class BluetoothRequestHandlerTest(TestCase):
         self.assertEqual(pkt[EChannelType.INTERNAL_ADC_13], 0x06FC)
 
     def test_get_status_response(self):
-        status_resp: List[List[bool]] = []
+        status_resp: list[list[bool]] = []
 
         stat_pkt_1 = b"\x8a\x71\x20"
         stat_pkt_2 = b"\x8a\x71\x21"
@@ -263,7 +266,7 @@ class BluetoothRequestHandlerTest(TestCase):
         stat_pkt_1 = b"\x8a\x71\x20"
         stat_pkt_2 = b"\x8a\x71\x21"
 
-        status_resp: List[List[bool]] = []
+        status_resp: list[list[bool]] = []
         self._sot.add_status_callback(status_resp.append)
 
         compl, resp = self._sot.queue_command(GetStatusCommand())
@@ -323,10 +326,10 @@ class ShimmerBluetoothIntegrationTest(TestCase):
 
         self._executor = ThreadPoolExecutor(max_workers=1)
 
-        self._mock_creator: Optional[PTYSerialMockCreator] = None
-        self._sot: Optional[ShimmerBluetooth] = None
+        self._mock_creator: PTYSerialMockCreator | None = None
+        self._sot: ShimmerBluetooth | None = None
 
-        self._master: Optional[BinaryIO] = None
+        self._master: BinaryIO | None = None
 
     def _submit_handler_fn(
         self, fn: Callable[[BinaryIO, ShimmerBluetooth], any]
@@ -351,8 +354,8 @@ class ShimmerBluetoothIntegrationTest(TestCase):
         self._sot = ShimmerBluetooth(serial, **kwargs)
 
         if initialize:
-            # The Bluetooth API automatically requests the firmware version upon initialization.
-            # We must prepare a proper response beforehand.
+            # The Bluetooth API automatically requests the firmware version upon
+            # initialization. We must prepare a proper response beforehand.
             req_future_fw = self._submit_req_resp_handler(
                 req_len=1, resp=b"\xff\x2f\x03\x00\x00\x00\x0b\x00"
             )
@@ -374,8 +377,8 @@ class ShimmerBluetoothIntegrationTest(TestCase):
     def test_context_manager(self):
         self.do_setup(initialize=False)
 
-        # The Bluetooth API automatically requests the firmware version upon initialization.
-        # We must prepare a proper response beforehand.
+        # The Bluetooth API automatically requests the firmware version upon
+        # initialization. We must prepare a proper response beforehand.
         req_future_fw = self._submit_req_resp_handler(
             req_len=1, resp=b"\xff\x2f\x03\x00\x00\x00\x0b\x00"
         )
@@ -453,7 +456,7 @@ class ShimmerBluetoothIntegrationTest(TestCase):
 
         pkts = []
 
-        def status_handler(new_pkt: List[bool]) -> None:
+        def status_handler(new_pkt: list[bool]) -> None:
             pkts.append(new_pkt)
 
         self._sot.add_status_callback(status_handler)

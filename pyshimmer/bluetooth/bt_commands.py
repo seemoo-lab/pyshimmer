@@ -13,14 +13,16 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from __future__ import annotations
+
 import struct
 from abc import ABC, abstractmethod
-from typing import List, Tuple, Union, Iterable
+from collections.abc import Iterable
 
 from pyshimmer.bluetooth.bt_const import *
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
-
 from pyshimmer.dev.base import dr2sr, sr2dr, sec2ticks, ticks2sec
+from pyshimmer.dev.calibration import AllCalibration
 from pyshimmer.dev.channels import (
     ChannelDataType,
     EChannelType,
@@ -28,9 +30,7 @@ from pyshimmer.dev.channels import (
     serialize_sensorlist,
 )
 from pyshimmer.dev.exg import ExGRegister
-from pyshimmer.dev.calibration import AllCalibration
 from pyshimmer.dev.fw_version import HardwareVersion, get_firmware_type
-
 from pyshimmer.util import (
     bit_is_set,
     resp_code_to_bytes,
@@ -42,16 +42,16 @@ from pyshimmer.util import (
 class DataPacket:
     """Parses data packets received by the Shimmer device
 
-    :arg stream_types: List of tuples that contains each data channel contained in the data packet as well as the
-        corresponding data type decoder
+    :arg stream_types: List of tuples that contains each data channel contained in the
+        data packet as well as the corresponding data type decoder
     """
 
-    def __init__(self, stream_types: List[Tuple[EChannelType, ChannelDataType]]):
+    def __init__(self, stream_types: list[tuple[EChannelType, ChannelDataType]]):
         self._types = stream_types
         self._values = {}
 
     @property
-    def channels(self) -> List[EChannelType]:
+    def channels(self) -> list[EChannelType]:
         """The data channels present in this data packet
 
         :return: The channels as list
@@ -59,7 +59,7 @@ class DataPacket:
         return [t for t, _ in self._types]
 
     @property
-    def channel_types(self) -> List[ChannelDataType]:
+    def channel_types(self) -> list[ChannelDataType]:
         """The channel data types that represent the binary data of each channel
 
         :return: The data types as list
@@ -91,14 +91,16 @@ class ShimmerCommand(ABC):
 
     @abstractmethod
     def send(self, ser: BluetoothSerial) -> None:
-        """Encodes the command and sends it to the Shimmer via the provided serial interface
+        """Encodes the command and sends it to the Shimmer via the provided serial
+        interface
 
         :param ser: The serial to use for sending the command
         """
         pass
 
     def has_response(self) -> bool:
-        """Specifies if the command has a response that needs to be read from the return stream
+        """Specifies if the command has a response that needs to be read from the
+        return stream
 
         :return: True if the command has a response, else false
         """
@@ -107,7 +109,8 @@ class ShimmerCommand(ABC):
     def get_response_code(self) -> bytes:
         """The response code of the command
 
-        :return: The response code as a series of bytes, is normally one or two bytes long
+        :return: The response code as a series of bytes, is normally one or two
+            bytes long
         """
         return bytes()
 
@@ -123,11 +126,12 @@ class ShimmerCommand(ABC):
 class ResponseCommand(ShimmerCommand, ABC):
     """Abstract base class for all commands that feature a command response
 
-    :arg rcode: The response code of the response. Can be a single int for a single-byte response code or
-        a tuple of ints or a bytes instance for a multi-byte response code
+    :arg rcode: The response code of the response. Can be a single int for a
+        single-byte response code or a tuple of ints or a bytes instance for a
+        multi-byte response code
     """
 
-    def __init__(self, rcode: Union[int, Tuple[int, ...], bytes]):
+    def __init__(self, rcode: int | bytes | tuple[int, ...]):
         self._rcode = resp_code_to_bytes(rcode)
 
     def has_response(self) -> bool:
@@ -161,7 +165,7 @@ class GetStringCommand(ResponseCommand):
     def __init__(
         self,
         req_code: int,
-        resp_code: Union[int, Tuple[int], bytes],
+        resp_code: int | bytes | tuple[int],
         encoding: str = "utf8",
     ):
         super().__init__(resp_code)
@@ -243,7 +247,9 @@ class GetBatteryCommand(ResponseCommand):
 
 
 class GetConfigTimeCommand(ResponseCommand):
-    """Retrieve the config time that is stored in the Shimmer device configuration file"""
+    """Retrieve the config time that is stored in the Shimmer device
+    configuration file
+    """
 
     def __init__(self):
         super().__init__(CONFIGTIME_RESPONSE)
@@ -257,7 +263,8 @@ class GetConfigTimeCommand(ResponseCommand):
 
 
 class SetConfigTimeCommand(ShimmerCommand):
-    """Set the config time, which will be stored in the Shimmer device configuration file
+    """Set the config time, which will be stored in the Shimmer device configuration
+    file
 
     :arg time: The integer value to send
     """
@@ -328,7 +335,7 @@ class GetStatusCommand(ResponseCommand):
     def __init__(self):
         super().__init__(FULL_STATUS_RESPONSE)
 
-    def unpack_status_bitfields(self, val: int) -> List[bool]:
+    def unpack_status_bitfields(self, val: int) -> list[bool]:
         values = [bit_is_set(val, f) for f in self.STATUS_BITFIELDS]
         return values
 
@@ -365,7 +372,8 @@ class GetAllCalibrationCommand(ResponseCommand):
         ESensorGroup.MAG      (21 bytes)
         ESensorGroup.ACCEL_WR (21 bytes)
 
-    The breakdown of the kinematic (accel x 2, gyro and mag) calibration values is as follows:
+    The breakdown of the kinematic (accel x 2, gyro and mag) calibration values is
+    as follows:
         [bytes  0- 5] offset bias values: 3 (x,y,z) 16-bit signed integers (big endian).
         [bytes  6-11] sensitivity values: 3 (x,y,z) 16-bit signed integers (big endian).
         [bytes 12-20] alignment matrix:  9 values    8-bit signed integers.
@@ -387,13 +395,16 @@ class GetAllCalibrationCommand(ResponseCommand):
 
 
 class InquiryCommand(ResponseCommand):
-    """Perform an inquiry to determine the sample rate, buffer size, and active data channels"""
+    """
+    Perform an inquiry to determine the sample rate, buffer size, and active data
+    channels
+    """
 
     def __init__(self):
         super().__init__(INQUIRY_RESPONSE)
 
     @staticmethod
-    def decode_channel_types(ct_bin: bytes) -> List[EChannelType]:
+    def decode_channel_types(ct_bin: bytes) -> list[EChannelType]:
         ctypes_index = struct.unpack("B" * len(ct_bin), ct_bin)
         ctypes = [BtChannelsByIndex[i] for i in ctypes_index]
         return ctypes
@@ -430,7 +441,8 @@ class StopStreamingCommand(OneShotCommand):
 class GetEXGRegsCommand(ResponseCommand):
     """Retrieve the current state of the ExG chip register
 
-    Queries the values of all registers of the specified chip and returns it as an ExGRegister instance
+    Queries the values of all registers of the specified chip and returns it as an
+    ExGRegister instance
 
     :arg chip_id: The chip id, can be one of [0, 1]
     """
@@ -568,7 +580,9 @@ class StopLoggingCommand(OneShotCommand):
 
 
 class DummyCommand(OneShotCommand):
-    """Dummy command that is only acknowledged by the Shimmer but triggers no response"""
+    """
+    Dummy command that is only acknowledged by the Shimmer but triggers no response
+    """
 
     def __init__(self):
         super().__init__(DUMMY_COMMAND)

@@ -13,8 +13,9 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from __future__ import annotations
+
 import struct
-from typing import Tuple
 
 from serial import Serial
 
@@ -79,7 +80,7 @@ class ShimmerDock:
         data = struct.pack(fmt, *args)
         self._write_packet(cmd, comp, prop, data)
 
-    def _read_response(self) -> Tuple[int, int, bytes]:
+    def _read_response(self) -> tuple[int, int, bytes]:
         self._serial.start_read_crc_verify()
 
         self._read_resp_type_or_throw(UART_RESPONSE)
@@ -96,11 +97,13 @@ class ShimmerDock:
 
         if exp_comp != comp:
             raise IOError(
-                f"Encountered unexpected component type in response: {exp_comp:x} != {comp:x}"
+                f"Encountered unexpected component type in response: "
+                f"{exp_comp:x} != {comp:x}"
             )
         elif exp_prop != prop:
             raise IOError(
-                f"Encountered unexpected property type in response: {exp_prop:x} != {prop:x}"
+                f"Encountered unexpected property type in response: "
+                f"{exp_prop:x} != {prop:x}"
             )
 
         return data
@@ -121,10 +124,11 @@ class ShimmerDock:
         """Close the underlying serial interface and release all resources"""
         self._serial.close()
 
-    def get_mac_address(self) -> Tuple[int, ...]:
+    def get_mac_address(self) -> tuple[int, ...]:
         """Retrieve the Bluetooth MAC address of the device
 
-        :return: A tuple containing six integer values, each representing a single byte of the address
+        :return: A tuple containing six integer values, each representing a single byte
+            of the address
         """
         self._write_packet(UART_GET, UART_COMP_SHIMMER, UART_PROP_MAC)
 
@@ -136,7 +140,8 @@ class ShimmerDock:
     def set_rtc(self, ts_sec: float) -> None:
         """Set the real-time clock of the device
 
-        Specify the UNIX timestamp in seconds as new value for the real-time clock of the device
+        Specify the UNIX timestamp in seconds as new value for the real-time clock of
+        the device
 
         :param ts_sec: The UNIX timestamp in seconds
         """
@@ -149,8 +154,8 @@ class ShimmerDock:
     def get_rtc(self) -> float:
         """Retrieve the current value of the real-time clock
 
-        :return: A floating-point value representing the current value of the real-time clock as UNIX timestamp
-            in seconds
+        :return: A floating-point value representing the current value of the real-time
+            clock as UNIX timestamp in seconds
         """
         self._write_packet(UART_GET, UART_COMP_SHIMMER, UART_PROP_CURR_LOCAL_TIME)
         ticks = self._read_response_wformat_verify(
@@ -163,11 +168,12 @@ class ShimmerDock:
 
         Example:
 
-            The real-time clock is set to a value of 42s. Subsequent calls to :meth:`get_rtc` will return v > 42s,
+            The real-time clock is set to a value of 42s. Subsequent calls to
+            :meth:`get_rtc` will return v > 42s,
             while :meth:`get_config_rtc` will return 42s.
 
-        :return: A floating-point value representing the last configured value for the real-time clock as UNIX
-            timestamp in seconds
+        :return: A floating-point value representing the last configured value for the
+            real-time clock as UNIX timestamp in seconds
         """
         self._write_packet(UART_GET, UART_COMP_SHIMMER, UART_PROP_RWC_CFG_TIME)
         ticks = self._read_response_wformat_verify(
@@ -175,7 +181,7 @@ class ShimmerDock:
         )
         return ticks2sec(ticks)
 
-    def get_firmware_version(self) -> Tuple[int, EFirmwareType, int, int, int]:
+    def get_firmware_version(self) -> tuple[int, EFirmwareType, int, int, int]:
         """Retrieve the firmware version of the device
 
         :return: A tuple containing the following values:
@@ -207,8 +213,9 @@ class ShimmerDock:
         :param dlen: The length of the memory block that will be retrieved
         :return: The bytes of the memory block
         """
-        # Due to a bug in the firmware code, we must manually set a variable in the firmware to a specific value
-        # using a different command before we can read the InfoMem.
+        # Due to a bug in the firmware code, we must manually set a variable in the
+        # firmware to a specific value using a different command before we can read the
+        # InfoMem.
         self._write_packet_wformat(
             UART_GET, UART_COMP_DAUGHTER_CARD, UART_PROP_CARD_ID, "<BH", 0x0, 0x0
         )

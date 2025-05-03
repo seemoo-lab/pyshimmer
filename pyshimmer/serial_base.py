@@ -13,9 +13,11 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from __future__ import annotations
+
 import struct
+from collections.abc import Callable
 from io import RawIOBase
-from typing import Callable
 
 from serial import Serial
 
@@ -32,8 +34,9 @@ class ReadAbort(Exception):
 
 class BufferedReader:
     """
-    Wraps around a RawIOBase object to enable buffered reads and peeks while only requesting as many bytes as needed
-    for the current request from the underlying stream.
+    Wraps around a RawIOBase object to enable buffered reads and peeks while only
+    requesting as many bytes as needed for the current request from the underlying
+    stream.
 
     :param io_obj: The binary stream from which to read data
     """
@@ -68,8 +71,8 @@ class BufferedReader:
         """Read n bytes from the underlying stream
 
         :param n: The number of bytes to read
-        :raises ReadAbort: If the read operation on the underlying object has been cancelled and the stream returns
-            less bytes than requested.
+        :raises ReadAbort: If the read operation on the underlying object has been
+            cancelled and the stream returns less bytes than requested.
         :return: The requested bytes
         """
         return self._take_from_buf(n)
@@ -77,12 +80,12 @@ class BufferedReader:
     def peek(self, n: int) -> bytes:
         """Peek n bytes into the stream, but do not discard the data
 
-        Takes n bytes from the stream and returns them but also keeps them in an internal buffer, such that they
-        can be returned by a later call to :meth:`read`.
+        Takes n bytes from the stream and returns them but also keeps them in an
+        internal buffer, such that they can be returned by a later call to :meth:`read`.
 
         :param n: The number of bytes to peek
-        :raises ReadAbort: If the read operation on the underlying object has been cancelled and the stream returns
-            less bytes than requested.
+        :raises ReadAbort: If the read operation on the underlying object has been
+            cancelled and the stream returns less bytes than requested.
         :return: The requested bytes
         """
         return self._get_from_buf(n)
@@ -93,7 +96,8 @@ class BufferedReader:
 
 
 class SerialBase:
-    """Wrapper around :class:`serial.Serial` which provides multiple convenience methods.
+    """Wrapper around :class:`serial.Serial` which provides multiple convenience
+    methods.
 
     :param serial: The serial instance to wrap
     """
@@ -101,7 +105,8 @@ class SerialBase:
     def __init__(self, serial: Serial):
         if serial.timeout is not None:
             print(
-                "Warning: Serial Read timeout != None. This will interfere with the detection cancelled reads."
+                "Warning: Serial Read timeout != None. "
+                "This will interfere with the detection cancelled reads."
             )
 
         self._serial = serial
@@ -116,7 +121,10 @@ class SerialBase:
         return unpack(args_unpacked)
 
     def flush_input_buffer(self):
-        """Flush the input buffer and remove any data that has been received but not yet read"""
+        """
+        Flush the input buffer and remove any data that has been received but not yet
+        read
+        """
         self._serial.reset_input_buffer()
         self._reader.reset()
 
@@ -161,8 +169,8 @@ class SerialBase:
     def read_packed(self, rformat: str) -> any:
         """Read the data requested by the format string and unpack it
 
-        The function evaluates the :mod:`struct` format string, reads the required number of bytes, and returns the
-        unpacked arguments.
+        The function evaluates the :mod:`struct` format string, reads the required
+        number of bytes, and returns the unpacked arguments.
 
         :param rformat: The string format
         :return: A variable number of arguments, depending on the format string
@@ -180,7 +188,8 @@ class SerialBase:
     def cancel_read(self) -> None:
         """Cancel ongoing read operation
 
-        If another thread is blocked in a read operation, cancel the operation by calling this method.
+        If another thread is blocked in a read operation, cancel the operation by
+        calling this method.
         """
         self._serial.cancel_read()
 
@@ -196,7 +205,8 @@ class SerialBase:
         """Peek into the stream and return the requested packed arguments
 
         :param rformat: The format of the data to peek
-        :return: The peeked data, can be a variable number of arguments, depending on the format string
+        :return: The peeked data, can be a variable number of arguments, depending on
+            the format string
         """
         return self._retrieve_packed(self.peek, rformat)
 
