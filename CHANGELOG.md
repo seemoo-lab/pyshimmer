@@ -6,10 +6,10 @@ The project uses semantic versioning.
 ## Next Release
 
 ### Changed
-- Format code base with black
-- Wrap long lines to 90 characters
-- Replace types from typing with built-in ones
-- Raise required Python version to 3.9 since PEP 604 is used in the code
+- Format code base with black (#26)
+- Wrap long lines to 90 characters (#26)
+- Replace types from typing with built-in ones (#26)
+- Raise required Python version to 3.9 since PEP 604 is used in the code (#26)
 
 ## 0.7.0 - 2025-01-18
 
