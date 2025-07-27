@@ -142,7 +142,7 @@ class ShimmerReaderTest(TestCase):
             EChannelType.ACCEL_LN_Y,
             EChannelType.ACCEL_LN_Z,
             EChannelType.VBATT,
-            EChannelType.INTERNAL_ADC_13,
+            EChannelType.INTERNAL_ADC_A1,
         ]
 
         with open(raw_file, "rb") as f:
@@ -157,7 +157,7 @@ class ShimmerReaderTest(TestCase):
         expected_ppg = r[:, 1]
 
         actual_ts = reader.timestamp * 1000  # needs to be in ms
-        actual_ppg = reader[EChannelType.INTERNAL_ADC_13] * 1000.0  # needs to be in mV
+        actual_ppg = reader[EChannelType.INTERNAL_ADC_A1] * 1000.0  # needs to be in mV
 
         np.testing.assert_almost_equal(actual_ts.flatten(), expected_ts.flatten())
         np.testing.assert_almost_equal(actual_ppg, expected_ppg)
@@ -166,7 +166,7 @@ class ShimmerReaderTest(TestCase):
         bin_path, csv_path = get_synced_bin_vs_consensys_pair_fpath()
 
         exp_sr = 512.0
-        exp_channels = [EChannelType.INTERNAL_ADC_13]
+        exp_channels = [EChannelType.INTERNAL_ADC_A1]
 
         with open(bin_path, "rb") as f:
             reader = ShimmerReader(f, sync=True)
@@ -177,7 +177,7 @@ class ShimmerReaderTest(TestCase):
         expected_ppg = csv_data[:, 1]
 
         actual_ts = reader.timestamp * 1000
-        actual_ppg = reader[EChannelType.INTERNAL_ADC_13] * 1000.0  # needs to be in mV
+        actual_ppg = reader[EChannelType.INTERNAL_ADC_A1] * 1000.0  # needs to be in mV
 
         self.assertEqual(exp_channels, reader.channels)
         self.assertEqual(exp_sr, reader.sample_rate)
@@ -218,10 +218,10 @@ class ShimmerReaderTest(TestCase):
         }
 
         samples = {
-            EChannelType.EXG_ADS1292R_1_CH1_24BIT: np.random.randn(1000),
-            EChannelType.EXG_ADS1292R_2_CH2_24BIT: np.random.randn(1000),
-            EChannelType.EXG_ADS1292R_1_CH1_16BIT: np.random.randn(1000),
-            EChannelType.EXG_ADS1292R_2_CH2_16BIT: np.random.randn(1000),
+            EChannelType.EXG1_CH1_24BIT: np.random.randn(1000),
+            EChannelType.EXG2_CH2_24BIT: np.random.randn(1000),
+            EChannelType.EXG1_CH1_16BIT: np.random.randn(1000),
+            EChannelType.EXG2_CH2_16BIT: np.random.randn(1000),
         }
 
         samples_w_ts = {**samples, EChannelType.TIMESTAMP: np.arange(1000)}
@@ -261,10 +261,10 @@ class ShimmerReaderTest(TestCase):
                 reader = ShimmerReader(f, post_process=post_process, sync=False)
                 reader.load_file_data()
 
-            actual = reader[EChannelType.EXG_ADS1292R_1_CH1_24BIT]
+            actual = reader[EChannelType.EXG1_CH1_24BIT]
             np.testing.assert_almost_equal(actual, expected[1])
 
-            actual = reader[EChannelType.EXG_ADS1292R_1_CH2_24BIT]
+            actual = reader[EChannelType.EXG1_CH2_24BIT]
             np.testing.assert_almost_equal(actual, expected[2])
 
         expected_uncal = np.loadtxt(
@@ -289,15 +289,15 @@ class ShimmerReaderTest(TestCase):
             EChannelType.ACCEL_LN_X: "Shimmer_952D_Accel_LN_X_CAL",
             EChannelType.ACCEL_LN_Y: "Shimmer_952D_Accel_LN_Y_CAL",
             EChannelType.ACCEL_LN_Z: "Shimmer_952D_Accel_LN_Z_CAL",
-            EChannelType.ACCEL_LSM303DLHC_X: "Shimmer_952D_Accel_WR_X_CAL",
-            EChannelType.ACCEL_LSM303DLHC_Y: "Shimmer_952D_Accel_WR_Y_CAL",
-            EChannelType.ACCEL_LSM303DLHC_Z: "Shimmer_952D_Accel_WR_Z_CAL",
-            EChannelType.GYRO_MPU9150_X: "Shimmer_952D_Gyro_X_CAL",
-            EChannelType.GYRO_MPU9150_Y: "Shimmer_952D_Gyro_Y_CAL",
-            EChannelType.GYRO_MPU9150_Z: "Shimmer_952D_Gyro_Z_CAL",
-            EChannelType.MAG_LSM303DLHC_X: "Shimmer_952D_Mag_X_CAL",
-            EChannelType.MAG_LSM303DLHC_Y: "Shimmer_952D_Mag_Y_CAL",
-            EChannelType.MAG_LSM303DLHC_Z: "Shimmer_952D_Mag_Z_CAL",
+            EChannelType.ACCEL_WR_X: "Shimmer_952D_Accel_WR_X_CAL",
+            EChannelType.ACCEL_WR_Y: "Shimmer_952D_Accel_WR_Y_CAL",
+            EChannelType.ACCEL_WR_Z: "Shimmer_952D_Accel_WR_Z_CAL",
+            EChannelType.GYRO_X: "Shimmer_952D_Gyro_X_CAL",
+            EChannelType.GYRO_Y: "Shimmer_952D_Gyro_Y_CAL",
+            EChannelType.GYRO_Z: "Shimmer_952D_Gyro_Z_CAL",
+            EChannelType.MAG_REG_X: "Shimmer_952D_Mag_X_CAL",
+            EChannelType.MAG_REG_Y: "Shimmer_952D_Mag_Y_CAL",
+            EChannelType.MAG_REG_Z: "Shimmer_952D_Mag_Z_CAL",
         }
 
         with open(bin_path, "rb") as f:
@@ -334,7 +334,7 @@ class SignalPostProcessorTest(TestCase):
         ch_data = {
             EChannelType.TIMESTAMP: np.random.randn(10),
             EChannelType.VBATT: np.random.randn(10),
-            EChannelType.INTERNAL_ADC_13: np.random.randn(10),
+            EChannelType.INTERNAL_ADC_A1: np.random.randn(10),
             EChannelType.ACCEL_LN_X: np.random.randn(10),
         }
         ch_types = set(ch_data.keys())
@@ -361,7 +361,7 @@ class SignalPostProcessorTest(TestCase):
         ch_data = {
             EChannelType.TIMESTAMP: np.random.randn(10),
             EChannelType.VBATT: np.random.randn(10),
-            EChannelType.INTERNAL_ADC_13: ppg_data,
+            EChannelType.INTERNAL_ADC_A1: ppg_data,
             EChannelType.ACCEL_LN_X: np.random.randn(10),
         }
 
@@ -370,7 +370,7 @@ class SignalPostProcessorTest(TestCase):
         output = proc.process(ch_data, None)
 
         for ch, y in output.items():
-            if ch != EChannelType.INTERNAL_ADC_13:
+            if ch != EChannelType.INTERNAL_ADC_A1:
                 np.testing.assert_equal(y, ch_data[ch])
             else:
                 np.testing.assert_equal(y, ppg_data / 1000.0)

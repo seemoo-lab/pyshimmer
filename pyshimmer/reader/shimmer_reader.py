@@ -109,7 +109,7 @@ class ExGProcessor(SingleChannelProcessor):
 class PPGProcessor(SingleChannelProcessor):
 
     def __init__(self):
-        super().__init__([EChannelType.INTERNAL_ADC_13])
+        super().__init__([EChannelType.INTERNAL_ADC_A1])
 
     def process_channel(
         self, ch_type: EChannelType, y: np.ndarray, reader: ShimmerBinaryReader

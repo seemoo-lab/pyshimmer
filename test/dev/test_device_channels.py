@@ -98,7 +98,7 @@ class DeviceChannelsTest(TestCase):
         test_both_endianess(-0x12345, 3, b"\xbb\xdc\xfe", signed=True)
 
     def test_get_ch_dtypes(self):
-        channels = [EChannelType.INTERNAL_ADC_13, EChannelType.GYRO_MPU9150_Y]
+        channels = [EChannelType.INTERNAL_ADC_A1, EChannelType.GYRO_Y]
         r = get_ch_dtypes(channels)
 
         self.assertEqual(len(r), 2)

@@ -49,7 +49,7 @@ class ShimmerReaderTest(TestCase):
                 EChannelType.ACCEL_LN_Y,
                 EChannelType.ACCEL_LN_Z,
                 EChannelType.VBATT,
-                EChannelType.INTERNAL_ADC_13,
+                EChannelType.INTERNAL_ADC_A1,
             ]
 
             sample_size = sum([dt.size for dt in get_ch_dtypes(exp_channels)])
@@ -88,7 +88,7 @@ class ShimmerReaderTest(TestCase):
 
             exp_dr = 64
             exp_sensors = [ESensorGroup.CH_A13]
-            exp_channels = [EChannelType.TIMESTAMP, EChannelType.INTERNAL_ADC_13]
+            exp_channels = [EChannelType.TIMESTAMP, EChannelType.INTERNAL_ADC_A1]
             exp_offsets = np.array([372, 362, 364, 351])
             exp_sync_ts = np.array([3725366, 4071094, 4397558, 4724022])
             exp_exg_reg1 = ExGRegister(b"\x00\x80\x10\x00\x00\x00\x00\x00\x02\x01")
