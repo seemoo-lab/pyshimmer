@@ -17,6 +17,8 @@ from __future__ import annotations
 
 from unittest import TestCase
 
+import pytest
+
 from pyshimmer.dev.channels import (
     ChDataTypeAssignment,
     get_ch_dtypes,
@@ -37,6 +39,26 @@ class DeviceChannelsTest(TestCase):
             from pyshimmer.dev.channels import EChannelType
         except ValueError as e:
             self.fail(f"Enum not unique: {e}")
+
+    def test_e_channel_type(self):
+        assert EChannelType.VBATT.value == 0x03
+        assert EChannelType.VBATT.channel_id == 0x03
+        assert EChannelType.VBATT.is_public
+
+        assert EChannelType.TIMESTAMP.value == 0x100
+        assert EChannelType.TIMESTAMP.channel_id == 0x100
+        assert EChannelType.TIMESTAMP.is_public is False
+
+    def test_channel_type_enum_for_id(self):
+        assert EChannelType.enum_for_id(0x03) is EChannelType.VBATT
+
+        with pytest.raises(ValueError):
+            # Unknown ID
+            EChannelType.enum_for_id(0x4242)
+
+        with pytest.raises(ValueError):
+            # Timestamp is not public
+            EChannelType.enum_for_id(0x100)
 
     def test_channel_data_type_decoding(self):
         def test_both_endianess(byte_val_le: bytes, expected: int, signed: bool):

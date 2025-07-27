@@ -88,7 +88,7 @@ class ChannelDataType:
         if self.little_endian:
             return val[: self._size]
         else:
-            return val[self._valid_size - self._size:]
+            return val[self._valid_size - self._size :]
 
     def _get_struct_format(self) -> str:
         stype = self._struct_dtypes[self._valid_size]
@@ -120,134 +120,175 @@ class ChannelDataType:
         return val_packed
 
 
+# @unique causes issues with PyCharm code indexing
+# Temporarily remove before renaming items
+# https://stackoverflow.com/questions/12680080/python-enums-with-attributes
+@unique
 class EChannelType(Enum):
     """
     Represents the content type of a single data channel recorded by a Shimmer device
     """
 
     # Low Noise Accelerometer X
-    ACCEL_LN_X = auto()
+    ACCEL_LN_X = (0x00, True)
     # Low Noise Accelerometer Y
-    ACCEL_LN_Y = auto()
+    ACCEL_LN_Y = (0x01, True)
     # Low Noise Accelerometer Z
-    ACCEL_LN_Z = auto()
+    ACCEL_LN_Z = (0x02, True)
 
     # VSenseBatt
-    VBATT = auto()
+    VBATT = (0x03, True)
 
     # Wide Range Accelerometer X
     # Chips: LSM303DLHC
-    ACCEL_WR_X = auto()
+    ACCEL_WR_X = (0x04, True)
     # Wide Range Accelerometer Y
     # Chips: LSM303DLHC
-    ACCEL_WR_Y = auto()
+    ACCEL_WR_Y = (0x05, True)
     # Wide Range Accelerometer Z
     # Chips: LSM303DLHC
-    ACCEL_WR_Z = auto()
+    ACCEL_WR_Z = (0x06, True)
 
     # Regular Magnetometer X
     # Chips: LSM303DLHC
-    MAG_REG_X = auto()
+    MAG_REG_X = (0x07, True)
     # Regular Magnetometer Y
     # Chips: LSM303DLHC
-    MAG_REG_Y = auto()
+    MAG_REG_Y = (0x08, True)
     # Regular Magnetometer Z
     # Chips: LSM303DLHC
-    MAG_REG_Z = auto()
+    MAG_REG_Z = (0x09, True)
 
     # Gyroscope X
     # Chips: MPU9150
-    GYRO_X = auto()
+    GYRO_X = (0x0A, True)
     # Gyroscope Y
     # Chips: MPU9150
-    GYRO_Y = auto()
+    GYRO_Y = (0x0B, True)
     # Gyroscope Z
     # Chips: MPU9150
-    GYRO_Z = auto()
+    GYRO_Z = (0x0C, True)
 
     # External ADC Channel 7 / A0
-    EXTERNAL_ADC_A0 = auto()
+    EXTERNAL_ADC_A0 = (0x0D, True)
     # External ADC Channel 6 / A1
-    EXTERNAL_ADC_A1 = auto()
+    EXTERNAL_ADC_A1 = (0x0E, True)
     # External ADC Channel 15 / A2
-    EXTERNAL_ADC_A2 = auto()
+    EXTERNAL_ADC_A2 = (0x0F, True)
 
     # Internal ADC Channel 1 / A3
-    INTERNAL_ADC_A3 = auto()
+    INTERNAL_ADC_A3 = (0x10, True)
     # Internal ADC Channel 12 / A0
-    INTERNAL_ADC_A0 = auto()
+    INTERNAL_ADC_A0 = (0x11, True)
     # Internal ADC Channel 13 / A1
-    INTERNAL_ADC_A1 = auto()
+    INTERNAL_ADC_A1 = (0x12, True)
     # Internal ADC Channel 14 / A2
-    INTERNAL_ADC_A2 = auto()
+    INTERNAL_ADC_A2 = (0x13, True)
 
     # High G Accelerometer X
     # Chips: MPU9150
-    ACCEL_HG_X = auto()
+    ACCEL_HG_X = (0x14, True)
     # High G Accelerometer Y
     # Chips: MPU9150
-    ACCEL_HG_Y = auto()
+    ACCEL_HG_Y = (0x15, True)
     # High G Accelerometer Z
     # Chips: MPU9150
-    ACCEL_HG_Z = auto()
+    ACCEL_HG_Z = (0x16, True)
 
     # Wide-Range Magnetometer X
     # Chips: MPU9150
-    MAG_WR_X = auto()
+    MAG_WR_X = (0x17, True)
     # Wide-Range Magnetometer Y
     # Chips: MPU9150
-    MAG_WR_Y = auto()
+    MAG_WR_Y = (0x18, True)
     # Wide-Range Magnetometer Z
     # Chips: MPU9150
-    MAG_WR_Z = auto()
+    MAG_WR_Z = (0x19, True)
 
     # Temperature
     # Chips: BMPX80
-    TEMPERATURE = auto()
+    TEMPERATURE = (0x1A, True)
     # Pressure
     # Chips: BMPX80
-    PRESSURE = auto()
+    PRESSURE = (0x1B, True)
 
     # Galvanic Skin Response Raw Data
-    GSR_RAW = auto()
+    GSR_RAW = (0x1C, True)
 
     # Status of ExG 1
     # Chips: ADS1292R
-    EXG1_STATUS = auto()
+    EXG1_STATUS = (0x1D, True)
     # Channel 1 of ExG 1 with 24bit resolution
     # Chips: ADS1292R
-    EXG1_CH1_24BIT = auto()
+    EXG1_CH1_24BIT = (0x1E, True)
     # Channel 2 of ExG 1 with 24bit resolution
     # Chips: ADS1292R
-    EXG1_CH2_24BIT = auto()
+    EXG1_CH2_24BIT = (0x1F, True)
     # Status of ExG 2
     # Chips: ADS1292R
-    EXG2_STATUS = auto()
+    EXG2_STATUS = (0x20, True)
     # Channel 1 of ExG 2 with 24bit resolution
     # Chips: ADS1292R
-    EXG2_CH1_24BIT = auto()
+    EXG2_CH1_24BIT = (0x21, True)
     # Channel 2 of ExG 2 with 24bit resolution
     # Chips: ADS1292R
-    EXG2_CH2_24BIT = auto()
+    EXG2_CH2_24BIT = (0x22, True)
     # Channel 1 of ExG 1 with 16bit resolution
     # Chips: ADS1292R
-    EXG1_CH1_16BIT = auto()
+    EXG1_CH1_16BIT = (0x23, True)
     # Channel 2 of ExG 1 with 16bit resolution
     # Chips: ADS1292R
-    EXG1_CH2_16BIT = auto()
+    EXG1_CH2_16BIT = (0x24, True)
     # Channel 1 of ExG 2 with 16bit resolution
     # Chips: ADS1292R
-    EXG2_CH1_16BIT = auto()
+    EXG2_CH1_16BIT = (0x25, True)
     # Channel 2 of ExG 2 with 16bit resolution
     # Chips: ADS1292R
-    EXG2_CH2_16BIT = auto()
+    EXG2_CH2_16BIT = (0x26, True)
 
     # Bridge Amp High
-    STRAIN_HIGH = auto()
+    STRAIN_HIGH = (0x27, True)
     # Bridge Amp Low
-    STRAIN_LOW = auto()
+    STRAIN_LOW = (0x28, True)
 
-    TIMESTAMP = auto()
+    TIMESTAMP = (0x100, False)
+
+    def __new__(cls, channel_id: int, is_public: bool):
+        obj = object.__new__(cls)
+        obj._value_ = channel_id
+        obj._channel_id = channel_id
+        obj._is_public = is_public
+        return obj
+
+    @property
+    def channel_id(self) -> int:
+        """Numeric representation of the channel
+
+        The value returned here is only valid if it is a public ID. Otherwise,
+        it is only used internally by the API and unknown the Shimmer.
+        """
+        return self._channel_id
+
+    @property
+    def is_public(self) -> bool:
+        """
+        Returns True if the channel type is known by the Shimmer devices.
+        Some channel types are derived types and not valid for communicating
+        with the Shimmer.
+        """
+        return self._is_public
+
+    @classmethod
+    def enum_for_id(cls, channel_id: int) -> EChannelType:
+        ch_type: EChannelType = EChannelType._value2member_map_.get(channel_id, None)
+
+        if ch_type is None or not ch_type.is_public:
+            raise ValueError(
+                f"Requested channel ID {channel_id:03X} "
+                f"does not have a mapped EChannelType"
+            )
+
+        return ch_type
 
 
 @unique
