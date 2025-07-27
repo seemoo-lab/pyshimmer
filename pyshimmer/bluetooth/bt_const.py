@@ -15,8 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from __future__ import annotations
 
-from pyshimmer.dev.channels import EChannelType
-
 ACK_COMMAND_PROCESSED = 0xFF
 INSTREAM_CMD_RESPONSE = 0x8A
 DATA_PACKET = 0x00
@@ -91,51 +89,3 @@ ENABLE_STATUS_ACK_COMMAND = 0xA3
 
 GET_ALL_CALIBRATION_COMMAND = 0x2C
 ALL_CALIBRATION_RESPONSE = 0x2D
-
-"""
-The Bluetooth LogAndStream API assigns a numerical index to each channel type. This
-dictionary maps each index to the corresponding channel type.
-"""
-BtChannelsByIndex = {
-    0x00: EChannelType.ACCEL_LN_X,
-    0x01: EChannelType.ACCEL_LN_Y,
-    0x02: EChannelType.ACCEL_LN_Z,
-    0x03: EChannelType.VBATT,
-    0x04: EChannelType.ACCEL_WR_X,
-    0x05: EChannelType.ACCEL_WR_Y,
-    0x06: EChannelType.ACCEL_WR_Z,
-    0x07: EChannelType.MAG_REG_X,
-    0x08: EChannelType.MAG_REG_Y,
-    0x09: EChannelType.MAG_REG_Z,
-    0x0A: EChannelType.GYRO_X,
-    0x0B: EChannelType.GYRO_Y,
-    0x0C: EChannelType.GYRO_Z,
-    0x0D: EChannelType.EXTERNAL_ADC_A0,
-    0x0E: EChannelType.EXTERNAL_ADC_A1,
-    0x0F: EChannelType.EXTERNAL_ADC_A2,
-    0x10: EChannelType.INTERNAL_ADC_A3,
-    0x11: EChannelType.INTERNAL_ADC_A0,
-    0x12: EChannelType.INTERNAL_ADC_A1,
-    0x13: EChannelType.INTERNAL_ADC_A2,
-    0x14: EChannelType.ACCEL_HG_X,
-    0x15: EChannelType.ACCEL_HG_Y,
-    0x16: EChannelType.ACCEL_HG_Z,
-    0x17: EChannelType.MAG_WR_X,
-    0x18: EChannelType.MAG_WR_Y,
-    0x19: EChannelType.MAG_WR_Z,
-    0x1A: EChannelType.TEMPERATURE,
-    0x1B: EChannelType.PRESSURE,
-    0x1C: EChannelType.GSR_RAW,
-    0x1D: EChannelType.EXG1_STATUS,
-    0x1E: EChannelType.EXG1_CH1_24BIT,
-    0x1F: EChannelType.EXG1_CH2_24BIT,
-    0x20: EChannelType.EXG2_STATUS,
-    0x21: EChannelType.EXG2_CH1_24BIT,
-    0x22: EChannelType.EXG2_CH2_24BIT,
-    0x23: EChannelType.EXG1_CH1_16BIT,
-    0x24: EChannelType.EXG1_CH2_16BIT,
-    0x25: EChannelType.EXG2_CH1_16BIT,
-    0x26: EChannelType.EXG2_CH2_16BIT,
-    0x27: EChannelType.STRAIN_HIGH,
-    0x28: EChannelType.STRAIN_LOW,
-}
