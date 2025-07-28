@@ -184,14 +184,14 @@ class ExGRegister:
 
 
 ExG_ChType_Chip_Assignment: dict[EChannelType, tuple[int, int]] = {
-    EChannelType.EXG_ADS1292R_1_CH1_24BIT: (0, 0),
-    EChannelType.EXG_ADS1292R_1_CH1_16BIT: (0, 0),
-    EChannelType.EXG_ADS1292R_1_CH2_24BIT: (0, 1),
-    EChannelType.EXG_ADS1292R_1_CH2_16BIT: (0, 1),
-    EChannelType.EXG_ADS1292R_2_CH1_24BIT: (1, 0),
-    EChannelType.EXG_ADS1292R_2_CH1_16BIT: (1, 0),
-    EChannelType.EXG_ADS1292R_2_CH2_24BIT: (1, 1),
-    EChannelType.EXG_ADS1292R_2_CH2_16BIT: (1, 1),
+    EChannelType.EXG1_CH1_24BIT: (0, 0),
+    EChannelType.EXG1_CH1_16BIT: (0, 0),
+    EChannelType.EXG1_CH2_24BIT: (0, 1),
+    EChannelType.EXG1_CH2_16BIT: (0, 1),
+    EChannelType.EXG2_CH1_24BIT: (1, 0),
+    EChannelType.EXG2_CH1_16BIT: (1, 0),
+    EChannelType.EXG2_CH2_24BIT: (1, 1),
+    EChannelType.EXG2_CH2_16BIT: (1, 1),
 }
 
 
@@ -207,7 +207,7 @@ def is_exg_ch(ch_type: EChannelType) -> bool:
         True if the channel type belongs to the ExG chips, otherwise False
     """
     # This is hacky but protected by unit tests
-    regex = re.compile(r"EXG_ADS1292R_\d_CH\d_\d{2}BIT")
+    regex = re.compile(r"EXG\d_CH\d_\d{2}BIT")
     return regex.match(ch_type.name) is not None
 
 

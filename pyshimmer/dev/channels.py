@@ -120,55 +120,177 @@ class ChannelDataType:
         return val_packed
 
 
+# @unique causes issues with PyCharm code indexing
+# Temporarily remove before renaming items
+# https://stackoverflow.com/questions/12680080/python-enums-with-attributes
 @unique
 class EChannelType(Enum):
     """
     Represents the content type of a single data channel recorded by a Shimmer device
     """
 
-    ACCEL_LN_X = auto()
-    ACCEL_LN_Y = auto()
-    ACCEL_LN_Z = auto()
-    VBATT = auto()
-    ACCEL_LSM303DLHC_X = auto()
-    ACCEL_LSM303DLHC_Y = auto()
-    ACCEL_LSM303DLHC_Z = auto()
-    MAG_LSM303DLHC_X = auto()
-    MAG_LSM303DLHC_Y = auto()
-    MAG_LSM303DLHC_Z = auto()
-    GYRO_MPU9150_X = auto()
-    GYRO_MPU9150_Y = auto()
-    GYRO_MPU9150_Z = auto()
-    EXTERNAL_ADC_7 = auto()
-    EXTERNAL_ADC_6 = auto()
-    EXTERNAL_ADC_15 = auto()
-    INTERNAL_ADC_1 = auto()
-    INTERNAL_ADC_12 = auto()
-    INTERNAL_ADC_13 = auto()
-    INTERNAL_ADC_14 = auto()
-    ACCEL_MPU9150_X = auto()
-    ACCEL_MPU9150_Y = auto()
-    ACCEL_MPU9150_Z = auto()
-    MAG_MPU9150_X = auto()
-    MAG_MPU9150_Y = auto()
-    MAG_MPU9150_Z = auto()
-    TEMP_BMPX80 = auto()
-    PRESSURE_BMPX80 = auto()
-    GSR_RAW = auto()
-    EXG_ADS1292R_1_STATUS = auto()
-    EXG_ADS1292R_1_CH1_24BIT = auto()
-    EXG_ADS1292R_1_CH2_24BIT = auto()
-    EXG_ADS1292R_2_STATUS = auto()
-    EXG_ADS1292R_2_CH1_24BIT = auto()
-    EXG_ADS1292R_2_CH2_24BIT = auto()
-    EXG_ADS1292R_1_CH1_16BIT = auto()
-    EXG_ADS1292R_1_CH2_16BIT = auto()
-    EXG_ADS1292R_2_CH1_16BIT = auto()
-    EXG_ADS1292R_2_CH2_16BIT = auto()
-    STRAIN_HIGH = auto()
-    STRAIN_LOW = auto()
+    # Low Noise Accelerometer X
+    ACCEL_LN_X = (0x00, True)
+    # Low Noise Accelerometer Y
+    ACCEL_LN_Y = (0x01, True)
+    # Low Noise Accelerometer Z
+    ACCEL_LN_Z = (0x02, True)
 
-    TIMESTAMP = auto()
+    # VSenseBatt
+    VBATT = (0x03, True)
+
+    # Wide Range Accelerometer X
+    # Chips: LSM303DLHC
+    ACCEL_WR_X = (0x04, True)
+    # Wide Range Accelerometer Y
+    # Chips: LSM303DLHC
+    ACCEL_WR_Y = (0x05, True)
+    # Wide Range Accelerometer Z
+    # Chips: LSM303DLHC
+    ACCEL_WR_Z = (0x06, True)
+
+    # Regular Magnetometer X
+    # Chips: LSM303DLHC
+    MAG_REG_X = (0x07, True)
+    # Regular Magnetometer Y
+    # Chips: LSM303DLHC
+    MAG_REG_Y = (0x08, True)
+    # Regular Magnetometer Z
+    # Chips: LSM303DLHC
+    MAG_REG_Z = (0x09, True)
+
+    # Gyroscope X
+    # Chips: MPU9150
+    GYRO_X = (0x0A, True)
+    # Gyroscope Y
+    # Chips: MPU9150
+    GYRO_Y = (0x0B, True)
+    # Gyroscope Z
+    # Chips: MPU9150
+    GYRO_Z = (0x0C, True)
+
+    # External ADC Channel 7 / A0
+    EXTERNAL_ADC_A0 = (0x0D, True)
+    # External ADC Channel 6 / A1
+    EXTERNAL_ADC_A1 = (0x0E, True)
+    # External ADC Channel 15 / A2
+    EXTERNAL_ADC_A2 = (0x0F, True)
+
+    # Internal ADC Channel 1 / A3
+    INTERNAL_ADC_A3 = (0x10, True)
+    # Internal ADC Channel 12 / A0
+    INTERNAL_ADC_A0 = (0x11, True)
+    # Internal ADC Channel 13 / A1
+    INTERNAL_ADC_A1 = (0x12, True)
+    # Internal ADC Channel 14 / A2
+    INTERNAL_ADC_A2 = (0x13, True)
+
+    # High G Accelerometer X
+    # Chips: MPU9150
+    ACCEL_HG_X = (0x14, True)
+    # High G Accelerometer Y
+    # Chips: MPU9150
+    ACCEL_HG_Y = (0x15, True)
+    # High G Accelerometer Z
+    # Chips: MPU9150
+    ACCEL_HG_Z = (0x16, True)
+
+    # Wide-Range Magnetometer X
+    # Chips: MPU9150
+    MAG_WR_X = (0x17, True)
+    # Wide-Range Magnetometer Y
+    # Chips: MPU9150
+    MAG_WR_Y = (0x18, True)
+    # Wide-Range Magnetometer Z
+    # Chips: MPU9150
+    MAG_WR_Z = (0x19, True)
+
+    # Temperature
+    # Chips: BMPX80
+    TEMPERATURE = (0x1A, True)
+    # Pressure
+    # Chips: BMPX80
+    PRESSURE = (0x1B, True)
+
+    # Galvanic Skin Response Raw Data
+    GSR_RAW = (0x1C, True)
+
+    # Status of ExG 1
+    # Chips: ADS1292R
+    EXG1_STATUS = (0x1D, True)
+    # Channel 1 of ExG 1 with 24bit resolution
+    # Chips: ADS1292R
+    EXG1_CH1_24BIT = (0x1E, True)
+    # Channel 2 of ExG 1 with 24bit resolution
+    # Chips: ADS1292R
+    EXG1_CH2_24BIT = (0x1F, True)
+    # Status of ExG 2
+    # Chips: ADS1292R
+    EXG2_STATUS = (0x20, True)
+    # Channel 1 of ExG 2 with 24bit resolution
+    # Chips: ADS1292R
+    EXG2_CH1_24BIT = (0x21, True)
+    # Channel 2 of ExG 2 with 24bit resolution
+    # Chips: ADS1292R
+    EXG2_CH2_24BIT = (0x22, True)
+    # Channel 1 of ExG 1 with 16bit resolution
+    # Chips: ADS1292R
+    EXG1_CH1_16BIT = (0x23, True)
+    # Channel 2 of ExG 1 with 16bit resolution
+    # Chips: ADS1292R
+    EXG1_CH2_16BIT = (0x24, True)
+    # Channel 1 of ExG 2 with 16bit resolution
+    # Chips: ADS1292R
+    EXG2_CH1_16BIT = (0x25, True)
+    # Channel 2 of ExG 2 with 16bit resolution
+    # Chips: ADS1292R
+    EXG2_CH2_16BIT = (0x26, True)
+
+    # Bridge Amp High
+    STRAIN_HIGH = (0x27, True)
+    # Bridge Amp Low
+    STRAIN_LOW = (0x28, True)
+
+    TIMESTAMP = (0x100, False)
+
+    def __new__(cls, channel_id: int, is_public: bool):
+        # Strips the is_public argument from the tuple and only assigns the
+        # channel ID as enum value
+        obj = object.__new__(cls)
+        obj._value_ = channel_id
+        obj._channel_id = channel_id
+        obj._is_public = is_public
+        return obj
+
+    @property
+    def channel_id(self) -> int:
+        """Numeric representation of the channel
+
+        The value returned here is only valid if it is a public ID. Otherwise,
+        it is only used internally by the API and unknown the Shimmer.
+        """
+        return self._channel_id
+
+    @property
+    def is_public(self) -> bool:
+        """
+        Returns True if the channel type is known by the Shimmer devices.
+        Some channel types are derived types and not valid for communicating
+        with the Shimmer.
+        """
+        return self._is_public
+
+    @classmethod
+    def enum_for_id(cls, channel_id: int) -> EChannelType:
+        ch_type: EChannelType = EChannelType._value2member_map_.get(channel_id, None)
+
+        if ch_type is None or not ch_type.is_public:
+            raise ValueError(
+                f"Requested channel ID {channel_id:03X} "
+                f"does not have a mapped EChannelType"
+            )
+
+        return ch_type
 
 
 @unique
@@ -184,21 +306,21 @@ class ESensorGroup(Enum):
     # Battery sensor
     BATTERY = auto()
     # External ADC channel 7
-    CH_A7 = auto()
+    EXT_CH_A0 = auto()
     # External ADC channel 6
-    CH_A6 = auto()
+    EXT_CH_A1 = auto()
     # External ADC channel 15
-    CH_A15 = auto()
+    EXT_CH_A2 = auto()
     # Internal ADC channel 12
-    CH_A12 = auto()
+    INT_CH_A0 = auto()
     # Internal ADC channel 13, shares the ADC converter with STRAIN
-    CH_A13 = auto()
+    INT_CH_A1 = auto()
     # Internal ADC channel 14, shares the ADC converter with STRAIN
-    CH_A14 = auto()
+    INT_CH_A2 = auto()
     # Strain sensor with two channels LOW/HIGH, shares the ADC converter with A13, A14
     STRAIN = auto()
     # Internal ADC channel 1, shares its ADC converter with the GSR sensor
-    CH_A1 = auto()
+    INT_CH_A3 = auto()
     # GSR sensor, shares the ADC with channel A1
     GSR = auto()
     # MPU9150 Gyro Sensor
@@ -206,11 +328,11 @@ class ESensorGroup(Enum):
     # Digital accelerometer on the LSM303DLHC chip
     ACCEL_WR = auto()
     # Mag sensor on the LSM303DLHC chip
-    MAG = auto()
+    MAG_REG = auto()
     # Accelerometer on the MPU9150 chip
-    ACCEL_MPU = auto()
+    ACCEL_HG = auto()
     # Mag sensor on the MPU9150 chip
-    MAG_MPU = auto()
+    MAG_WR = auto()
     # Temperature sensor on the MPU9150 chip, not yet available as channel in the
     # LogAndStream firmware
     TEMP = auto()
@@ -238,41 +360,41 @@ ChDataTypeAssignment: dict[EChannelType, ChannelDataType] = {
     EChannelType.ACCEL_LN_Y: ChannelDataType(2, signed=True, le=True),
     EChannelType.ACCEL_LN_Z: ChannelDataType(2, signed=True, le=True),
     EChannelType.VBATT: ChannelDataType(2, signed=True, le=True),
-    EChannelType.ACCEL_LSM303DLHC_X: ChannelDataType(2, signed=True, le=True),
-    EChannelType.ACCEL_LSM303DLHC_Y: ChannelDataType(2, signed=True, le=True),
-    EChannelType.ACCEL_LSM303DLHC_Z: ChannelDataType(2, signed=True, le=True),
-    EChannelType.MAG_LSM303DLHC_X: ChannelDataType(2, signed=True, le=True),
-    EChannelType.MAG_LSM303DLHC_Y: ChannelDataType(2, signed=True, le=True),
-    EChannelType.MAG_LSM303DLHC_Z: ChannelDataType(2, signed=True, le=True),
-    EChannelType.GYRO_MPU9150_X: ChannelDataType(2, signed=True, le=False),
-    EChannelType.GYRO_MPU9150_Y: ChannelDataType(2, signed=True, le=False),
-    EChannelType.GYRO_MPU9150_Z: ChannelDataType(2, signed=True, le=False),
-    EChannelType.EXTERNAL_ADC_7: ChannelDataType(2, signed=False, le=True),
-    EChannelType.EXTERNAL_ADC_6: ChannelDataType(2, signed=False, le=True),
-    EChannelType.EXTERNAL_ADC_15: ChannelDataType(2, signed=False, le=True),
-    EChannelType.INTERNAL_ADC_1: ChannelDataType(2, signed=False, le=True),
-    EChannelType.INTERNAL_ADC_12: ChannelDataType(2, signed=False, le=True),
-    EChannelType.INTERNAL_ADC_13: ChannelDataType(2, signed=False, le=True),
-    EChannelType.INTERNAL_ADC_14: ChannelDataType(2, signed=False, le=True),
-    EChannelType.ACCEL_MPU9150_X: None,
-    EChannelType.ACCEL_MPU9150_Y: None,
-    EChannelType.ACCEL_MPU9150_Z: None,
-    EChannelType.MAG_MPU9150_X: None,
-    EChannelType.MAG_MPU9150_Y: None,
-    EChannelType.MAG_MPU9150_Z: None,
-    EChannelType.TEMP_BMPX80: ChannelDataType(2, signed=False, le=False),
-    EChannelType.PRESSURE_BMPX80: ChannelDataType(3, signed=False, le=False),
+    EChannelType.ACCEL_WR_X: ChannelDataType(2, signed=True, le=True),
+    EChannelType.ACCEL_WR_Y: ChannelDataType(2, signed=True, le=True),
+    EChannelType.ACCEL_WR_Z: ChannelDataType(2, signed=True, le=True),
+    EChannelType.MAG_REG_X: ChannelDataType(2, signed=True, le=True),
+    EChannelType.MAG_REG_Y: ChannelDataType(2, signed=True, le=True),
+    EChannelType.MAG_REG_Z: ChannelDataType(2, signed=True, le=True),
+    EChannelType.GYRO_X: ChannelDataType(2, signed=True, le=False),
+    EChannelType.GYRO_Y: ChannelDataType(2, signed=True, le=False),
+    EChannelType.GYRO_Z: ChannelDataType(2, signed=True, le=False),
+    EChannelType.EXTERNAL_ADC_A0: ChannelDataType(2, signed=False, le=True),
+    EChannelType.EXTERNAL_ADC_A1: ChannelDataType(2, signed=False, le=True),
+    EChannelType.EXTERNAL_ADC_A2: ChannelDataType(2, signed=False, le=True),
+    EChannelType.INTERNAL_ADC_A3: ChannelDataType(2, signed=False, le=True),
+    EChannelType.INTERNAL_ADC_A0: ChannelDataType(2, signed=False, le=True),
+    EChannelType.INTERNAL_ADC_A1: ChannelDataType(2, signed=False, le=True),
+    EChannelType.INTERNAL_ADC_A2: ChannelDataType(2, signed=False, le=True),
+    EChannelType.ACCEL_HG_X: None,
+    EChannelType.ACCEL_HG_Y: None,
+    EChannelType.ACCEL_HG_Z: None,
+    EChannelType.MAG_WR_X: None,
+    EChannelType.MAG_WR_Y: None,
+    EChannelType.MAG_WR_Z: None,
+    EChannelType.TEMPERATURE: ChannelDataType(2, signed=False, le=False),
+    EChannelType.PRESSURE: ChannelDataType(3, signed=False, le=False),
     EChannelType.GSR_RAW: ChannelDataType(2, signed=False, le=True),
-    EChannelType.EXG_ADS1292R_1_STATUS: ChannelDataType(1, signed=False, le=True),
-    EChannelType.EXG_ADS1292R_1_CH1_24BIT: ChannelDataType(3, signed=True, le=False),
-    EChannelType.EXG_ADS1292R_1_CH2_24BIT: ChannelDataType(3, signed=True, le=False),
-    EChannelType.EXG_ADS1292R_2_STATUS: ChannelDataType(1, signed=False, le=True),
-    EChannelType.EXG_ADS1292R_2_CH1_24BIT: ChannelDataType(3, signed=True, le=False),
-    EChannelType.EXG_ADS1292R_2_CH2_24BIT: ChannelDataType(3, signed=True, le=False),
-    EChannelType.EXG_ADS1292R_1_CH1_16BIT: ChannelDataType(2, signed=True, le=False),
-    EChannelType.EXG_ADS1292R_1_CH2_16BIT: ChannelDataType(2, signed=True, le=False),
-    EChannelType.EXG_ADS1292R_2_CH1_16BIT: ChannelDataType(2, signed=True, le=False),
-    EChannelType.EXG_ADS1292R_2_CH2_16BIT: ChannelDataType(2, signed=True, le=False),
+    EChannelType.EXG1_STATUS: ChannelDataType(1, signed=False, le=True),
+    EChannelType.EXG1_CH1_24BIT: ChannelDataType(3, signed=True, le=False),
+    EChannelType.EXG1_CH2_24BIT: ChannelDataType(3, signed=True, le=False),
+    EChannelType.EXG2_STATUS: ChannelDataType(1, signed=False, le=True),
+    EChannelType.EXG2_CH1_24BIT: ChannelDataType(3, signed=True, le=False),
+    EChannelType.EXG2_CH2_24BIT: ChannelDataType(3, signed=True, le=False),
+    EChannelType.EXG1_CH1_16BIT: ChannelDataType(2, signed=True, le=False),
+    EChannelType.EXG1_CH2_16BIT: ChannelDataType(2, signed=True, le=False),
+    EChannelType.EXG2_CH1_16BIT: ChannelDataType(2, signed=True, le=False),
+    EChannelType.EXG2_CH2_16BIT: ChannelDataType(2, signed=True, le=False),
     EChannelType.STRAIN_HIGH: ChannelDataType(2, signed=False, le=True),
     EChannelType.STRAIN_LOW: ChannelDataType(2, signed=False, le=True),
     EChannelType.TIMESTAMP: ChannelDataType(3, signed=False, le=True),
@@ -289,60 +411,60 @@ SensorChannelAssignment: dict[ESensorGroup, list[EChannelType]] = {
         EChannelType.ACCEL_LN_Z,
     ],
     ESensorGroup.BATTERY: [EChannelType.VBATT],
-    ESensorGroup.CH_A7: [EChannelType.EXTERNAL_ADC_7],
-    ESensorGroup.CH_A6: [EChannelType.EXTERNAL_ADC_6],
-    ESensorGroup.CH_A15: [EChannelType.EXTERNAL_ADC_15],
-    ESensorGroup.CH_A12: [EChannelType.INTERNAL_ADC_12],
-    ESensorGroup.CH_A13: [EChannelType.INTERNAL_ADC_13],
-    ESensorGroup.CH_A14: [EChannelType.INTERNAL_ADC_14],
+    ESensorGroup.EXT_CH_A0: [EChannelType.EXTERNAL_ADC_A0],
+    ESensorGroup.EXT_CH_A1: [EChannelType.EXTERNAL_ADC_A1],
+    ESensorGroup.EXT_CH_A2: [EChannelType.EXTERNAL_ADC_A2],
+    ESensorGroup.INT_CH_A0: [EChannelType.INTERNAL_ADC_A0],
+    ESensorGroup.INT_CH_A1: [EChannelType.INTERNAL_ADC_A1],
+    ESensorGroup.INT_CH_A2: [EChannelType.INTERNAL_ADC_A2],
     ESensorGroup.STRAIN: [EChannelType.STRAIN_HIGH, EChannelType.STRAIN_LOW],
-    ESensorGroup.CH_A1: [EChannelType.INTERNAL_ADC_1],
+    ESensorGroup.INT_CH_A3: [EChannelType.INTERNAL_ADC_A3],
     ESensorGroup.GSR: [EChannelType.GSR_RAW],
     ESensorGroup.GYRO: [
-        EChannelType.GYRO_MPU9150_X,
-        EChannelType.GYRO_MPU9150_Y,
-        EChannelType.GYRO_MPU9150_Z,
+        EChannelType.GYRO_X,
+        EChannelType.GYRO_Y,
+        EChannelType.GYRO_Z,
     ],
     ESensorGroup.ACCEL_WR: [
-        EChannelType.ACCEL_LSM303DLHC_X,
-        EChannelType.ACCEL_LSM303DLHC_Y,
-        EChannelType.ACCEL_LSM303DLHC_Z,
+        EChannelType.ACCEL_WR_X,
+        EChannelType.ACCEL_WR_Y,
+        EChannelType.ACCEL_WR_Z,
     ],
-    ESensorGroup.MAG: [
-        EChannelType.MAG_LSM303DLHC_X,
-        EChannelType.MAG_LSM303DLHC_Y,
-        EChannelType.MAG_LSM303DLHC_Z,
+    ESensorGroup.MAG_REG: [
+        EChannelType.MAG_REG_X,
+        EChannelType.MAG_REG_Y,
+        EChannelType.MAG_REG_Z,
     ],
-    ESensorGroup.ACCEL_MPU: [
-        EChannelType.ACCEL_MPU9150_X,
-        EChannelType.ACCEL_MPU9150_Y,
-        EChannelType.ACCEL_MPU9150_Z,
+    ESensorGroup.ACCEL_HG: [
+        EChannelType.ACCEL_HG_X,
+        EChannelType.ACCEL_HG_Y,
+        EChannelType.ACCEL_HG_Z,
     ],
-    ESensorGroup.MAG_MPU: [
-        EChannelType.MAG_MPU9150_X,
-        EChannelType.MAG_MPU9150_Y,
-        EChannelType.MAG_MPU9150_Z,
+    ESensorGroup.MAG_WR: [
+        EChannelType.MAG_WR_X,
+        EChannelType.MAG_WR_Y,
+        EChannelType.MAG_WR_Z,
     ],
-    ESensorGroup.PRESSURE: [EChannelType.TEMP_BMPX80, EChannelType.PRESSURE_BMPX80],
+    ESensorGroup.PRESSURE: [EChannelType.TEMPERATURE, EChannelType.PRESSURE],
     ESensorGroup.EXG1_24BIT: [
-        EChannelType.EXG_ADS1292R_1_STATUS,
-        EChannelType.EXG_ADS1292R_1_CH1_24BIT,
-        EChannelType.EXG_ADS1292R_1_CH2_24BIT,
+        EChannelType.EXG1_STATUS,
+        EChannelType.EXG1_CH1_24BIT,
+        EChannelType.EXG1_CH2_24BIT,
     ],
     ESensorGroup.EXG1_16BIT: [
-        EChannelType.EXG_ADS1292R_1_STATUS,
-        EChannelType.EXG_ADS1292R_1_CH1_16BIT,
-        EChannelType.EXG_ADS1292R_1_CH2_16BIT,
+        EChannelType.EXG1_STATUS,
+        EChannelType.EXG1_CH1_16BIT,
+        EChannelType.EXG1_CH2_16BIT,
     ],
     ESensorGroup.EXG2_24BIT: [
-        EChannelType.EXG_ADS1292R_2_STATUS,
-        EChannelType.EXG_ADS1292R_2_CH1_24BIT,
-        EChannelType.EXG_ADS1292R_2_CH2_24BIT,
+        EChannelType.EXG2_STATUS,
+        EChannelType.EXG2_CH1_24BIT,
+        EChannelType.EXG2_CH2_24BIT,
     ],
     ESensorGroup.EXG2_16BIT: [
-        EChannelType.EXG_ADS1292R_2_STATUS,
-        EChannelType.EXG_ADS1292R_2_CH1_16BIT,
-        EChannelType.EXG_ADS1292R_2_CH2_16BIT,
+        EChannelType.EXG2_STATUS,
+        EChannelType.EXG2_CH1_16BIT,
+        EChannelType.EXG2_CH2_16BIT,
     ],
     # The MPU9150 Temp sensor is not yet available as a channel in the LogAndStream
     # firmware
@@ -357,23 +479,23 @@ bitfield.
 SensorBitAssignments: dict[ESensorGroup, int] = {
     ESensorGroup.ACCEL_LN: 0x80 << 0 * 8,
     ESensorGroup.GYRO: 0x40 << 0 * 8,
-    ESensorGroup.MAG: 0x20 << 0 * 8,
+    ESensorGroup.MAG_REG: 0x20 << 0 * 8,
     ESensorGroup.EXG1_24BIT: 0x10 << 0 * 8,
     ESensorGroup.EXG2_24BIT: 0x08 << 0 * 8,
     ESensorGroup.GSR: 0x04 << 0 * 8,
-    ESensorGroup.CH_A7: 0x02 << 0 * 8,
-    ESensorGroup.CH_A6: 0x01 << 0 * 8,
+    ESensorGroup.EXT_CH_A0: 0x02 << 0 * 8,
+    ESensorGroup.EXT_CH_A1: 0x01 << 0 * 8,
     ESensorGroup.STRAIN: 0x80 << 1 * 8,
     # No assignment             0x40 << 1 * 8,
     ESensorGroup.BATTERY: 0x20 << 1 * 8,
     ESensorGroup.ACCEL_WR: 0x10 << 1 * 8,
-    ESensorGroup.CH_A15: 0x08 << 1 * 8,
-    ESensorGroup.CH_A1: 0x04 << 1 * 8,
-    ESensorGroup.CH_A12: 0x02 << 1 * 8,
-    ESensorGroup.CH_A13: 0x01 << 1 * 8,
-    ESensorGroup.CH_A14: 0x80 << 2 * 8,
-    ESensorGroup.ACCEL_MPU: 0x40 << 2 * 8,
-    ESensorGroup.MAG_MPU: 0x20 << 2 * 8,
+    ESensorGroup.EXT_CH_A2: 0x08 << 1 * 8,
+    ESensorGroup.INT_CH_A3: 0x04 << 1 * 8,
+    ESensorGroup.INT_CH_A0: 0x02 << 1 * 8,
+    ESensorGroup.INT_CH_A1: 0x01 << 1 * 8,
+    ESensorGroup.INT_CH_A2: 0x80 << 2 * 8,
+    ESensorGroup.ACCEL_HG: 0x40 << 2 * 8,
+    ESensorGroup.MAG_WR: 0x20 << 2 * 8,
     ESensorGroup.EXG1_16BIT: 0x10 << 2 * 8,
     ESensorGroup.EXG2_16BIT: 0x08 << 2 * 8,
     ESensorGroup.PRESSURE: 0x04 << 2 * 8,
@@ -383,20 +505,20 @@ SensorBitAssignments: dict[ESensorGroup, int] = {
 SensorOrder: dict[ESensorGroup, int] = {
     ESensorGroup.ACCEL_LN: 1,
     ESensorGroup.BATTERY: 2,
-    ESensorGroup.CH_A7: 3,
-    ESensorGroup.CH_A6: 4,
-    ESensorGroup.CH_A15: 5,
-    ESensorGroup.CH_A12: 6,
-    ESensorGroup.CH_A13: 7,
-    ESensorGroup.CH_A14: 8,
+    ESensorGroup.EXT_CH_A0: 3,
+    ESensorGroup.EXT_CH_A1: 4,
+    ESensorGroup.EXT_CH_A2: 5,
+    ESensorGroup.INT_CH_A0: 6,
+    ESensorGroup.INT_CH_A1: 7,
+    ESensorGroup.INT_CH_A2: 8,
     ESensorGroup.STRAIN: 9,
-    ESensorGroup.CH_A1: 10,
+    ESensorGroup.INT_CH_A3: 10,
     ESensorGroup.GSR: 11,
     ESensorGroup.GYRO: 12,
     ESensorGroup.ACCEL_WR: 13,
-    ESensorGroup.MAG: 14,
-    ESensorGroup.ACCEL_MPU: 15,
-    ESensorGroup.MAG_MPU: 16,
+    ESensorGroup.MAG_REG: 14,
+    ESensorGroup.ACCEL_HG: 15,
+    ESensorGroup.MAG_WR: 16,
     ESensorGroup.PRESSURE: 17,
     ESensorGroup.EXG1_24BIT: 18,
     ESensorGroup.EXG1_16BIT: 19,

@@ -217,7 +217,7 @@ class BluetoothRequestHandlerTest(TestCase):
         data_pkt_1 = b"\x00\xde\xd0\xb2\x26\x07"
         data_pkt_2 = b"\x00\x1e\xd1\xb2\xfc\x06"
 
-        ch_types = [EChannelType.TIMESTAMP, EChannelType.INTERNAL_ADC_13]
+        ch_types = [EChannelType.TIMESTAMP, EChannelType.INTERNAL_ADC_A1]
         self._sot.set_stream_types([(c, ChDataTypeAssignment[c]) for c in ch_types])
         self._sot.add_stream_callback(results.append)
 
@@ -230,7 +230,7 @@ class BluetoothRequestHandlerTest(TestCase):
 
         self.assertEqual(pkt.channels, ch_types)
         self.assertEqual(pkt[EChannelType.TIMESTAMP], 0xB2D0DE)
-        self.assertEqual(pkt[EChannelType.INTERNAL_ADC_13], 0x0726)
+        self.assertEqual(pkt[EChannelType.INTERNAL_ADC_A1], 0x0726)
 
         self._sot.process_single_input_event()
         self.assertEqual(len(results), 2)
@@ -238,7 +238,7 @@ class BluetoothRequestHandlerTest(TestCase):
 
         self.assertEqual(pkt.channels, ch_types)
         self.assertEqual(pkt[EChannelType.TIMESTAMP], 0xB2D11E)
-        self.assertEqual(pkt[EChannelType.INTERNAL_ADC_13], 0x06FC)
+        self.assertEqual(pkt[EChannelType.INTERNAL_ADC_A1], 0x06FC)
 
     def test_get_status_response(self):
         status_resp: list[list[bool]] = []
@@ -419,7 +419,7 @@ class ShimmerBluetoothIntegrationTest(TestCase):
         r = self._sot.get_data_types()
 
         self.assertEqual(ftr.result(), b"\x01")
-        self.assertEqual(r, [EChannelType.TIMESTAMP, EChannelType.INTERNAL_ADC_13])
+        self.assertEqual(r, [EChannelType.TIMESTAMP, EChannelType.INTERNAL_ADC_A1])
 
     def test_streaming(self):
         self.do_setup()
@@ -449,7 +449,7 @@ class ShimmerBluetoothIntegrationTest(TestCase):
         pkt = pkts[0]
 
         self.assertEqual(pkt[EChannelType.TIMESTAMP], 15995685)
-        self.assertEqual(pkt[EChannelType.INTERNAL_ADC_13], 1866)
+        self.assertEqual(pkt[EChannelType.INTERNAL_ADC_A1], 1866)
 
     def test_status_update(self):
         self.do_setup()

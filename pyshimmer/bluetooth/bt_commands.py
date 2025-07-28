@@ -406,7 +406,7 @@ class InquiryCommand(ResponseCommand):
     @staticmethod
     def decode_channel_types(ct_bin: bytes) -> list[EChannelType]:
         ctypes_index = struct.unpack("B" * len(ct_bin), ct_bin)
-        ctypes = [BtChannelsByIndex[i] for i in ctypes_index]
+        ctypes = [EChannelType.enum_for_id(i) for i in ctypes_index]
         return ctypes
 
     def send(self, ser: BluetoothSerial) -> None:
