@@ -170,16 +170,16 @@ class DeviceChannelsTest(TestCase):
         self.assertEqual(r, expected)
 
         sensors = [
-            ESensorGroup.CH_A15,
-            ESensorGroup.MAG_MPU,
+            ESensorGroup.EXT_CH_A2,
+            ESensorGroup.MAG_WR,
             ESensorGroup.ACCEL_LN,
-            ESensorGroup.CH_A15,
+            ESensorGroup.EXT_CH_A2,
         ]
         expected = [
             ESensorGroup.ACCEL_LN,
-            ESensorGroup.CH_A15,
-            ESensorGroup.CH_A15,
-            ESensorGroup.MAG_MPU,
+            ESensorGroup.EXT_CH_A2,
+            ESensorGroup.EXT_CH_A2,
+            ESensorGroup.MAG_WR,
         ]
         r = sort_sensors(sensors)
         self.assertEqual(r, expected)

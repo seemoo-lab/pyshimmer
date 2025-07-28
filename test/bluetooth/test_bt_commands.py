@@ -136,7 +136,7 @@ class BluetoothCommandsTest(TestCase):
     def test_set_sensors_command(self):
         sensors = [
             ESensorGroup.GYRO,
-            ESensorGroup.CH_A13,
+            ESensorGroup.INT_CH_A1,
             ESensorGroup.PRESSURE,
         ]
         cmd = SetSensorsCommand(sensors)

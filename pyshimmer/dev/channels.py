@@ -254,6 +254,8 @@ class EChannelType(Enum):
     TIMESTAMP = (0x100, False)
 
     def __new__(cls, channel_id: int, is_public: bool):
+        # Strips the is_public argument from the tuple and only assigns the
+        # channel ID as enum value
         obj = object.__new__(cls)
         obj._value_ = channel_id
         obj._channel_id = channel_id
@@ -304,21 +306,21 @@ class ESensorGroup(Enum):
     # Battery sensor
     BATTERY = auto()
     # External ADC channel 7
-    CH_A7 = auto()
+    EXT_CH_A0 = auto()
     # External ADC channel 6
-    CH_A6 = auto()
+    EXT_CH_A1 = auto()
     # External ADC channel 15
-    CH_A15 = auto()
+    EXT_CH_A2 = auto()
     # Internal ADC channel 12
-    CH_A12 = auto()
+    INT_CH_A0 = auto()
     # Internal ADC channel 13, shares the ADC converter with STRAIN
-    CH_A13 = auto()
+    INT_CH_A1 = auto()
     # Internal ADC channel 14, shares the ADC converter with STRAIN
-    CH_A14 = auto()
+    INT_CH_A2 = auto()
     # Strain sensor with two channels LOW/HIGH, shares the ADC converter with A13, A14
     STRAIN = auto()
     # Internal ADC channel 1, shares its ADC converter with the GSR sensor
-    CH_A1 = auto()
+    INT_CH_A3 = auto()
     # GSR sensor, shares the ADC with channel A1
     GSR = auto()
     # MPU9150 Gyro Sensor
@@ -326,11 +328,11 @@ class ESensorGroup(Enum):
     # Digital accelerometer on the LSM303DLHC chip
     ACCEL_WR = auto()
     # Mag sensor on the LSM303DLHC chip
-    MAG = auto()
+    MAG_REG = auto()
     # Accelerometer on the MPU9150 chip
-    ACCEL_MPU = auto()
+    ACCEL_HG = auto()
     # Mag sensor on the MPU9150 chip
-    MAG_MPU = auto()
+    MAG_WR = auto()
     # Temperature sensor on the MPU9150 chip, not yet available as channel in the
     # LogAndStream firmware
     TEMP = auto()
@@ -409,14 +411,14 @@ SensorChannelAssignment: dict[ESensorGroup, list[EChannelType]] = {
         EChannelType.ACCEL_LN_Z,
     ],
     ESensorGroup.BATTERY: [EChannelType.VBATT],
-    ESensorGroup.CH_A7: [EChannelType.EXTERNAL_ADC_A0],
-    ESensorGroup.CH_A6: [EChannelType.EXTERNAL_ADC_A1],
-    ESensorGroup.CH_A15: [EChannelType.EXTERNAL_ADC_A2],
-    ESensorGroup.CH_A12: [EChannelType.INTERNAL_ADC_A0],
-    ESensorGroup.CH_A13: [EChannelType.INTERNAL_ADC_A1],
-    ESensorGroup.CH_A14: [EChannelType.INTERNAL_ADC_A2],
+    ESensorGroup.EXT_CH_A0: [EChannelType.EXTERNAL_ADC_A0],
+    ESensorGroup.EXT_CH_A1: [EChannelType.EXTERNAL_ADC_A1],
+    ESensorGroup.EXT_CH_A2: [EChannelType.EXTERNAL_ADC_A2],
+    ESensorGroup.INT_CH_A0: [EChannelType.INTERNAL_ADC_A0],
+    ESensorGroup.INT_CH_A1: [EChannelType.INTERNAL_ADC_A1],
+    ESensorGroup.INT_CH_A2: [EChannelType.INTERNAL_ADC_A2],
     ESensorGroup.STRAIN: [EChannelType.STRAIN_HIGH, EChannelType.STRAIN_LOW],
-    ESensorGroup.CH_A1: [EChannelType.INTERNAL_ADC_A3],
+    ESensorGroup.INT_CH_A3: [EChannelType.INTERNAL_ADC_A3],
     ESensorGroup.GSR: [EChannelType.GSR_RAW],
     ESensorGroup.GYRO: [
         EChannelType.GYRO_X,
@@ -428,17 +430,17 @@ SensorChannelAssignment: dict[ESensorGroup, list[EChannelType]] = {
         EChannelType.ACCEL_WR_Y,
         EChannelType.ACCEL_WR_Z,
     ],
-    ESensorGroup.MAG: [
+    ESensorGroup.MAG_REG: [
         EChannelType.MAG_REG_X,
         EChannelType.MAG_REG_Y,
         EChannelType.MAG_REG_Z,
     ],
-    ESensorGroup.ACCEL_MPU: [
+    ESensorGroup.ACCEL_HG: [
         EChannelType.ACCEL_HG_X,
         EChannelType.ACCEL_HG_Y,
         EChannelType.ACCEL_HG_Z,
     ],
-    ESensorGroup.MAG_MPU: [
+    ESensorGroup.MAG_WR: [
         EChannelType.MAG_WR_X,
         EChannelType.MAG_WR_Y,
         EChannelType.MAG_WR_Z,
@@ -477,23 +479,23 @@ bitfield.
 SensorBitAssignments: dict[ESensorGroup, int] = {
     ESensorGroup.ACCEL_LN: 0x80 << 0 * 8,
     ESensorGroup.GYRO: 0x40 << 0 * 8,
-    ESensorGroup.MAG: 0x20 << 0 * 8,
+    ESensorGroup.MAG_REG: 0x20 << 0 * 8,
     ESensorGroup.EXG1_24BIT: 0x10 << 0 * 8,
     ESensorGroup.EXG2_24BIT: 0x08 << 0 * 8,
     ESensorGroup.GSR: 0x04 << 0 * 8,
-    ESensorGroup.CH_A7: 0x02 << 0 * 8,
-    ESensorGroup.CH_A6: 0x01 << 0 * 8,
+    ESensorGroup.EXT_CH_A0: 0x02 << 0 * 8,
+    ESensorGroup.EXT_CH_A1: 0x01 << 0 * 8,
     ESensorGroup.STRAIN: 0x80 << 1 * 8,
     # No assignment             0x40 << 1 * 8,
     ESensorGroup.BATTERY: 0x20 << 1 * 8,
     ESensorGroup.ACCEL_WR: 0x10 << 1 * 8,
-    ESensorGroup.CH_A15: 0x08 << 1 * 8,
-    ESensorGroup.CH_A1: 0x04 << 1 * 8,
-    ESensorGroup.CH_A12: 0x02 << 1 * 8,
-    ESensorGroup.CH_A13: 0x01 << 1 * 8,
-    ESensorGroup.CH_A14: 0x80 << 2 * 8,
-    ESensorGroup.ACCEL_MPU: 0x40 << 2 * 8,
-    ESensorGroup.MAG_MPU: 0x20 << 2 * 8,
+    ESensorGroup.EXT_CH_A2: 0x08 << 1 * 8,
+    ESensorGroup.INT_CH_A3: 0x04 << 1 * 8,
+    ESensorGroup.INT_CH_A0: 0x02 << 1 * 8,
+    ESensorGroup.INT_CH_A1: 0x01 << 1 * 8,
+    ESensorGroup.INT_CH_A2: 0x80 << 2 * 8,
+    ESensorGroup.ACCEL_HG: 0x40 << 2 * 8,
+    ESensorGroup.MAG_WR: 0x20 << 2 * 8,
     ESensorGroup.EXG1_16BIT: 0x10 << 2 * 8,
     ESensorGroup.EXG2_16BIT: 0x08 << 2 * 8,
     ESensorGroup.PRESSURE: 0x04 << 2 * 8,
@@ -503,20 +505,20 @@ SensorBitAssignments: dict[ESensorGroup, int] = {
 SensorOrder: dict[ESensorGroup, int] = {
     ESensorGroup.ACCEL_LN: 1,
     ESensorGroup.BATTERY: 2,
-    ESensorGroup.CH_A7: 3,
-    ESensorGroup.CH_A6: 4,
-    ESensorGroup.CH_A15: 5,
-    ESensorGroup.CH_A12: 6,
-    ESensorGroup.CH_A13: 7,
-    ESensorGroup.CH_A14: 8,
+    ESensorGroup.EXT_CH_A0: 3,
+    ESensorGroup.EXT_CH_A1: 4,
+    ESensorGroup.EXT_CH_A2: 5,
+    ESensorGroup.INT_CH_A0: 6,
+    ESensorGroup.INT_CH_A1: 7,
+    ESensorGroup.INT_CH_A2: 8,
     ESensorGroup.STRAIN: 9,
-    ESensorGroup.CH_A1: 10,
+    ESensorGroup.INT_CH_A3: 10,
     ESensorGroup.GSR: 11,
     ESensorGroup.GYRO: 12,
     ESensorGroup.ACCEL_WR: 13,
-    ESensorGroup.MAG: 14,
-    ESensorGroup.ACCEL_MPU: 15,
-    ESensorGroup.MAG_MPU: 16,
+    ESensorGroup.MAG_REG: 14,
+    ESensorGroup.ACCEL_HG: 15,
+    ESensorGroup.MAG_WR: 16,
     ESensorGroup.PRESSURE: 17,
     ESensorGroup.EXG1_24BIT: 18,
     ESensorGroup.EXG1_16BIT: 19,

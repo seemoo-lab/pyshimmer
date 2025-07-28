@@ -41,7 +41,7 @@ class ShimmerReaderTest(TestCase):
             exp_sensors = [
                 ESensorGroup.ACCEL_LN,
                 ESensorGroup.BATTERY,
-                ESensorGroup.CH_A13,
+                ESensorGroup.INT_CH_A1,
             ]
             exp_channels = [
                 EChannelType.TIMESTAMP,
@@ -87,7 +87,7 @@ class ShimmerReaderTest(TestCase):
             reader = ShimmerBinaryReader(f)
 
             exp_dr = 64
-            exp_sensors = [ESensorGroup.CH_A13]
+            exp_sensors = [ESensorGroup.INT_CH_A1]
             exp_channels = [EChannelType.TIMESTAMP, EChannelType.INTERNAL_ADC_A1]
             exp_offsets = np.array([372, 362, 364, 351])
             exp_sync_ts = np.array([3725366, 4071094, 4397558, 4724022])
