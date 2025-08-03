@@ -43,7 +43,7 @@ TRIAXCAL_FILE_OFFSET = {
     ESensorGroup.ACCEL_LN: 0x8B,
     ESensorGroup.ACCEL_WR: 0x4C,
     ESensorGroup.GYRO: 0x61,
-    ESensorGroup.MAG: 0x76,
+    ESensorGroup.MAG_REG: 0x76,
 }
 
 # Scaling value by which the calibration offset will be scaled upon deserialization
@@ -51,7 +51,7 @@ TRIAXCAL_OFFSET_SCALING = {
     ESensorGroup.ACCEL_LN: 1.0,
     ESensorGroup.ACCEL_WR: 1.0,
     ESensorGroup.GYRO: 1.0,
-    ESensorGroup.MAG: 1.0,
+    ESensorGroup.MAG_REG: 1.0,
 }
 
 # Scaling value by which the calibration gain will be scaled upon deserialization
@@ -59,7 +59,7 @@ TRIAXCAL_GAIN_SCALING = {
     ESensorGroup.ACCEL_LN: 1.0,
     ESensorGroup.ACCEL_WR: 1.0,
     ESensorGroup.GYRO: 1.0 / 100.0,
-    ESensorGroup.MAG: 1.0,
+    ESensorGroup.MAG_REG: 1.0,
 }
 
 # Scaling value by which the calibration alignment matrix will be scaled upon
@@ -68,7 +68,7 @@ TRIAXCAL_ALIGNMENT_SCALING = {
     ESensorGroup.ACCEL_LN: 1.0 / 100.0,
     ESensorGroup.ACCEL_WR: 1.0 / 100.0,
     ESensorGroup.GYRO: 1.0 / 100.0,
-    ESensorGroup.MAG: 1.0 / 100.0,
+    ESensorGroup.MAG_REG: 1.0 / 100.0,
 }
 
 TRIAXCAL_SENSORS = list(TRIAXCAL_FILE_OFFSET.keys())

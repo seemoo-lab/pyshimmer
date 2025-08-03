@@ -136,7 +136,7 @@ class BluetoothCommandsTest(TestCase):
     def test_set_sensors_command(self):
         sensors = [
             ESensorGroup.GYRO,
-            ESensorGroup.CH_A13,
+            ESensorGroup.INT_CH_A1,
             ESensorGroup.PRESSURE,
         ]
         cmd = SetSensorsCommand(sensors)
@@ -184,7 +184,7 @@ class BluetoothCommandsTest(TestCase):
 
         self.assertEqual(sr, 512.0)
         self.assertEqual(buf_size, 1)
-        self.assertEqual(ctypes, [EChannelType.INTERNAL_ADC_13])
+        self.assertEqual(ctypes, [EChannelType.INTERNAL_ADC_A1])
 
     def test_start_streaming_command(self):
         cmd = StartStreamingCommand()
@@ -275,7 +275,7 @@ class BluetoothCommandsTest(TestCase):
     def test_data_packet(self):
         serial, mock = self.create_mock()
 
-        channels = [EChannelType.TIMESTAMP, EChannelType.INTERNAL_ADC_13]
+        channels = [EChannelType.TIMESTAMP, EChannelType.INTERNAL_ADC_A1]
         data_types = [ChDataTypeAssignment[c] for c in channels]
         ch_and_types = list(zip(channels, data_types))
 
@@ -287,4 +287,4 @@ class BluetoothCommandsTest(TestCase):
         pkt.receive(serial)
 
         self.assertEqual(pkt[EChannelType.TIMESTAMP], 0xB2D0DE)
-        self.assertEqual(pkt[EChannelType.INTERNAL_ADC_13], 0x0726)
+        self.assertEqual(pkt[EChannelType.INTERNAL_ADC_A1], 0x0726)

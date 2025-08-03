@@ -17,6 +17,8 @@ from __future__ import annotations
 
 from unittest import TestCase
 
+import pytest
+
 from pyshimmer.dev.channels import (
     ChDataTypeAssignment,
     get_ch_dtypes,
@@ -37,6 +39,26 @@ class DeviceChannelsTest(TestCase):
             from pyshimmer.dev.channels import EChannelType
         except ValueError as e:
             self.fail(f"Enum not unique: {e}")
+
+    def test_e_channel_type(self):
+        assert EChannelType.VBATT.value == 0x03
+        assert EChannelType.VBATT.channel_id == 0x03
+        assert EChannelType.VBATT.is_public
+
+        assert EChannelType.TIMESTAMP.value == 0x100
+        assert EChannelType.TIMESTAMP.channel_id == 0x100
+        assert EChannelType.TIMESTAMP.is_public is False
+
+    def test_channel_type_enum_for_id(self):
+        assert EChannelType.enum_for_id(0x03) is EChannelType.VBATT
+
+        with pytest.raises(ValueError):
+            # Unknown ID
+            EChannelType.enum_for_id(0x4242)
+
+        with pytest.raises(ValueError):
+            # Timestamp is not public
+            EChannelType.enum_for_id(0x100)
 
     def test_channel_data_type_decoding(self):
         def test_both_endianess(byte_val_le: bytes, expected: int, signed: bool):
@@ -98,7 +120,7 @@ class DeviceChannelsTest(TestCase):
         test_both_endianess(-0x12345, 3, b"\xbb\xdc\xfe", signed=True)
 
     def test_get_ch_dtypes(self):
-        channels = [EChannelType.INTERNAL_ADC_13, EChannelType.GYRO_MPU9150_Y]
+        channels = [EChannelType.INTERNAL_ADC_A1, EChannelType.GYRO_Y]
         r = get_ch_dtypes(channels)
 
         self.assertEqual(len(r), 2)
@@ -148,16 +170,16 @@ class DeviceChannelsTest(TestCase):
         self.assertEqual(r, expected)
 
         sensors = [
-            ESensorGroup.CH_A15,
-            ESensorGroup.MAG_MPU,
+            ESensorGroup.EXT_CH_A2,
+            ESensorGroup.MAG_WR,
             ESensorGroup.ACCEL_LN,
-            ESensorGroup.CH_A15,
+            ESensorGroup.EXT_CH_A2,
         ]
         expected = [
             ESensorGroup.ACCEL_LN,
-            ESensorGroup.CH_A15,
-            ESensorGroup.CH_A15,
-            ESensorGroup.MAG_MPU,
+            ESensorGroup.EXT_CH_A2,
+            ESensorGroup.EXT_CH_A2,
+            ESensorGroup.MAG_WR,
         ]
         r = sort_sensors(sensors)
         self.assertEqual(r, expected)

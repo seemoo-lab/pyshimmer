@@ -38,16 +38,16 @@ def randbytes(k: int) -> bytes:
 class DeviceExGTest(TestCase):
 
     def test_get_exg_ch(self):
-        self.assertEqual(get_exg_ch(EChannelType.EXG_ADS1292R_1_CH1_24BIT), (0, 0))
-        self.assertEqual(get_exg_ch(EChannelType.EXG_ADS1292R_1_CH2_24BIT), (0, 1))
-        self.assertEqual(get_exg_ch(EChannelType.EXG_ADS1292R_2_CH1_24BIT), (1, 0))
-        self.assertEqual(get_exg_ch(EChannelType.EXG_ADS1292R_2_CH2_24BIT), (1, 1))
+        self.assertEqual(get_exg_ch(EChannelType.EXG1_CH1_24BIT), (0, 0))
+        self.assertEqual(get_exg_ch(EChannelType.EXG1_CH2_24BIT), (0, 1))
+        self.assertEqual(get_exg_ch(EChannelType.EXG2_CH1_24BIT), (1, 0))
+        self.assertEqual(get_exg_ch(EChannelType.EXG2_CH2_24BIT), (1, 1))
 
     def test_is_exg_ch(self):
         from itertools import product
 
         valid_ch = [
-            EChannelType[f"EXG_ADS1292R_{i}_CH{j}_{k}BIT"]
+            EChannelType[f"EXG{i}_CH{j}_{k}BIT"]
             for i, j, k in product([1, 2], [1, 2], [16, 24])
         ]
 
