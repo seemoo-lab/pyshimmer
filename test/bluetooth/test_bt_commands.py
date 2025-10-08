@@ -179,7 +179,7 @@ class BluetoothCommandsTest(TestCase):
     def test_inquiry_command(self):
         cmd = InquiryCommand()
         sr, buf_size, ctypes = self.assert_cmd(
-            cmd, b"\x01", b"\x02", b"\x02\x40\x00\x01\xff\x01\x09\x01\x01\x12"
+            cmd, b"\x01", b"\x02", b"\x02\x40\x00\x01\xff\x01\x09\x01\x01\x01"
         )
 
         self.assertEqual(sr, 512.0)
@@ -208,9 +208,9 @@ class BluetoothCommandsTest(TestCase):
         cmd = InquiryCommand(HardwareVersion.SHIMMER3R)
         sr, buf_size, ctypes = self.assert_cmd(cmd, b"\x01", b"\x02", resp_3r)
 
-        self.assertEqual(sr, 502.0)
+        self.assertEqual(sr, 512.0)
         self.assertEqual(buf_size, 1)
-        self.assertEqual(ctypes, [EChannelType.INTERNAL_ADC_A1])
+        self.assertEqual(ctypes, [EChannelType.ACCEL_LN_X])
 
     def test_start_streaming_command(self):
         cmd = StartStreamingCommand()
