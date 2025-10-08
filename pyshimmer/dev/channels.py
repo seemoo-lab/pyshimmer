@@ -19,6 +19,7 @@ import struct
 from collections.abc import Iterable
 from enum import Enum, auto, unique
 
+from pyshimmer.dev.fw_version import HardwareVersion
 from pyshimmer.util import raise_to_next_pow, unpack, flatten_list, bit_is_set
 
 
@@ -355,7 +356,7 @@ class ESensorGroup(Enum):
 """
 Assigns each channel type its appropriate data type.
 """
-ChDataTypeAssignment: dict[EChannelType, ChannelDataType] = {
+ChDataTypeAssignmentShimmer3: dict[EChannelType, ChannelDataType] = {
     EChannelType.ACCEL_LN_X: ChannelDataType(2, signed=True, le=True),
     EChannelType.ACCEL_LN_Y: ChannelDataType(2, signed=True, le=True),
     EChannelType.ACCEL_LN_Z: ChannelDataType(2, signed=True, le=True),
@@ -399,6 +400,58 @@ ChDataTypeAssignment: dict[EChannelType, ChannelDataType] = {
     EChannelType.STRAIN_LOW: ChannelDataType(2, signed=False, le=True),
     EChannelType.TIMESTAMP: ChannelDataType(3, signed=False, le=True),
 }
+
+"""
+Assigns each channel type its appropriate data type.
+"""
+ChDataTypeAssignmentShimmer3R: dict[EChannelType, ChannelDataType] = {
+    EChannelType.ACCEL_LN_X: ChannelDataType(2, signed=True, le=True),
+    EChannelType.ACCEL_LN_Y: ChannelDataType(2, signed=True, le=True),
+    EChannelType.ACCEL_LN_Z: ChannelDataType(2, signed=True, le=True),
+    EChannelType.VBATT: ChannelDataType(2, signed=True, le=True),
+    EChannelType.ACCEL_WR_X: ChannelDataType(2, signed=True, le=True),
+    EChannelType.ACCEL_WR_Y: ChannelDataType(2, signed=True, le=True),
+    EChannelType.ACCEL_WR_Z: ChannelDataType(2, signed=True, le=True),
+    EChannelType.MAG_REG_X: ChannelDataType(2, signed=True, le=True),
+    EChannelType.MAG_REG_Y: ChannelDataType(2, signed=True, le=True),
+    EChannelType.MAG_REG_Z: ChannelDataType(2, signed=True, le=True),
+    EChannelType.GYRO_X: ChannelDataType(2, signed=True, le=True),
+    EChannelType.GYRO_Y: ChannelDataType(2, signed=True, le=True),
+    EChannelType.GYRO_Z: ChannelDataType(2, signed=True, le=True),
+    EChannelType.EXTERNAL_ADC_A0: ChannelDataType(2, signed=False, le=True),
+    EChannelType.EXTERNAL_ADC_A1: ChannelDataType(2, signed=False, le=True),
+    EChannelType.EXTERNAL_ADC_A2: ChannelDataType(2, signed=False, le=True),
+    EChannelType.INTERNAL_ADC_A3: ChannelDataType(2, signed=False, le=True),
+    EChannelType.INTERNAL_ADC_A0: ChannelDataType(2, signed=False, le=True),
+    EChannelType.INTERNAL_ADC_A1: ChannelDataType(2, signed=False, le=True),
+    EChannelType.INTERNAL_ADC_A2: ChannelDataType(2, signed=False, le=True),
+    EChannelType.ACCEL_HG_X: None,
+    EChannelType.ACCEL_HG_Y: None,
+    EChannelType.ACCEL_HG_Z: None,
+    EChannelType.MAG_WR_X: None,
+    EChannelType.MAG_WR_Y: None,
+    EChannelType.MAG_WR_Z: None,
+    EChannelType.TEMPERATURE: ChannelDataType(2, signed=False, le=False),
+    EChannelType.PRESSURE: ChannelDataType(3, signed=False, le=False),
+    EChannelType.GSR_RAW: ChannelDataType(2, signed=False, le=True),
+    EChannelType.EXG1_STATUS: ChannelDataType(1, signed=False, le=True),
+    EChannelType.EXG1_CH1_24BIT: ChannelDataType(3, signed=True, le=False),
+    EChannelType.EXG1_CH2_24BIT: ChannelDataType(3, signed=True, le=False),
+    EChannelType.EXG2_STATUS: ChannelDataType(1, signed=False, le=True),
+    EChannelType.EXG2_CH1_24BIT: ChannelDataType(3, signed=True, le=False),
+    EChannelType.EXG2_CH2_24BIT: ChannelDataType(3, signed=True, le=False),
+    EChannelType.EXG1_CH1_16BIT: ChannelDataType(2, signed=True, le=False),
+    EChannelType.EXG1_CH2_16BIT: ChannelDataType(2, signed=True, le=False),
+    EChannelType.EXG2_CH1_16BIT: ChannelDataType(2, signed=True, le=False),
+    EChannelType.EXG2_CH2_16BIT: ChannelDataType(2, signed=True, le=False),
+    EChannelType.STRAIN_HIGH: ChannelDataType(2, signed=False, le=True),
+    EChannelType.STRAIN_LOW: ChannelDataType(2, signed=False, le=True),
+    EChannelType.TIMESTAMP: ChannelDataType(3, signed=False, le=True),
+}
+
+ChDataTypeAssignmentShimmer: dict[EChannelType, ChannelDataType] = dict(ChDataTypeAssignmentShimmer3)
+
+ChDataTypeAssignment = ChDataTypeAssignmentShimmer
 
 """
 This dictionary contains the mapping from sensor to data channels. Since one sensor can
@@ -529,6 +582,14 @@ SensorOrder: dict[ESensorGroup, int] = {
 ENABLED_SENSORS_LEN = 0x03
 SENSOR_DTYPE = ChannelDataType(size=ENABLED_SENSORS_LEN, signed=False, le=True)
 
+def set_active_dtype_assignment(hw: HardwareVersion | None) -> None:
+    """
+    Mutate the active dtype map in-place to match the given hardware.
+    Using in-place mutation ensures modules that imported the dict earlier see the update.
+    """
+    target = ChDataTypeAssignmentShimmer3R if hw == HardwareVersion.SHIMMER3R else ChDataTypeAssignmentShimmer3
+    ChDataTypeAssignmentShimmer.clear()
+    ChDataTypeAssignmentShimmer.update(target)
 
 def get_enabled_channels(sensors: list[ESensorGroup]) -> list[EChannelType]:
     """Determine the set of data channels for a set of enabled sensors

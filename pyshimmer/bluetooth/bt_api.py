@@ -63,6 +63,7 @@ from pyshimmer.dev.channels import (
     ChannelDataType,
     EChannelType,
     ESensorGroup,
+    set_active_dtype_assignment,
 )
 from pyshimmer.dev.exg import ExGRegister
 from pyshimmer.dev.fw_version import (
@@ -384,7 +385,9 @@ class ShimmerBluetooth:
         """
         self._thread.start()
         self._set_fw_capabilities()
-
+        # Select the active channel dtype map for the detected hardware.
+        set_active_dtype_assignment(self._hw_version)   
+        
         if self.capabilities.supports_ack_disable and self._disable_ack:
             self.set_status_ack(enabled=False)
 
