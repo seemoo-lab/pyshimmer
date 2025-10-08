@@ -202,7 +202,7 @@ class BluetoothCommandsTest(TestCase):
             b"\x00\x00\x00"      # the 3 extra bytes for Shimmer3R
             b"\x01"              # n_ch
             b"\x01"              # buf_size
-            b"\x01"              # channel id
+            b"\x00"              # channel id
         )
 
         cmd = InquiryCommand(HardwareVersion.SHIMMER3R)
