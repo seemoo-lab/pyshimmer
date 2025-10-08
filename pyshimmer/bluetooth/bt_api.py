@@ -604,7 +604,8 @@ class ShimmerBluetooth:
             - The active data channels of the device as list, does not include the
               TIMESTAMP channel
         """
-        return self._process_and_wait(InquiryCommand())
+        cmd = InquiryCommand(self._hw_version)  # pass HW so the command knows header length
+        return self._process_and_wait(cmd)
 
     def get_data_types(self):
         """Get the active data channels of the device

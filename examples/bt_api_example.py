@@ -36,6 +36,9 @@ def main(args=None):
         + "]"
     )
 
+    hw_info = shim_dev.get_device_hardware_version()
+    print(f"- hardware: [{hw_info.name}]")
+
     shim_dev.add_stream_callback(stream_cb)
 
     shim_dev.start_streaming()
