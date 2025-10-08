@@ -186,6 +186,32 @@ class BluetoothCommandsTest(TestCase):
         self.assertEqual(buf_size, 1)
         self.assertEqual(ctypes, [EChannelType.INTERNAL_ADC_A1])
 
+    def test_inquiry_command_shimmer3r(self):
+    #   INQUIRY response layout for 3R:
+    #   0x02 (resp code)
+    #   sr_val = 0x0040
+    #   misc   = 0x0901FF01 (LE bytes: 01 FF 01 09)
+    #   + 3 extra bytes (skipped by parser)
+    #   n_ch   = 0x01
+    #   buf    = 0x01
+    #   channels[0] = 0x12 (INTERNAL_ADC_A1)
+        resp_3r = (
+            b"\x02"              # INQUIRY_RESPONSE
+            b"\x40\x00"          # sr_val (0x0040 = 512 Hz after dr2sr)
+            b"\x01\xff\x01\x09"  # misc (LE)
+            b"\x00\x00\x00"      # the 3 extra bytes for Shimmer3R
+            b"\x01"              # n_ch
+            b"\x01"              # buf_size
+            b"\x00"              # channel id
+        )
+
+        cmd = InquiryCommand(HardwareVersion.SHIMMER3R)
+        sr, buf_size, ctypes = self.assert_cmd(cmd, b"\x01", b"\x02", resp_3r)
+
+        self.assertEqual(sr, 512.0)
+        self.assertEqual(buf_size, 1)
+        self.assertEqual(ctypes, [EChannelType.ACCEL_LN_X])  # 0x01 = ACCEL_LN_X
+
     def test_start_streaming_command(self):
         cmd = StartStreamingCommand()
         self.assert_cmd(cmd, b"\x07")

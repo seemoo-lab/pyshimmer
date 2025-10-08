@@ -400,8 +400,9 @@ class InquiryCommand(ResponseCommand):
     channels
     """
 
-    def __init__(self):
+    def __init__(self, hw_version: HardwareVersion | None = None):
         super().__init__(INQUIRY_RESPONSE)
+        self._hw_version = hw_version
 
     @staticmethod
     def decode_channel_types(ct_bin: bytes) -> list[EChannelType]:
@@ -412,9 +413,14 @@ class InquiryCommand(ResponseCommand):
     def send(self, ser: BluetoothSerial) -> None:
         ser.write_command(INQUIRY_COMMAND)
 
+    def _is_shimmer3r(self) -> bool:
+        return self._hw_version == HardwareVersion.SHIMMER3R
+
+
     def receive(self, ser: BluetoothSerial) -> any:
+        fmt = "<HI3xBB" if self._is_shimmer3r() else "<HIBB"
         sr_val, _, n_ch, buf_size = ser.read_response(
-            INQUIRY_RESPONSE, arg_format="<HIBB"
+            INQUIRY_RESPONSE, arg_format=fmt
         )
         channel_conf = ser.read(n_ch)
 

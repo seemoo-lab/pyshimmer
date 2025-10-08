@@ -63,6 +63,7 @@ from pyshimmer.dev.channels import (
     ChannelDataType,
     EChannelType,
     ESensorGroup,
+    set_active_dtype_assignment,
 )
 from pyshimmer.dev.exg import ExGRegister
 from pyshimmer.dev.fw_version import (
@@ -384,7 +385,9 @@ class ShimmerBluetooth:
         """
         self._thread.start()
         self._set_fw_capabilities()
-
+        # Select the active channel dtype map for the detected hardware.
+        set_active_dtype_assignment(self._hw_version)   
+        
         if self.capabilities.supports_ack_disable and self._disable_ack:
             self.set_status_ack(enabled=False)
 
@@ -604,7 +607,8 @@ class ShimmerBluetooth:
             - The active data channels of the device as list, does not include the
               TIMESTAMP channel
         """
-        return self._process_and_wait(InquiryCommand())
+        cmd = InquiryCommand(self._hw_version)  # pass HW so the command knows header length
+        return self._process_and_wait(cmd)
 
     def get_data_types(self):
         """Get the active data channels of the device
