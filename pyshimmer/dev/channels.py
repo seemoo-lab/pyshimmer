@@ -23,14 +23,19 @@ from pyshimmer.util import flatten_list, bit_is_set
 
 
 class ChannelDataType:
-    """Represents the binary data type and format of a Shimmer data channel
-
-    Every channel that is recorded by a Shimmer device has a specific data type. This
-    class represents the data type of a single such channel, and is capable of decoding
-    binary data into the appropriate form.
-    """
 
     def __init__(self, size: int, signed: bool = True, le: bool = True):
+        """Represents the binary data type and format of a Shimmer data channel
+
+        Every channel that is recorded by a Shimmer device has a specific data type. This
+        class represents the data type of a single such channel, and is capable of decoding
+        binary data into the appropriate form.
+
+        :param size: Length of the data type in Bytes
+        :param signed: True if the data type is a signed integer
+        :param le: True if the data type is encoded little endian, False if the
+            data type is encoded big endian
+        """
         self._size = size
         self._signed = signed
         self._le = le
