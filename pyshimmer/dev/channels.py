@@ -482,6 +482,7 @@ SensorOrder: dict[ESensorGroup, int] = {
     ESensorGroup.EXG1_16BIT: 19,
     ESensorGroup.EXG2_24BIT: 20,
     ESensorGroup.EXG2_16BIT: 21,
+    ESensorGroup.TEMP: 22,
 }
 
 ENABLED_SENSORS_LEN = 0x03

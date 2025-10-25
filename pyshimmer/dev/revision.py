@@ -1,9 +1,13 @@
-from collections.abc import Iterable
-from pyshimmer.dev.channels import EChannelType, ChannelDataType, ESensorGroup
-
+import operator
 from abc import ABC, abstractmethod
+from collections.abc import Iterable
+from functools import reduce
 from typing import overload
+
 import numpy as np
+
+from pyshimmer.dev.channels import EChannelType, ChannelDataType, ESensorGroup
+from pyshimmer.util import bit_is_set, flatten_list
 
 
 class HardwareRevision(ABC):
@@ -101,6 +105,11 @@ class HardwareRevision(ABC):
         """
         pass
 
+    @property
+    @abstractmethod
+    def sensorlist_size(self) -> int:
+        pass
+
     @abstractmethod
     def sensors2bitfield(self, sensors: Iterable[ESensorGroup]) -> int:
         """Convert an iterable of sensors into the corresponding bitfield transmitted to
@@ -151,3 +160,91 @@ class HardwareRevision(ABC):
             appearance order in the data file
         """
         pass
+
+
+class BaseRevision(HardwareRevision):
+
+    def __init__(
+        self,
+        dev_clock_rate: float,
+        sensor_list_dtype: ChannelDataType,
+        channel_data_types: dict[EChannelType, ChannelDataType],
+        sensor_channel_assignment: dict[ESensorGroup, list[EChannelType]],
+        sensor_bit_assignment: dict[ESensorGroup, int],
+        sensor_order: dict[ESensorGroup, int],
+    ):
+        self._dev_clock_rate = dev_clock_rate
+        self._sensor_list_dtype = sensor_list_dtype
+        self._channel_data_types = channel_data_types
+        self._sensor_channel_assignment = sensor_channel_assignment
+        self._sensor_bit_assignment = sensor_bit_assignment
+        self._sensor_order = sensor_order
+
+    def sr2dr(self, sr: float) -> int:
+        dr_dec = self._dev_clock_rate / sr
+        return round(dr_dec)
+
+    def dr2sr(self, dr: int) -> float:
+        return self._dev_clock_rate / dr
+
+    @overload
+    def sec2ticks(self, t_sec: float) -> int: ...
+
+    @overload
+    def sec2ticks(self, t_sec: np.ndarray) -> np.ndarray: ...
+
+    def sec2ticks(self, t_sec: float | np.ndarray) -> int | np.ndarray:
+        return round(t_sec * self._dev_clock_rate)
+
+    @overload
+    def ticks2sec(self, t_ticks: int) -> float: ...
+
+    @overload
+    def ticks2sec(self, t_ticks: np.ndarray) -> np.ndarray: ...
+
+    def ticks2sec(self, t_ticks: int | np.ndarray) -> float | np.ndarray:
+        return t_ticks / self._dev_clock_rate
+
+    def get_channel_dtypes(
+        self, channels: Iterable[EChannelType]
+    ) -> list[ChannelDataType]:
+        dtypes = [self._channel_data_types[ch] for ch in channels]
+        return dtypes
+
+    def get_enabled_channels(
+        self, sensors: Iterable[ESensorGroup]
+    ) -> list[EChannelType]:
+        channels = [self._sensor_channel_assignment[e] for e in sensors]
+        return flatten_list(channels)
+
+    @property
+    def sensorlist_size(self) -> int:
+        return self._sensor_list_dtype.size
+
+    def sensors2bitfield(self, sensors: Iterable[ESensorGroup]) -> int:
+        bit_values = [1 << self._sensor_bit_assignment[g] for g in sensors]
+        return reduce(operator.or_, bit_values)
+
+    def bitfield2sensors(self, bitfield: int) -> list[ESensorGroup]:
+        enabled_sensors = []
+        for sensor in ESensorGroup:
+            bit_mask = 1 << self._sensor_bit_assignment[sensor]
+            if bit_is_set(bitfield, bit_mask):
+                enabled_sensors += [sensor]
+
+        return self.sort_sensors(enabled_sensors)
+
+    def serialize_sensorlist(self, sensors: Iterable[ESensorGroup]) -> bytes:
+        bitfield = self.sensors2bitfield(sensors)
+        return self._sensor_list_dtype.encode(bitfield)
+
+    def deserialize_sensorlist(self, bitfield_bin: bytes) -> list[ESensorGroup]:
+        bitfield = self._sensor_list_dtype.decode(bitfield_bin)
+        return self.bitfield2sensors(bitfield)
+
+    def sort_sensors(self, sensors: Iterable[ESensorGroup]) -> list[ESensorGroup]:
+        def sort_key_fn(x):
+            return self._sensor_order[x]
+
+        sensors_sorted = sorted(sensors, key=sort_key_fn)
+        return sensors_sorted

@@ -28,6 +28,8 @@ from pyshimmer.dev.channels import (
     EChannelType,
     ESensorGroup,
     sort_sensors,
+    sensors2bitfield,
+    bitfield2sensors,
 )
 
 
@@ -167,6 +169,19 @@ class ChannelFunctionsTest(TestCase):
         for sensor in ESensorGroup:
             if sensor not in SensorChannelAssignment:
                 self.fail(f"No channels assigned to sensor type: {sensor}")
+
+    def test_sensor_list_to_bitfield(self):
+        assert sensors2bitfield((ESensorGroup.ACCEL_LN, ESensorGroup.EXT_CH_A1)) == 0x81
+        assert sensors2bitfield((ESensorGroup.STRAIN, ESensorGroup.INT_CH_A1)) == 0x8100
+        assert sensors2bitfield((ESensorGroup.INT_CH_A2, ESensorGroup.TEMP)) == 0x820000
+
+    def test_bitfield_to_sensors(self):
+        assert bitfield2sensors(0x81) == [ESensorGroup.ACCEL_LN, ESensorGroup.EXT_CH_A1]
+        assert bitfield2sensors(0x8100) == [ESensorGroup.INT_CH_A1, ESensorGroup.STRAIN]
+        assert bitfield2sensors(0x820000) == [
+            ESensorGroup.INT_CH_A2,
+            ESensorGroup.TEMP,
+        ]
 
     def test_sensor_bit_assignments_uniqueness(self):
         for s1 in SensorBitAssignments.keys():
