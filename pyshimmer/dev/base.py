@@ -13,7 +13,9 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from typing import Union, overload
+from __future__ import annotations
+
+from typing import overload
 
 import numpy as np
 
@@ -26,8 +28,8 @@ DEFAULT_BAUDRATE = 115200
 def sr2dr(sr: float) -> int:
     """Calculate equivalent device-specific rate for a sample rate in Hz
 
-    Device-specific sample rates are given in absolute clock ticks per unit of time. This function can be used to
-    calculate such a rate for the Shimmer3.
+    Device-specific sample rates are given in absolute clock ticks per unit of time.
+    This function can be used to calculate such a rate for the Shimmer3.
 
     Args:
         sr(float): The sampling rate in Hz
@@ -42,8 +44,9 @@ def sr2dr(sr: float) -> int:
 def dr2sr(dr: int):
     """Calculate equivalent sampling rate for a given device-specific rate
 
-    Device-specific sample rates are given in absolute clock ticks per unit of time. This function can be used to
-    calculate a regular sampling rate in Hz from such a rate.
+    Device-specific sample rates are given in absolute clock ticks per unit of time.
+    This function can be used to calculate a regular sampling rate in Hz from such a
+    rate.
 
     Args:
         dr(int): The absolute device rate as int
@@ -62,7 +65,7 @@ def sec2ticks(t_sec: float) -> int: ...
 def sec2ticks(t_sec: np.ndarray) -> np.ndarray: ...
 
 
-def sec2ticks(t_sec: Union[float, np.ndarray]) -> Union[int, np.ndarray]:
+def sec2ticks(t_sec: float | np.ndarray) -> int | np.ndarray:
     """Calculate equivalent device clock ticks for a time in seconds
 
     Args:
@@ -81,7 +84,7 @@ def ticks2sec(t_ticks: int) -> float: ...
 def ticks2sec(t_ticks: np.ndarray) -> np.ndarray: ...
 
 
-def ticks2sec(t_ticks: Union[int, np.ndarray]) -> Union[float, np.ndarray]:
+def ticks2sec(t_ticks: int | np.ndarray) -> float | np.ndarray:
     """Calculate the time in seconds equivalent to a device clock ticks count
 
     Args:

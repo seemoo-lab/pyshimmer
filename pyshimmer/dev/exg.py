@@ -13,9 +13,10 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from __future__ import annotations
+
 import re
 from enum import Enum
-from typing import List, Dict, Tuple
 
 from pyshimmer.util import bit_is_set, fmt_hex
 from .channels import EChannelType
@@ -49,49 +50,58 @@ class ERLDRef(Enum):
 
 class ExGRegister:
     GAIN_MAP = {
-        0: 6, 1: 1, 2: 2, 3: 3, 4: 4, 5: 8, 6: 12,
+        0: 6,
+        1: 1,
+        2: 2,
+        3: 3,
+        4: 4,
+        5: 8,
+        6: 12,
     }
-    DATA_RATE_MAP = {
-        0: 125, 1: 250, 2: 500, 3: 1000, 4: 2000, 5: 4000, 6: 8000, 7: -1
-    }
+    DATA_RATE_MAP = {0: 125, 1: 250, 2: 500, 3: 1000, 4: 2000, 5: 4000, 6: 8000, 7: -1}
     PD_BIT = 0x01 << 7
     RLD_PD_BIT = 0x01 << 5
 
     def __init__(self, reg_bin: bytes):
         if len(reg_bin) < 10:
-            raise ValueError('Binary register content must have length 10')
+            raise ValueError("Binary register content must have length 10")
 
         self._reg_bin = reg_bin
 
     def __str__(self) -> str:
         def print_ch(ch_id: int) -> str:
-            return f'Channel {ch_id + 1:2d}\n' + \
-                   f'\tPowerdown: {self.is_ch_powerdown(ch_id)}\n' + \
-                   f'\tGain: {self.get_ch_gain(ch_id):2d}\n' + \
-                   f'\tMultiplexer: {self.get_ch_mux(ch_id).name} ({self.get_ch_mux_bin(ch_id):#06b})\n'
+            return (
+                f"Channel {ch_id + 1:2d}\n"
+                + f"\tPowerdown: {self.is_ch_powerdown(ch_id)}\n"
+                + f"\tGain: {self.get_ch_gain(ch_id):2d}\n"
+                + f"\tMultiplexer: {self.get_ch_mux(ch_id).name} "
+                + f"({self.get_ch_mux_bin(ch_id):#06b})\n"
+            )
 
         def fmt_rld_channels(ch_names) -> str:
-            ch_names = [ch.name for ch in ch_names] if len(ch_names) > 0 else ['None']
-            return ', '.join(ch_names)
+            ch_names = [ch.name for ch in ch_names] if len(ch_names) > 0 else ["None"]
+            return ", ".join(ch_names)
 
         reg_bin_str = fmt_hex(self._reg_bin)
-        obj_str = f'ExGRegister:\n' + \
-                  f'Data Rate: {self.data_rate:4d}\n' + \
-                  f'RLD Powerdown: {self.rld_powerdown}\n' + \
-                  f'RLD Channels: {fmt_rld_channels(self.rld_channels)}\n' + \
-                  f'RLD Reference: {self.rld_ref.name}\n' + \
-                  f'Binary: {reg_bin_str}\n'
+        obj_str = (
+            f"ExGRegister:\n"
+            + f"Data Rate: {self.data_rate:4d}\n"
+            + f"RLD Powerdown: {self.rld_powerdown}\n"
+            + f"RLD Channels: {fmt_rld_channels(self.rld_channels)}\n"
+            + f"RLD Reference: {self.rld_ref.name}\n"
+            + f"Binary: {reg_bin_str}\n"
+        )
         obj_str += print_ch(0)
         obj_str += print_ch(1)
         return obj_str
 
-    def __eq__(self, other: "ExGRegister") -> bool:
+    def __eq__(self, other: ExGRegister) -> bool:
         return self._reg_bin == other._reg_bin
 
     @staticmethod
     def check_ch_id(ch_id: int) -> None:
         if not 0 <= ch_id <= 1:
-            raise ValueError('Channel ID must be 0 or 1')
+            raise ValueError("Channel ID must be 0 or 1")
 
     def _get_ch_byte(self, ch_id: int) -> int:
         ch_offset = 3 + ch_id
@@ -162,7 +172,7 @@ class ExGRegister:
         return not bit_is_set(rld_byte, self.RLD_PD_BIT)
 
     @property
-    def rld_channels(self) -> List[ExGRLDLead]:
+    def rld_channels(self) -> list[ExGRLDLead]:
         rld_byte = self._get_rld_byte()
         return [ch for ch in ExGRLDLead if bit_is_set(rld_byte, ch.value)]
 
@@ -173,24 +183,22 @@ class ExGRegister:
         return ERLDRef(rld_ref)
 
 
-ExG_ChType_Chip_Assignment: Dict[EChannelType, Tuple[int, int]] = {
-    EChannelType.EXG_ADS1292R_1_CH1_24BIT: (0, 0),
-    EChannelType.EXG_ADS1292R_1_CH1_16BIT: (0, 0),
-
-    EChannelType.EXG_ADS1292R_1_CH2_24BIT: (0, 1),
-    EChannelType.EXG_ADS1292R_1_CH2_16BIT: (0, 1),
-
-    EChannelType.EXG_ADS1292R_2_CH1_24BIT: (1, 0),
-    EChannelType.EXG_ADS1292R_2_CH1_16BIT: (1, 0),
-
-    EChannelType.EXG_ADS1292R_2_CH2_24BIT: (1, 1),
-    EChannelType.EXG_ADS1292R_2_CH2_16BIT: (1, 1),
+ExG_ChType_Chip_Assignment: dict[EChannelType, tuple[int, int]] = {
+    EChannelType.EXG1_CH1_24BIT: (0, 0),
+    EChannelType.EXG1_CH1_16BIT: (0, 0),
+    EChannelType.EXG1_CH2_24BIT: (0, 1),
+    EChannelType.EXG1_CH2_16BIT: (0, 1),
+    EChannelType.EXG2_CH1_24BIT: (1, 0),
+    EChannelType.EXG2_CH1_16BIT: (1, 0),
+    EChannelType.EXG2_CH2_24BIT: (1, 1),
+    EChannelType.EXG2_CH2_16BIT: (1, 1),
 }
 
 
 def is_exg_ch(ch_type: EChannelType) -> bool:
     """
-    Returns true if the signal that this channel type describes was recorded by a ExG chip
+    Returns true if the signal that this channel type describes was recorded by a ExG
+    chip
 
     Args:
         ch_type: The EChannelType of the signal
@@ -199,14 +207,15 @@ def is_exg_ch(ch_type: EChannelType) -> bool:
         True if the channel type belongs to the ExG chips, otherwise False
     """
     # This is hacky but protected by unit tests
-    regex = re.compile(r'EXG_ADS1292R_\d_CH\d_\d{2}BIT')
+    regex = re.compile(r"EXG\d_CH\d_\d{2}BIT")
     return regex.match(ch_type.name) is not None
 
 
-def get_exg_ch(ch_type: EChannelType) -> Tuple[int, int]:
+def get_exg_ch(ch_type: EChannelType) -> tuple[int, int]:
     """
-    Each ExG Chip EChannelType originates from a specific ExG chip and channel. This function returns a tuple that
-    specifices which chip and channel a certain signal EChannelType was recorded with.
+    Each ExG Chip EChannelType originates from a specific ExG chip and channel. This
+    function returns a tuple that specifices which chip and channel a certain signal
+    EChannelType was recorded with.
 
     Args:
         ch_type: The EChannelType of the signal

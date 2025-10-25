@@ -13,6 +13,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from __future__ import annotations
 
 from pyshimmer.dev.channels import ESensorGroup
 
@@ -36,12 +37,13 @@ TRIAL_CONFIG_MASTER = 0x02 << 8 * 0
 EXG_REG_OFFSET = 0x38
 EXG_REG_LEN = 0x0A
 
-# The file offsets at which the calibration parameters of the respective sensor can be found
+# The file offsets at which the calibration parameters of the respective sensor can be
+# found
 TRIAXCAL_FILE_OFFSET = {
     ESensorGroup.ACCEL_LN: 0x8B,
     ESensorGroup.ACCEL_WR: 0x4C,
     ESensorGroup.GYRO: 0x61,
-    ESensorGroup.MAG: 0x76,
+    ESensorGroup.MAG_REG: 0x76,
 }
 
 # Scaling value by which the calibration offset will be scaled upon deserialization
@@ -49,7 +51,7 @@ TRIAXCAL_OFFSET_SCALING = {
     ESensorGroup.ACCEL_LN: 1.0,
     ESensorGroup.ACCEL_WR: 1.0,
     ESensorGroup.GYRO: 1.0,
-    ESensorGroup.MAG: 1.0,
+    ESensorGroup.MAG_REG: 1.0,
 }
 
 # Scaling value by which the calibration gain will be scaled upon deserialization
@@ -57,15 +59,16 @@ TRIAXCAL_GAIN_SCALING = {
     ESensorGroup.ACCEL_LN: 1.0,
     ESensorGroup.ACCEL_WR: 1.0,
     ESensorGroup.GYRO: 1.0 / 100.0,
-    ESensorGroup.MAG: 1.0,
+    ESensorGroup.MAG_REG: 1.0,
 }
 
-# Scaling value by which the calibration alignment matrix will be scaled upon deserialization
+# Scaling value by which the calibration alignment matrix will be scaled upon
+# deserialization
 TRIAXCAL_ALIGNMENT_SCALING = {
     ESensorGroup.ACCEL_LN: 1.0 / 100.0,
     ESensorGroup.ACCEL_WR: 1.0 / 100.0,
     ESensorGroup.GYRO: 1.0 / 100.0,
-    ESensorGroup.MAG: 1.0 / 100.0,
+    ESensorGroup.MAG_REG: 1.0 / 100.0,
 }
 
 TRIAXCAL_SENSORS = list(TRIAXCAL_FILE_OFFSET.keys())

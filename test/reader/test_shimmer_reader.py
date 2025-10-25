@@ -11,9 +11,10 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
-from typing import List, Set
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from __future__ import annotations
+
 from unittest import TestCase
 from unittest.mock import Mock, PropertyMock
 
@@ -25,9 +26,18 @@ from pyshimmer.dev.base import ticks2sec
 from pyshimmer.dev.channels import ESensorGroup, get_enabled_channels
 from pyshimmer.dev.exg import get_exg_ch
 from pyshimmer.reader.binary_reader import ShimmerBinaryReader
-from pyshimmer.reader.shimmer_reader import ShimmerReader, SingleChannelProcessor, PPGProcessor, TriAxCalProcessor
-from .reader_test_util import get_bin_vs_consensys_pair_fpath, get_synced_bin_vs_consensys_pair_fpath, get_ecg_sample, \
-    get_triaxcal_sample
+from pyshimmer.reader.shimmer_reader import (
+    ShimmerReader,
+    SingleChannelProcessor,
+    PPGProcessor,
+    TriAxCalProcessor,
+)
+from .reader_test_util import (
+    get_bin_vs_consensys_pair_fpath,
+    get_synced_bin_vs_consensys_pair_fpath,
+    get_ecg_sample,
+    get_triaxcal_sample,
+)
 
 
 class ShimmerReaderTest(TestCase):
@@ -57,12 +67,14 @@ class ShimmerReaderTest(TestCase):
         self.assertEqual(len(ts_aligned), len(ts))
 
         vbatt_aligned = reader[EChannelType.VBATT]
-        np.testing.assert_equal(vbatt[ts_aligned == ts], vbatt_aligned[ts_aligned == ts])
+        np.testing.assert_equal(
+            vbatt[ts_aligned == ts], vbatt_aligned[ts_aligned == ts]
+        )
 
     def test_timestamp_unwrapping(self):
         sr = 65
-        ts_dev = np.arange(0, 4 * (2 ** 24), sr)
-        ts_dev_wrapped = ts_dev % 2 ** 24
+        ts_dev = np.arange(0, 4 * (2**24), sr)
+        ts_dev_wrapped = ts_dev % 2**24
 
         ts = ticks2sec(ts_dev)
         vbatt = np.random.randint(0, 100 + 1, len(ts_dev))
@@ -125,22 +137,27 @@ class ShimmerReaderTest(TestCase):
         raw_file, csv_file = get_bin_vs_consensys_pair_fpath()
 
         exp_sr = 504.12
-        exp_channels = [EChannelType.ACCEL_LN_X, EChannelType.ACCEL_LN_Y, EChannelType.ACCEL_LN_Z, EChannelType.VBATT,
-                        EChannelType.INTERNAL_ADC_13]
+        exp_channels = [
+            EChannelType.ACCEL_LN_X,
+            EChannelType.ACCEL_LN_Y,
+            EChannelType.ACCEL_LN_Z,
+            EChannelType.VBATT,
+            EChannelType.INTERNAL_ADC_A1,
+        ]
 
-        with open(raw_file, 'rb') as f:
+        with open(raw_file, "rb") as f:
             reader = ShimmerReader(f)
             reader.load_file_data()
 
         self.assertEqual(exp_channels, reader.channels)
         self.assertAlmostEqual(exp_sr, reader.sample_rate, 2)
 
-        r = np.loadtxt(csv_file, delimiter='\t', skiprows=3, usecols=(0, 1))
+        r = np.loadtxt(csv_file, delimiter="\t", skiprows=3, usecols=(0, 1))
         expected_ts = r[:, 0]
         expected_ppg = r[:, 1]
 
         actual_ts = reader.timestamp * 1000  # needs to be in ms
-        actual_ppg = reader[EChannelType.INTERNAL_ADC_13] * 1000.0  # needs to be in mV
+        actual_ppg = reader[EChannelType.INTERNAL_ADC_A1] * 1000.0  # needs to be in mV
 
         np.testing.assert_almost_equal(actual_ts.flatten(), expected_ts.flatten())
         np.testing.assert_almost_equal(actual_ppg, expected_ppg)
@@ -149,18 +166,18 @@ class ShimmerReaderTest(TestCase):
         bin_path, csv_path = get_synced_bin_vs_consensys_pair_fpath()
 
         exp_sr = 512.0
-        exp_channels = [EChannelType.INTERNAL_ADC_13]
+        exp_channels = [EChannelType.INTERNAL_ADC_A1]
 
-        with open(bin_path, 'rb') as f:
+        with open(bin_path, "rb") as f:
             reader = ShimmerReader(f, sync=True)
             reader.load_file_data()
 
-        csv_data = np.loadtxt(csv_path, delimiter='\t', skiprows=3, usecols=(0, 1))
+        csv_data = np.loadtxt(csv_path, delimiter="\t", skiprows=3, usecols=(0, 1))
         expected_ts = csv_data[:, 0]
         expected_ppg = csv_data[:, 1]
 
         actual_ts = reader.timestamp * 1000
-        actual_ppg = reader[EChannelType.INTERNAL_ADC_13] * 1000.0  # needs to be in mV
+        actual_ppg = reader[EChannelType.INTERNAL_ADC_A1] * 1000.0  # needs to be in mV
 
         self.assertEqual(exp_channels, reader.channels)
         self.assertEqual(exp_sr, reader.sample_rate)
@@ -190,9 +207,9 @@ class ShimmerReaderTest(TestCase):
 
     # noinspection PyMethodMayBeStatic
     def test_post_process_exg_signal(self):
-        exg_reg1 = ExGRegister(b'\x03\x80\x10\x40\x40\x00\x00\x00\x02\x01')
+        exg_reg1 = ExGRegister(b"\x03\x80\x10\x40\x40\x00\x00\x00\x02\x01")
         exg1_gain = 4
-        exg_reg2 = ExGRegister(b'\x03\x80\x10\x20\x20\x00\x00\x00\x02\x01')
+        exg_reg2 = ExGRegister(b"\x03\x80\x10\x20\x20\x00\x00\x00\x02\x01")
         exg2_gain = 2
 
         chip_gain = {
@@ -201,10 +218,10 @@ class ShimmerReaderTest(TestCase):
         }
 
         samples = {
-            EChannelType.EXG_ADS1292R_1_CH1_24BIT: np.random.randn(1000),
-            EChannelType.EXG_ADS1292R_2_CH2_24BIT: np.random.randn(1000),
-            EChannelType.EXG_ADS1292R_1_CH1_16BIT: np.random.randn(1000),
-            EChannelType.EXG_ADS1292R_2_CH2_16BIT: np.random.randn(1000),
+            EChannelType.EXG1_CH1_24BIT: np.random.randn(1000),
+            EChannelType.EXG2_CH2_24BIT: np.random.randn(1000),
+            EChannelType.EXG1_CH1_16BIT: np.random.randn(1000),
+            EChannelType.EXG2_CH2_16BIT: np.random.randn(1000),
         }
 
         samples_w_ts = {**samples, EChannelType.TIMESTAMP: np.arange(1000)}
@@ -229,7 +246,7 @@ class ShimmerReaderTest(TestCase):
         reader.load_file_data()
 
         for ch in samples:
-            bit = 16 if '16' in ch.name else 24
+            bit = 16 if "16" in ch.name else 24
             gain = chip_gain[get_exg_ch(ch)[0]]
             expected = (samples[ch] - 0) * 2.420 / (2 ** (bit - 1) - 1) / gain
             actual = reader[ch]
@@ -240,18 +257,23 @@ class ShimmerReaderTest(TestCase):
         bin_path, uncal_path, cal_path = get_ecg_sample()
 
         def verify(bin_file_path, expected, post_process):
-            with open(bin_file_path, 'rb') as f:
+            with open(bin_file_path, "rb") as f:
                 reader = ShimmerReader(f, post_process=post_process, sync=False)
                 reader.load_file_data()
 
-            actual = reader[EChannelType.EXG_ADS1292R_1_CH1_24BIT]
+            actual = reader[EChannelType.EXG1_CH1_24BIT]
             np.testing.assert_almost_equal(actual, expected[1])
 
-            actual = reader[EChannelType.EXG_ADS1292R_1_CH2_24BIT]
+            actual = reader[EChannelType.EXG1_CH2_24BIT]
             np.testing.assert_almost_equal(actual, expected[2])
 
-        expected_uncal = np.loadtxt(uncal_path, delimiter='\t', skiprows=3, usecols=(0, 1, 2)).T
-        expected_cal = np.loadtxt(cal_path, delimiter='\t', skiprows=3, usecols=(0, 1, 2)).T / 1000.0  # Volt
+        expected_uncal = np.loadtxt(
+            uncal_path, delimiter="\t", skiprows=3, usecols=(0, 1, 2)
+        ).T
+        expected_cal = (
+            np.loadtxt(cal_path, delimiter="\t", skiprows=3, usecols=(0, 1, 2)).T
+            / 1000.0
+        )  # Volt
 
         verify(bin_path, expected_uncal, post_process=False)
         verify(bin_path, expected_cal, post_process=True)
@@ -260,23 +282,25 @@ class ShimmerReaderTest(TestCase):
     def test_compare_triaxcal_to_consensys(self):
         bin_path, uncal_path, cal_path = get_triaxcal_sample()
 
-        consensys_csv = pd.read_csv(cal_path, sep=",", skiprows=(0, 2), usecols=list(range(14)))
+        consensys_csv = pd.read_csv(
+            cal_path, sep=",", skiprows=(0, 2), usecols=list(range(14))
+        )
         col_mapping = {
             EChannelType.ACCEL_LN_X: "Shimmer_952D_Accel_LN_X_CAL",
             EChannelType.ACCEL_LN_Y: "Shimmer_952D_Accel_LN_Y_CAL",
             EChannelType.ACCEL_LN_Z: "Shimmer_952D_Accel_LN_Z_CAL",
-            EChannelType.ACCEL_LSM303DLHC_X: "Shimmer_952D_Accel_WR_X_CAL",
-            EChannelType.ACCEL_LSM303DLHC_Y: "Shimmer_952D_Accel_WR_Y_CAL",
-            EChannelType.ACCEL_LSM303DLHC_Z: "Shimmer_952D_Accel_WR_Z_CAL",
-            EChannelType.GYRO_MPU9150_X: "Shimmer_952D_Gyro_X_CAL",
-            EChannelType.GYRO_MPU9150_Y: "Shimmer_952D_Gyro_Y_CAL",
-            EChannelType.GYRO_MPU9150_Z: "Shimmer_952D_Gyro_Z_CAL",
-            EChannelType.MAG_LSM303DLHC_X: "Shimmer_952D_Mag_X_CAL",
-            EChannelType.MAG_LSM303DLHC_Y: "Shimmer_952D_Mag_Y_CAL",
-            EChannelType.MAG_LSM303DLHC_Z: "Shimmer_952D_Mag_Z_CAL",
+            EChannelType.ACCEL_WR_X: "Shimmer_952D_Accel_WR_X_CAL",
+            EChannelType.ACCEL_WR_Y: "Shimmer_952D_Accel_WR_Y_CAL",
+            EChannelType.ACCEL_WR_Z: "Shimmer_952D_Accel_WR_Z_CAL",
+            EChannelType.GYRO_X: "Shimmer_952D_Gyro_X_CAL",
+            EChannelType.GYRO_Y: "Shimmer_952D_Gyro_Y_CAL",
+            EChannelType.GYRO_Z: "Shimmer_952D_Gyro_Z_CAL",
+            EChannelType.MAG_REG_X: "Shimmer_952D_Mag_X_CAL",
+            EChannelType.MAG_REG_Y: "Shimmer_952D_Mag_Y_CAL",
+            EChannelType.MAG_REG_Z: "Shimmer_952D_Mag_Z_CAL",
         }
 
-        with open(bin_path, 'rb') as f:
+        with open(bin_path, "rb") as f:
             reader = ShimmerReader(f)
             reader.load_file_data()
 
@@ -292,23 +316,25 @@ class SignalPostProcessorTest(TestCase):
     def test_single_channel_processor(self):
         class TestProcessor(SingleChannelProcessor):
 
-            def __init__(self, channels: List[EChannelType] = None):
+            def __init__(self, channels: list[EChannelType] = None):
                 super().__init__(channels)
 
                 self._seen = []
 
-            def process_channel(self, ch_type: EChannelType, y: np.ndarray, reader: ShimmerBinaryReader) -> np.ndarray:
+            def process_channel(
+                self, ch_type: EChannelType, y: np.ndarray, reader: ShimmerBinaryReader
+            ) -> np.ndarray:
                 self._seen.append(ch_type)
                 return y
 
             @property
-            def seen(self) -> Set[EChannelType]:
+            def seen(self) -> set[EChannelType]:
                 return set(self._seen)
 
         ch_data = {
             EChannelType.TIMESTAMP: np.random.randn(10),
             EChannelType.VBATT: np.random.randn(10),
-            EChannelType.INTERNAL_ADC_13: np.random.randn(10),
+            EChannelType.INTERNAL_ADC_A1: np.random.randn(10),
             EChannelType.ACCEL_LN_X: np.random.randn(10),
         }
         ch_types = set(ch_data.keys())
@@ -335,7 +361,7 @@ class SignalPostProcessorTest(TestCase):
         ch_data = {
             EChannelType.TIMESTAMP: np.random.randn(10),
             EChannelType.VBATT: np.random.randn(10),
-            EChannelType.INTERNAL_ADC_13: ppg_data,
+            EChannelType.INTERNAL_ADC_A1: ppg_data,
             EChannelType.ACCEL_LN_X: np.random.randn(10),
         }
 
@@ -344,7 +370,7 @@ class SignalPostProcessorTest(TestCase):
         output = proc.process(ch_data, None)
 
         for ch, y in output.items():
-            if ch != EChannelType.INTERNAL_ADC_13:
+            if ch != EChannelType.INTERNAL_ADC_A1:
                 np.testing.assert_equal(y, ch_data[ch])
             else:
                 np.testing.assert_equal(y, ppg_data / 1000.0)
@@ -361,7 +387,9 @@ class SignalPostProcessorTest(TestCase):
 
         mock_reader = Mock(spec=ShimmerBinaryReader)
         mock_reader.get_triaxcal_params.side_effect = lambda x: params[x]
-        type(mock_reader).enabled_sensors = PropertyMock(return_value=list(params.keys()))
+        type(mock_reader).enabled_sensors = PropertyMock(
+            return_value=list(params.keys())
+        )
 
         proc = TriAxCalProcessor()
         actual_dict = proc.process(data_dict, mock_reader)

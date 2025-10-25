@@ -11,10 +11,10 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
-from typing import Union, Tuple
-
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from __future__ import annotations
+
 from serial import Serial
 
 from pyshimmer.bluetooth.bt_const import ACK_COMMAND_PROCESSED
@@ -34,8 +34,8 @@ class BluetoothSerial(SerialBase):
     def read_varlen(self) -> bytes:
         """Read the number of bytes specified by the first byte read
 
-        The function reads a single byte that it interprets as a length field with value L and then reads the
-        specified number of L bytes from the stream.
+        The function reads a single byte that it interprets as a length field with value
+        L and then reads the specified number of L bytes from the stream.
 
         :return: A variable number of bytes
         """
@@ -46,14 +46,15 @@ class BluetoothSerial(SerialBase):
     def write_varlen(self, arg: bytes) -> None:
         """Write a variable number of bytes by prepending the data with their length
 
-        The function first writes the length of the data as a single byte, then writes the data itself.
+        The function first writes the length of the data as a single byte, then writes
+        the data itself.
 
         :param arg: The data to write
         :raises ValueError: If the number of bytes exceeds the maximum length of 256
         """
         arg_len = len(arg)
         if arg_len > 255:
-            raise ValueError(f'Variable-length argument is too long: {arg_len:d}')
+            raise ValueError(f"Variable-length argument is too long: {arg_len:d}")
 
         self.write_byte(arg_len)
         self.write(arg)
@@ -62,9 +63,10 @@ class BluetoothSerial(SerialBase):
         """Write a Bluetooth command to the stream
 
         :param ccode: The code of the command
-        :param arg_format: The argument format, can be a :func:`struct.pack` string or `varlen` for a variable-length
-            argument
-        :param args: The arguments to write along with the command, must meet the requirements of the format string
+        :param arg_format: The argument format, can be a :func:`struct.pack` string or
+            `varlen` for a variable-length argument
+        :param args: The arguments to write along with the command, must meet the
+            requirements of the format string
         """
         self.write_byte(ccode)
 
@@ -82,15 +84,19 @@ class BluetoothSerial(SerialBase):
         """
         r = self.read_byte()
         if r != ACK_COMMAND_PROCESSED:
-            raise ValueError('Byte received is no acknowledgment')
+            raise ValueError("Byte received is no acknowledgment")
 
-    def read_response(self, rcode: Union[int, Tuple[int, ...], bytes], arg_format: str = None) -> any:
+    def read_response(
+        self, rcode: int | bytes | tuple[int, ...], arg_format: str = None
+    ) -> any:
         """Read a Bluetooth command response from the stream
 
-        :param rcode: The expected response code. Can be an int for a single-byte response code,
-            or a tuple of ints or a bytes instance for a multi-byte response code
-        :param arg_format: The format string to use when decoding the response arguments. Can be None, a
-            :func:`struct.unpack` string or `varlen`. If None, no arguments will be read.
+        :param rcode: The expected response code. Can be an int for a single-byte
+            response code, or a tuple of ints or a bytes instance for a multi-byte
+            response code
+        :param arg_format: The format string to use when decoding the response
+            arguments. Can be None, a :func:`struct.unpack` string or `varlen`. If
+            None, no arguments will be read.
         :raises RuntimeError: If the response code is incorrect
         :return: The arguments of the response or () if the response has no arguments
         """
@@ -98,7 +104,10 @@ class BluetoothSerial(SerialBase):
 
         actual_rcode = self.read(len(rcode))
         if rcode != actual_rcode:
-            raise RuntimeError(f'Received incorrect response code: {fmt_hex(rcode)} != {fmt_hex(actual_rcode)}')
+            raise RuntimeError(
+                f"Received incorrect response code: "
+                f"{fmt_hex(rcode)} != {fmt_hex(actual_rcode)}"
+            )
 
         if arg_format is not None:
             if arg_format == "varlen":

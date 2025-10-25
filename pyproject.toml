@@ -38,7 +38,7 @@ keywords = [
     "streaming"
 ]
 dynamic = ["version"]
-requires-python = ">= 3.7"
+requires-python = ">= 3.9"
 dependencies = [
     "pyserial>=3.4",
     "numpy>=1.15",

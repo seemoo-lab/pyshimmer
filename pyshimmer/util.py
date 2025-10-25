@@ -13,13 +13,14 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from __future__ import annotations
+
 import struct
 from io import SEEK_SET, SEEK_CUR
 from queue import Queue
-from typing import BinaryIO, Tuple, Union, List
+from typing import BinaryIO
 
 import numpy as np
-import math
 
 
 def bit_is_set(bitfield: int, mask: int) -> bool:
@@ -50,11 +51,11 @@ def raise_to_next_pow(x: int) -> int:
     return 1 << (x - 1).bit_length()
 
 
-def flatten_list(lst: Union[List, Tuple]) -> List:
+def flatten_list(lst: list | tuple) -> list:
     """Flatten the supplied list by one level
 
-    Assumes that the supplied argument consists of lists itself. All elements are taken from the sublists and added
-    to a fresh copy.
+    Assumes that the supplied argument consists of lists itself. All elements are taken
+    from the sublists and added to a fresh copy.
 
     :param lst: A list of lists
     :return: A list with the contents of the sublists
@@ -69,17 +70,19 @@ def fmt_hex(val: bytes) -> str:
     :param val: The binary array to format
     :return: The resulting string
     """
-    return ' '.join('{:02x}'.format(i) for i in val)
+    return " ".join("{:02x}".format(i) for i in val)
 
 
-def unpack(args: Union[List, Tuple]) -> Union[List, Tuple, any]:
+def unpack(args: list | tuple) -> list | tuple | any:
     """Extract the first object if the list has length 1
 
-    If the supplied list or tuple only features a single element, the element is retrieved and returned. If the list or
-    tuple is longer, the entire list or tuple is returned.
+    If the supplied list or tuple only features a single element, the element is
+    retrieved and returned. If the list or tuple is longer, the entire list or tuple is
+    returned.
 
     :param args: The list or tuple to unpack
-    :return: The list or tuple itself or the single element if the argument has a length of 1
+    :return: The list or tuple itself or the single element if the argument has a
+        length of 1
     """
     if len(args) == 1:
         return args[0]
@@ -89,10 +92,11 @@ def unpack(args: Union[List, Tuple]) -> Union[List, Tuple, any]:
 def unwrap(x: np.ndarray, shift: int) -> np.ndarray:
     """Detect overflows in the data and unwrap them
 
-    The function tries to detect overflows in the input array x, with shape (N, ). It is assumed that x is monotonically
-    increasing everywhere but at the overflows. An overflow occurs if for two consecutive points x_i and x_i+1 in the
-    series x_i > x_i+1. For every such point, the function will add the value of the shift parameter to all following
-    samples, i.e. x_k' = x_k + shift, for every k > i.
+    The function tries to detect overflows in the input array x, with shape (N, ). It
+    is assumed that x is monotonically increasing everywhere but at the overflows. An
+    overflow occurs if for two consecutive points x_i and x_i+1 in the series
+    x_i > x_i+1. For every such point, the function will add the value of the shift
+    parameter to all following samples, i.e. x_k' = x_k + shift, for every k > i.
 
     :param x: The array to unwrap
     :param shift: The value which to add to the series after each overflow point
@@ -107,7 +111,7 @@ def unwrap(x: np.ndarray, shift: int) -> np.ndarray:
     return x
 
 
-def resp_code_to_bytes(code: Union[int, Tuple[int, ...], bytes]) -> bytes:
+def resp_code_to_bytes(code: int | bytes | tuple[int, ...]) -> bytes:
     """Convert the supplied response code to bytes
 
     :param code: The code, can be an int, a tuple of ints, or bytes
@@ -130,22 +134,76 @@ def calibrate_u12_adc_value(uncalibratedData, offset, vRefP, gain):
     :param gain: gain factor
     :return: Calibrated voltage in Volt
     """
-    return ((uncalibratedData - offset) * ((vRefP/gain)/4095))
+    return (uncalibratedData - offset) * ((vRefP / gain) / 4095)
 
 
 def battery_voltage_to_percent(battery_voltage):
     """Convert battery voltage to percent
 
     :param battery_voltage: Battery voltage in Volt
-    :return: approximated battery state in percent based on manual 
+    :return: approximated battery state in percent based on manual
     """
     # reference values from: https://shimmersensing.com/wp-content/docs/support/documentation/Shimmer_User_Manual_rev3p.pdf (Page 53)
-    reference_data_voltages = [3.2, 3.627, 3.645, 3.663, 3.681, 3.699, 3.717, 3.7314, 3.735, 3.7386, 3.7566, 3.771, 3.789, 3.8034, 3.8106, 3.8394, 3.861, \
-        3.8826, 3.9078, 3.933, 3.969, 4.0086, 4.041, 4.0734, 4.113, 4.167]
-    reference_data_percentages = [0, 5.9, 9.8, 13.8, 17.7, 21.6, 25.6, 29.5, 33.4, 37.4, 41.3, 45.2, 49.2, 53.1, 57, 61, 64.9, 68.9, 72.8, 76.7, 80.7, 84.6, \
-        88.5, 92.5, 96.4, 100]
+    reference_data_voltages = [
+        3.2,
+        3.627,
+        3.645,
+        3.663,
+        3.681,
+        3.699,
+        3.717,
+        3.7314,
+        3.735,
+        3.7386,
+        3.7566,
+        3.771,
+        3.789,
+        3.8034,
+        3.8106,
+        3.8394,
+        3.861,
+        3.8826,
+        3.9078,
+        3.933,
+        3.969,
+        4.0086,
+        4.041,
+        4.0734,
+        4.113,
+        4.167,
+    ]
+    reference_data_percentages = [
+        0,
+        5.9,
+        9.8,
+        13.8,
+        17.7,
+        21.6,
+        25.6,
+        29.5,
+        33.4,
+        37.4,
+        41.3,
+        45.2,
+        49.2,
+        53.1,
+        57,
+        61,
+        64.9,
+        68.9,
+        72.8,
+        76.7,
+        80.7,
+        84.6,
+        88.5,
+        92.5,
+        96.4,
+        100,
+    ]
 
-    battery_percent = np.interp(battery_voltage, reference_data_voltages, reference_data_percentages)
+    battery_percent = np.interp(
+        battery_voltage, reference_data_voltages, reference_data_percentages
+    )
 
     battery_percent = min(battery_percent, 100)
     battery_percent = max(battery_percent, 0)
@@ -154,7 +212,8 @@ def battery_voltage_to_percent(battery_voltage):
 
 
 class PeekQueue(Queue):
-    """A thread-safe queue implementation that allows peeking at the first element in the queue.
+    """A thread-safe queue implementation that allows peeking at the first element in
+    the queue.
 
     Based on a suggestion on StackOverflow:
     https://stackoverflow.com/questions/1293966/best-way-to-obtain-indexed-access-to-a-python-queue-thread-safe
@@ -183,7 +242,7 @@ class FileIOBase:
 
     def __init__(self, fp: BinaryIO):
         if not fp.seekable():
-            raise ValueError('IO object must be seekable')
+            raise ValueError("IO object must be seekable")
 
         self._fp = fp
 
@@ -193,7 +252,7 @@ class FileIOBase:
     def _read(self, s: int) -> bytes:
         r = self._fp.read(s)
         if len(r) < s:
-            raise IOError('Read beyond EOF')
+            raise IOError("Read beyond EOF")
 
         return r
 

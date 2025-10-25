@@ -13,11 +13,20 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from __future__ import annotations
+
 import random
 from unittest import TestCase
 
 from pyshimmer.dev.channels import EChannelType
-from pyshimmer.dev.exg import is_exg_ch, get_exg_ch, ExGMux, ExGRLDLead, ERLDRef, ExGRegister
+from pyshimmer.dev.exg import (
+    is_exg_ch,
+    get_exg_ch,
+    ExGMux,
+    ExGRLDLead,
+    ERLDRef,
+    ExGRegister,
+)
 
 
 def randbytes(k: int) -> bytes:
@@ -29,14 +38,18 @@ def randbytes(k: int) -> bytes:
 class DeviceExGTest(TestCase):
 
     def test_get_exg_ch(self):
-        self.assertEqual(get_exg_ch(EChannelType.EXG_ADS1292R_1_CH1_24BIT), (0, 0))
-        self.assertEqual(get_exg_ch(EChannelType.EXG_ADS1292R_1_CH2_24BIT), (0, 1))
-        self.assertEqual(get_exg_ch(EChannelType.EXG_ADS1292R_2_CH1_24BIT), (1, 0))
-        self.assertEqual(get_exg_ch(EChannelType.EXG_ADS1292R_2_CH2_24BIT), (1, 1))
+        self.assertEqual(get_exg_ch(EChannelType.EXG1_CH1_24BIT), (0, 0))
+        self.assertEqual(get_exg_ch(EChannelType.EXG1_CH2_24BIT), (0, 1))
+        self.assertEqual(get_exg_ch(EChannelType.EXG2_CH1_24BIT), (1, 0))
+        self.assertEqual(get_exg_ch(EChannelType.EXG2_CH2_24BIT), (1, 1))
 
     def test_is_exg_ch(self):
         from itertools import product
-        valid_ch = [EChannelType[f'EXG_ADS1292R_{i}_CH{j}_{k}BIT'] for i, j, k in product([1, 2], [1, 2], [16, 24])]
+
+        valid_ch = [
+            EChannelType[f"EXG{i}_CH{j}_{k}BIT"]
+            for i, j, k in product([1, 2], [1, 2], [16, 24])
+        ]
 
         for ch in EChannelType:
             self.assertEqual(is_exg_ch(ch), ch in valid_ch)
@@ -98,7 +111,9 @@ class ExGRegisterTest(TestCase):
     def test_exg_register_rld_channels(self):
         reg_bin = bytes([0x03, 0xA8, 0x10, 0x40, 0x40, 0x2D, 0x00, 0x00, 0x02, 0x03])
         reg = ExGRegister(reg_bin)
-        self.assertEqual(reg.rld_channels, [ExGRLDLead.RLD1P, ExGRLDLead.RLD2P, ExGRLDLead.RLD2N])
+        self.assertEqual(
+            reg.rld_channels, [ExGRLDLead.RLD1P, ExGRLDLead.RLD2P, ExGRLDLead.RLD2N]
+        )
 
         reg_bin = bytes([0x03, 0xA8, 0x10, 0x40, 0x40, 0x00, 0x00, 0x00, 0x02, 0x03])
         reg = ExGRegister(reg_bin)
@@ -118,8 +133,8 @@ class ExGRegisterTest(TestCase):
         reg = ExGRegister(reg_bin)
 
         str_repr = str(reg)
-        self.assertTrue('Data Rate: 1000' in str_repr)
-        self.assertTrue('RLD Powerdown: False' in str_repr)
+        self.assertTrue("Data Rate: 1000" in str_repr)
+        self.assertTrue("RLD Powerdown: False" in str_repr)
 
     def test_equality_operator(self):
         def do_assert(a: bytes, b: bytes, result: bool) -> None:

@@ -13,7 +13,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from pyshimmer.dev.channels import EChannelType
+from __future__ import annotations
 
 ACK_COMMAND_PROCESSED = 0xFF
 INSTREAM_CMD_RESPONSE = 0x8A
@@ -39,6 +39,9 @@ SET_SENSORS_COMMAND = 0x08
 
 STOP_STREAMING_COMMAND = 0x20
 # No response for command
+
+GET_SHIMMER_VERSION_COMMAND = 0x3F
+SHIMMER_VERSION_RESPONSE = 0x25
 
 GET_CONFIGTIME_COMMAND = 0x87
 CONFIGTIME_RESPONSE = 0x86
@@ -86,51 +89,3 @@ ENABLE_STATUS_ACK_COMMAND = 0xA3
 
 GET_ALL_CALIBRATION_COMMAND = 0x2C
 ALL_CALIBRATION_RESPONSE = 0x2D
-
-"""
-The Bluetooth LogAndStream API assigns a numerical index to each channel type. This dictionary maps each index to the
-corresponding channel type.
-"""
-BtChannelsByIndex = {
-    0x00: EChannelType.ACCEL_LN_X,
-    0x01: EChannelType.ACCEL_LN_Y,
-    0x02: EChannelType.ACCEL_LN_Z,
-    0x03: EChannelType.VBATT,
-    0x04: EChannelType.ACCEL_LSM303DLHC_X,
-    0x05: EChannelType.ACCEL_LSM303DLHC_Y,
-    0x06: EChannelType.ACCEL_LSM303DLHC_Z,
-    0x07: EChannelType.MAG_LSM303DLHC_X,
-    0x08: EChannelType.MAG_LSM303DLHC_Y,
-    0x09: EChannelType.MAG_LSM303DLHC_Z,
-    0x0A: EChannelType.GYRO_MPU9150_X,
-    0x0B: EChannelType.GYRO_MPU9150_Y,
-    0x0C: EChannelType.GYRO_MPU9150_Z,
-    0x0D: EChannelType.EXTERNAL_ADC_7,
-    0x0E: EChannelType.EXTERNAL_ADC_6,
-    0x0F: EChannelType.EXTERNAL_ADC_15,
-    0x10: EChannelType.INTERNAL_ADC_1,
-    0x11: EChannelType.INTERNAL_ADC_12,
-    0x12: EChannelType.INTERNAL_ADC_13,
-    0x13: EChannelType.INTERNAL_ADC_14,
-    0x14: EChannelType.ACCEL_MPU9150_X,
-    0x15: EChannelType.ACCEL_MPU9150_Y,
-    0x16: EChannelType.ACCEL_MPU9150_Z,
-    0x17: EChannelType.MAG_MPU9150_X,
-    0x18: EChannelType.MAG_MPU9150_Y,
-    0x19: EChannelType.MAG_MPU9150_Z,
-    0x1A: EChannelType.TEMP_BMPX80,
-    0x1B: EChannelType.PRESSURE_BMPX80,
-    0x1C: EChannelType.GSR_RAW,
-    0x1D: EChannelType.EXG_ADS1292R_1_STATUS,
-    0x1E: EChannelType.EXG_ADS1292R_1_CH1_24BIT,
-    0x1F: EChannelType.EXG_ADS1292R_1_CH2_24BIT,
-    0x20: EChannelType.EXG_ADS1292R_2_STATUS,
-    0x21: EChannelType.EXG_ADS1292R_2_CH1_24BIT,
-    0x22: EChannelType.EXG_ADS1292R_2_CH2_24BIT,
-    0x23: EChannelType.EXG_ADS1292R_1_CH1_16BIT,
-    0x24: EChannelType.EXG_ADS1292R_1_CH2_16BIT,
-    0x25: EChannelType.EXG_ADS1292R_2_CH1_16BIT,
-    0x26: EChannelType.EXG_ADS1292R_2_CH2_16BIT,
-    0x27: EChannelType.STRAIN_HIGH,
-    0x28: EChannelType.STRAIN_LOW,
-}

@@ -13,7 +13,9 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from enum import Enum, auto
+from __future__ import annotations
+
+from enum import Enum, IntEnum, auto
 
 
 def ensure_firmware_version(func):
@@ -47,23 +49,23 @@ class FirmwareVersion:
         self._key = (major, minor, rel)
 
     @ensure_firmware_version
-    def __eq__(self, other: "FirmwareVersion") -> bool:
+    def __eq__(self, other: FirmwareVersion) -> bool:
         return self._key == other._key
 
     @ensure_firmware_version
-    def __gt__(self, other: "FirmwareVersion") -> bool:
+    def __gt__(self, other: FirmwareVersion) -> bool:
         return self._key > other._key
 
     @ensure_firmware_version
-    def __ge__(self, other: "FirmwareVersion") -> bool:
+    def __ge__(self, other: FirmwareVersion) -> bool:
         return self._key >= other._key
 
     @ensure_firmware_version
-    def __lt__(self, other: "FirmwareVersion") -> bool:
+    def __lt__(self, other: FirmwareVersion) -> bool:
         return self._key < other._key
 
     @ensure_firmware_version
-    def __le__(self, other: "FirmwareVersion") -> bool:
+    def __le__(self, other: FirmwareVersion) -> bool:
         return self._key <= other._key
 
 
@@ -83,8 +85,10 @@ class FirmwareCapabilities:
 
     @property
     def supports_ack_disable(self) -> bool:
-        return self._fw_type == EFirmwareType.LogAndStream and \
-               self._version >= FirmwareVersion(major=0, minor=15, rel=4)
+        return (
+            self._fw_type == EFirmwareType.LogAndStream
+            and self._version >= FirmwareVersion(major=0, minor=15, rel=4)
+        )
 
 
 FirmwareTypeValueAssignment = {
@@ -96,6 +100,26 @@ FirmwareTypeValueAssignment = {
 
 def get_firmware_type(f_type: int) -> EFirmwareType:
     if f_type not in FirmwareTypeValueAssignment:
-        raise ValueError(f'Unknown firmware type: 0x{f_type:x}')
+        raise ValueError(f"Unknown firmware type: 0x{f_type:x}")
 
     return FirmwareTypeValueAssignment[f_type]
+
+
+class HardwareVersion(IntEnum):
+    """Represents the supported Shimmer device hardware versions"""
+
+    SHIMMER1 = 0
+    SHIMMER2 = 1
+    SHIMMER2R = 2
+    SHIMMER3 = 3
+    SHIMMER3R = 10
+    UNKNOWN = -1
+
+    @classmethod
+    def from_int(cls, value: int) -> HardwareVersion:
+        """Converts an Integer to the corresponding HardwareVersion enum
+
+        :param value: Integer representing device hardware version
+        :return: Corresponding HardwareVersion enum member, or UNKNOWN if unrecognised
+        """
+        return cls._value2member_map_.get(value, cls.UNKNOWN)

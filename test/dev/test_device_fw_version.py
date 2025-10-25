@@ -13,9 +13,16 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from __future__ import annotations
+
 from unittest import TestCase
 
-from pyshimmer.dev.fw_version import FirmwareVersion, get_firmware_type, EFirmwareType, FirmwareCapabilities
+from pyshimmer.dev.fw_version import (
+    FirmwareVersion,
+    get_firmware_type,
+    EFirmwareType,
+    FirmwareCapabilities,
+)
 
 
 class DeviceFirmwareVersionTest(TestCase):
@@ -34,7 +41,9 @@ class DeviceFirmwareVersionTest(TestCase):
 class FirmwareCapabilitiesTest(TestCase):
 
     def test_capabilities(self):
-        cap = FirmwareCapabilities(EFirmwareType.LogAndStream, version=FirmwareVersion(1, 2, 3))
+        cap = FirmwareCapabilities(
+            EFirmwareType.LogAndStream, version=FirmwareVersion(1, 2, 3)
+        )
         self.assertTrue(cap.supports_ack_disable)
         self.assertEqual(cap.version, FirmwareVersion(1, 2, 3))
         self.assertEqual(cap.fw_type, EFirmwareType.LogAndStream)

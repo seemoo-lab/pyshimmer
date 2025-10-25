@@ -13,13 +13,15 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from __future__ import annotations
+
 UART_SET = 0x01
 UART_GET = 0x03
 
 UART_RESPONSE = 0x02
 UART_ACK_RESPONSE = 0xFF
 
-UART_BAD_CMD_RESPONSE = 0xFc
+UART_BAD_CMD_RESPONSE = 0xFC
 UART_BAD_ARG_RESPONSE = 0xFD
 UART_BAD_CRC_RESPONSE = 0xFE
 
