@@ -10,6 +10,8 @@ The project uses semantic versioning.
 - Wrap long lines to 90 characters
 - Replace types from typing with built-in ones
 - Raise required Python version to 3.9 since PEP 604 is used in the code
+- Update the `ChannelDataType` class to use the `int.from_bytes` and
+  `int.to_bytes` methods
 
 ## 1.0.0 - 2025-10-25
 

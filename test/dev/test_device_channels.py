@@ -31,7 +31,7 @@ from pyshimmer.dev.channels import (
 )
 
 
-class DeviceChannelsTest(TestCase):
+class EChannelTypeTest(TestCase):
 
     def test_channel_enum_uniqueness(self):
         try:
@@ -59,6 +59,16 @@ class DeviceChannelsTest(TestCase):
         with pytest.raises(ValueError):
             # Timestamp is not public
             EChannelType.enum_for_id(0x100)
+
+
+class ChannelDataTypeTest(TestCase):
+
+    def test_ch_dtype_byte_order(self):
+        dtype = ChannelDataType(size=4, signed=True, le=True)
+        assert dtype.byte_order == "little"
+
+        dtype = ChannelDataType(size=4, signed=True, le=False)
+        assert dtype.byte_order == "big"
 
     def test_channel_data_type_decoding(self):
         def test_both_endianess(byte_val_le: bytes, expected: int, signed: bool):
@@ -118,6 +128,9 @@ class DeviceChannelsTest(TestCase):
 
         test_both_endianess(0x12345, 3, b"\x45\x23\x01", signed=False)
         test_both_endianess(-0x12345, 3, b"\xbb\xdc\xfe", signed=True)
+
+
+class ChannelFunctionsTest(TestCase):
 
     def test_get_ch_dtypes(self):
         channels = [EChannelType.INTERNAL_ADC_A1, EChannelType.GYRO_Y]

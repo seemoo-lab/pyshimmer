@@ -15,35 +15,30 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from __future__ import annotations
 
-import struct
 from collections.abc import Iterable
 from enum import Enum, auto, unique
+from typing import Literal
 
-from pyshimmer.util import raise_to_next_pow, unpack, flatten_list, bit_is_set
+from pyshimmer.util import flatten_list, bit_is_set
 
 
 class ChannelDataType:
-    """Represents the binary data type and format of a Shimmer data channel
-
-    Every channel that is recorded by a Shimmer device has a specific data type. This
-    class represents the data type of a single such channel, and is capable of decoding
-    binary data into the appropriate form.
-    """
 
     def __init__(self, size: int, signed: bool = True, le: bool = True):
+        """Represents the binary data type and format of a Shimmer data channel
+
+        Every channel that is recorded by a Shimmer device has a specific data type. This
+        class represents the data type of a single such channel, and is capable of decoding
+        binary data into the appropriate form.
+
+        :param size: Length of the data type in Bytes
+        :param signed: True if the data type is a signed integer
+        :param le: True if the data type is encoded little endian, False if the
+            data type is encoded big endian
+        """
         self._size = size
         self._signed = signed
         self._le = le
-
-        self._valid_size = raise_to_next_pow(self.size)
-        self._needs_extend = size != self._valid_size
-
-        self._struct_dtypes = {
-            1: "B",
-            2: "H",
-            4: "I",
-            8: "Q",
-        }
 
     @property
     def little_endian(self) -> bool:
@@ -54,6 +49,13 @@ class ChannelDataType:
         return not self._le
 
     @property
+    def byte_order(self) -> Literal["little", "big"]:
+        if self.big_endian:
+            return "big"
+
+        return "little"
+
+    @property
     def signed(self) -> bool:
         return self._signed
 
@@ -61,63 +63,19 @@ class ChannelDataType:
     def size(self) -> int:
         return self._size
 
-    def _get_msb(self, val: bytes):
-        if self.little_endian:
-            return val[-1]
-        else:
-            return val[0]
+    def decode(self, val_bin: bytes) -> int:
+        if len(val_bin) != self.size:
+            raise ValueError(
+                f"Binary value does not match required size: "
+                f"{len(val_bin)} != {self.size}"
+            )
 
-    def _get_extension_value(self, val: bytes):
-        msb = self._get_msb(val)
-        is_negative = (msb >> 7) & 1 == 1
-
-        if self.signed and is_negative:
-            return b"\xff"
-        return b"\x00"
-
-    def _extend_value(self, val: bytes) -> bytes:
-        ext_value = self._get_extension_value(val)
-        suffix = ext_value * (self._valid_size - self.size)
-
-        if self.little_endian:
-            return val + suffix
-        else:
-            return suffix + val
-
-    def _truncate_value(self, val: bytes) -> bytes:
-        if self.little_endian:
-            return val[: self._size]
-        else:
-            return val[self._valid_size - self._size :]
-
-    def _get_struct_format(self) -> str:
-        stype = self._struct_dtypes[self._valid_size]
-        if self.signed:
-            stype = stype.lower()
-
-        if self.little_endian:
-            prefix = "<"
-        else:
-            prefix = ">"
-
-        return prefix + stype
-
-    def decode(self, val_bin: bytes) -> any:
-        if self._needs_extend:
-            val_bin = self._extend_value(val_bin)
-
-        struct_format = self._get_struct_format()
-        r_tpl = struct.unpack(struct_format, val_bin)
-        return unpack(r_tpl)
+        return int.from_bytes(val_bin, byteorder=self.byte_order, signed=self.signed)
 
     def encode(self, val: int) -> bytes:
-        struct_format = self._get_struct_format()
-        val_packed = struct.pack(struct_format, val)
-
-        if self._needs_extend:
-            return self._truncate_value(val_packed)
-
-        return val_packed
+        return val.to_bytes(
+            length=self.size, byteorder=self.byte_order, signed=self.signed
+        )
 
 
 # @unique causes issues with PyCharm code indexing
