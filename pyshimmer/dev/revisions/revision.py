@@ -1,3 +1,19 @@
+# pyshimmer - API for Shimmer sensor devices
+# Copyright (C) 2025  Lukas Magel
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 import operator
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
@@ -6,7 +22,7 @@ from typing import overload
 
 import numpy as np
 
-from pyshimmer.dev.channels import EChannelType, ChannelDataType, ESensorGroup
+from ..channels import EChannelType, ChannelDataType, ESensorGroup
 from pyshimmer.util import bit_is_set, flatten_list
 
 
