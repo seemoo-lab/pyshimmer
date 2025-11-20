@@ -210,7 +210,11 @@ class BaseRevision(HardwareRevision):
     def sec2ticks(self, t_sec: np.ndarray) -> np.ndarray: ...
 
     def sec2ticks(self, t_sec: float | np.ndarray) -> int | np.ndarray:
-        return round(t_sec * self._dev_clock_rate)
+        t_ticks = t_sec * self._dev_clock_rate
+        if isinstance(t_ticks, np.ndarray):
+            return np.round(t_ticks, decimals=0)
+
+        return round(t_ticks)
 
     @overload
     def ticks2sec(self, t_ticks: int) -> float: ...
