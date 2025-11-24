@@ -63,6 +63,16 @@ class EChannelTypeTest(TestCase):
             EChannelType.enum_for_id(0x100)
 
 
+class ESensorGroupTest:
+
+    def test_sensor_group_uniqueness(self):
+        try:
+            # The exception will trigger upon import if the enum values are not unique
+            from pyshimmer.dev.channels import ESensorGroup
+        except ValueError as e:
+            pytest.fail(f"Enum not unique: {e}")
+
+
 class ChannelDataTypeTest(TestCase):
 
     def test_ch_dtype_byte_order(self):
@@ -148,13 +158,6 @@ class ChannelFunctionsTest(TestCase):
         self.assertEqual(second.size, 2)
         self.assertEqual(second.little_endian, False)
         self.assertEqual(second.signed, True)
-
-    def test_sensor_group_uniqueness(self):
-        try:
-            # The exception will trigger upon import if the enum values are not unique
-            from pyshimmer.dev.channels import ESensorGroup
-        except ValueError as e:
-            self.fail(f"Enum not unique: {e}")
 
     def test_datatype_assignments(self):
         from pyshimmer.dev.channels import EChannelType
