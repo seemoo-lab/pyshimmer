@@ -235,6 +235,9 @@ class BaseRevision(HardwareRevision):
         return self._sensor_list_dtype.size
 
     def sensors2bitfield(self, sensors: Iterable[ESensorGroup]) -> int:
+        if len(sensors) == 0:
+            return 0x0
+
         bit_values = [1 << self._sensor_bit_assignment[g] for g in sensors]
         return reduce(operator.or_, bit_values)
 
