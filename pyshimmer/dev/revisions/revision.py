@@ -88,14 +88,6 @@ class HardwareRevision(ABC):
         """
         pass
 
-    def get_channel_dtype(self, channel: EChannelType) -> ChannelDataType:
-        """
-
-        :param channel:
-        :return: A list of channel data types with the same order
-        """
-        pass
-
     @abstractmethod
     def get_channel_dtypes(
         self, channels: Iterable[EChannelType]
