@@ -12,9 +12,18 @@ permissions:
   contents: read
 
 jobs:
+  format:
+    name: Check Formatting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: psf/black@stable
   test:
     name: Run Tests
     runs-on: ubuntu-latest
+    needs: format
     strategy:
       matrix:
         python-version: [ '3.9', '3.10', '3.11', '3.12', '3.13' ]
