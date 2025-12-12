@@ -406,7 +406,7 @@ class ShimmerBluetooth:
                 self._bluetooth.process_single_input_event()
 
         except ReadAbort:
-            print("Read loop exciting after cancel request")
+            print("Read loop exiting after cancel request")
 
     def _process_and_wait(self, cmd):
         compl_obj, return_obj = self._bluetooth.queue_command(cmd)
