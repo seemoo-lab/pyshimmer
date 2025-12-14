@@ -20,7 +20,12 @@ from .dev.base import DEFAULT_BAUDRATE
 from .dev.channels import ChannelDataType, EChannelType
 from .dev.exg import ExGMux, ExGRLDLead, ERLDRef, ExGRegister
 from .dev.fw_version import EFirmwareType
-from .dev.revisions import HardwareRevision, Shimmer3Revision
+from .dev.revisions import (
+    HardwareRevision,
+    Shimmer3Revision,
+    HW_REVISIONS,
+    REV_SHIMMER3,
+)
 from .reader.binary_reader import ShimmerBinaryReader
 from .reader.shimmer_reader import ShimmerReader
 from .uart.dock_api import ShimmerDock

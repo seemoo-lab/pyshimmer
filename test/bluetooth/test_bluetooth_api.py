@@ -32,6 +32,7 @@ from pyshimmer.bluetooth.bt_commands import (
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
 from pyshimmer.dev.channels import ChDataTypeAssignment, EChannelType
 from pyshimmer.dev.fw_version import FirmwareVersion, EFirmwareType, HardwareVersion
+from pyshimmer.dev.revisions import REV_SHIMMER3
 from pyshimmer.test_util import PTYSerialMockCreator
 
 
@@ -77,7 +78,7 @@ class BluetoothRequestHandlerTest(TestCase):
         self._sot.remove_status_callback(cb)
 
     def test_enque_command(self):
-        cmd = GetDeviceNameCommand()
+        cmd = GetDeviceNameCommand(REV_SHIMMER3)
         compl, resp = self._sot.queue_command(cmd)
 
         self.assertFalse(compl.has_completed())
@@ -99,7 +100,7 @@ class BluetoothRequestHandlerTest(TestCase):
         self.assertEqual(resp.get_result(), "S_PPG")
 
     def test_enqueue_multibyte(self):
-        cmd = GetStringCommand(0x10, b"\x0a\x0b")
+        cmd = GetStringCommand(REV_SHIMMER3, 0x10, b"\x0a\x0b")
         compl, resp = self._sot.queue_command(cmd)
 
         r = self.read_from_master(1)
@@ -116,8 +117,8 @@ class BluetoothRequestHandlerTest(TestCase):
         self.assertEqual(resp.get_result(), "ab")
 
     def test_enqueue_multiple_commands(self):
-        cmd1 = GetDeviceNameCommand()
-        cmd2 = GetStatusCommand()
+        cmd1 = GetDeviceNameCommand(REV_SHIMMER3)
+        cmd2 = GetStatusCommand(REV_SHIMMER3)
 
         compl1, resp1 = self._sot.queue_command(cmd1)
         compl2, resp2 = self._sot.queue_command(cmd2)
@@ -145,7 +146,7 @@ class BluetoothRequestHandlerTest(TestCase):
         )
 
     def test_queue_command_no_resp(self):
-        cmd = SetDeviceNameCommand("S_PPG")
+        cmd = SetDeviceNameCommand(REV_SHIMMER3, "S_PPG")
         compl, resp = self._sot.queue_command(cmd)
 
         self.assertFalse(compl.has_completed())
@@ -162,7 +163,7 @@ class BluetoothRequestHandlerTest(TestCase):
         class InStreamCommand(ResponseCommand):
 
             def __init__(self):
-                super().__init__(b"\x8a\x42")
+                super().__init__(REV_SHIMMER3, b"\x8a\x42")
 
             def send(self, ser: BluetoothSerial) -> None:
                 ser.write(b"\x42")
@@ -183,7 +184,7 @@ class BluetoothRequestHandlerTest(TestCase):
         self.assertTrue(resp.has_result())
 
     def test_get_status_command(self):
-        cmd = GetStatusCommand()
+        cmd = GetStatusCommand(REV_SHIMMER3)
         compl, resp = self._sot.queue_command(cmd)
 
         self.assertFalse(compl.has_completed())
@@ -204,7 +205,7 @@ class BluetoothRequestHandlerTest(TestCase):
         )
 
     def test_incorrect_resp_code_fail(self):
-        cmd = GetDeviceNameCommand()
+        cmd = GetDeviceNameCommand(REV_SHIMMER3)
         _ = self._sot.queue_command(cmd)
 
         self._master.write(b"\xff\xfe")
@@ -269,7 +270,7 @@ class BluetoothRequestHandlerTest(TestCase):
         status_resp: list[list[bool]] = []
         self._sot.add_status_callback(status_resp.append)
 
-        compl, resp = self._sot.queue_command(GetStatusCommand())
+        compl, resp = self._sot.queue_command(GetStatusCommand(REV_SHIMMER3))
         r = self.read_from_master(1)
         self.assertEqual(r, b"\x72")
 
@@ -292,8 +293,8 @@ class BluetoothRequestHandlerTest(TestCase):
         )
 
     def test_clear_queues(self):
-        compl1, resp1 = self._sot.queue_command(GetDeviceNameCommand())
-        compl2, resp2 = self._sot.queue_command(GetDeviceNameCommand())
+        compl1, resp1 = self._sot.queue_command(GetDeviceNameCommand(REV_SHIMMER3))
+        compl2, resp2 = self._sot.queue_command(GetDeviceNameCommand(REV_SHIMMER3))
 
         self.assertFalse(compl1.has_completed())
         self.assertFalse(resp1.has_result())
