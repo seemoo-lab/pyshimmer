@@ -182,8 +182,10 @@ Linux distributions should work as well.
 Requirements:
 
 * Functioning Bluetooth stack
-* The :code:`rfcomm` commandline tool. For Arch Linux, use the `bluez-rfcomm AUR <https://aur.archlinux.org/packages/bluez-rfcomm/>`_ package
-* The :code:`hcitool` commandline tool. For Arch Linux, use the `bluez-hcitool AUR <https://aur.archlinux.org/packages/bluez-hcitool/>`_ package
+* :code:`bluez` command line tools (on Arch Linux use https://archlinux.org/packages/extra/x86_64/bluez-deprecated-tools/)
+    - :code:`rfcomm`
+    - :code:`hcitool`
+    - :code:`sdptool`
 * A Shimmer device with  :code:`LogAndStream` firmware
 
 Scan for the device to find out its MAC address:
