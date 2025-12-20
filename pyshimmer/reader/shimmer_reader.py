@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import BinaryIO
+from typing import BinaryIO, Any
 
 import numpy as np
 
@@ -27,7 +27,11 @@ from pyshimmer.dev.channels import (
     EChannelType,
 )
 from pyshimmer.dev.exg import is_exg_ch, get_exg_ch, ExGRegister
-from pyshimmer.reader.binary_reader import ShimmerBinaryReader
+from pyshimmer.reader.binary_reader import (
+    ShimmerBinaryReader,
+    ShimmerBinaryFileReader,
+    ShimmerBinaryStreamReader,
+)
 from pyshimmer.reader.reader_const import (
     EXG_ADC_REF_VOLT,
     EXG_ADC_OFFSET,
@@ -149,9 +153,14 @@ class ShimmerReader:
         sync: bool = True,
         post_process: bool = True,
         processors: list[ChannelPostProcessor] = None,
+        batch_size: int = -1,
     ):
         if fp is not None:
-            self._bin_reader = ShimmerBinaryReader(fp)
+            self._bin_reader = (
+                ShimmerBinaryFileReader(fp)
+                if batch_size < 1
+                else ShimmerBinaryStreamReader(fp, batch_size)
+            )
         elif bin_reader is not None:
             self._bin_reader = bin_reader
         else:
@@ -208,8 +217,9 @@ class ShimmerReader:
 
         return result
 
-    def load_file_data(self):
-        samples, sync_offsets = self._bin_reader.read_data()
+    def _finalize_data(
+        self, samples: dict[EChannelType, Any], sync_offsets: list[tuple[int, int]]
+    ) -> tuple[int | float | np.ndarray, dict[EChannelType, Any]]:
         ts_raw = samples.pop(EChannelType.TIMESTAMP)
 
         ts_unwrapped = unwrap_device_timestamps(ts_raw)
@@ -218,12 +228,29 @@ class ShimmerReader:
         if self._sync and self._bin_reader.has_sync:
             ts_sane = self._apply_synchronization(ts_sane, *sync_offsets)
 
+        output_samples = None
         if self._pp:
-            self._ch_samples = self._process_signals(samples)
+            output_samples = self._process_signals(samples)
         else:
-            self._ch_samples = samples
+            output_samples = samples
 
-        self._ts = ticks2sec(ts_sane)
+        timestamps = ticks2sec(ts_sane)
+        return timestamps, output_samples
+
+    def get_batch(self):
+        samples, sync_offsets = self._bin_reader.read_data()
+        if len(samples) == len(sync_offsets) == 0:
+            return [], []
+
+        return self._finalize_data(samples, sync_offsets)
+
+    def load_file_data(self) -> tuple | None:
+        timestamps, samples = self.get_batch()
+        if type(self._bin_reader) == ShimmerBinaryStreamReader:
+            return timestamps, samples
+
+        self._ts, self._ch_samples = timestamps, samples
+        return None
 
     def get_exg_reg(self, chip_id: int) -> ExGRegister:
         return self._bin_reader.get_exg_reg(chip_id)
@@ -231,8 +258,7 @@ class ShimmerReader:
     def __getitem__(self, item: EChannelType) -> np.ndarray:
         if item == EChannelType.TIMESTAMP:
             return self.timestamp
-
-        return self._ch_samples[item]
+        return self._ch_samples.get(item, np.empty(0))
 
     @property
     def timestamp(self) -> np.ndarray:
@@ -254,3 +280,11 @@ class ShimmerReader:
     @property
     def exg_reg2(self) -> ExGRegister:
         return self.get_exg_reg(1)
+
+    @property
+    def enabled_sensors(self) -> list[ESensorGroup]:
+        return self._bin_reader.enabled_sensors
+
+    @enabled_sensors.setter
+    def enabled_sensors(self, enabled_sensors: list[ESensorGroup]) -> None:
+        self._bin_reader.enabled_sensors = enabled_sensors
