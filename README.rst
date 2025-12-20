@@ -182,8 +182,10 @@ Linux distributions should work as well.
 Requirements:
 
 * Functioning Bluetooth stack
-* The :code:`rfcomm` commandline tool. For Arch Linux, use the `bluez-rfcomm AUR <https://aur.archlinux.org/packages/bluez-rfcomm/>`_ package
-* The :code:`hcitool` commandline tool. For Arch Linux, use the `bluez-hcitool AUR <https://aur.archlinux.org/packages/bluez-hcitool/>`_ package
+* :code:`bluez` command line tools (on Arch Linux use https://archlinux.org/packages/extra/x86_64/bluez-deprecated-tools/)
+    - :code:`rfcomm`
+    - :code:`hcitool`
+    - :code:`sdptool`
 * A Shimmer device with  :code:`LogAndStream` firmware
 
 Scan for the device to find out its MAC address:
@@ -192,20 +194,48 @@ Scan for the device to find out its MAC address:
 
     hcitool scan
 
-The MAC address of the listed Shimmer device should end with the *BT Radio ID* imprinted on the back of the device.
+The MAC address of the listed Shimmer device should end with the *BT Radio ID* (or simply *BTID*) imprinted on the back of the device.
 Next, you can try and ping the device:
 
 .. code-block::
 
     hcitool name <mac_addr>
 
-The command should complete with the name listed previously during the scan. Now you can pair the device as follows:
+The command should complete with the name listed previously during the scan.
+
+Now verify which channel the Shimmer uses for RFCOMM:
 
 .. code-block::
 
-    rfcomm <bind_id> <mac_address>
+    sdptool records <mac_addr>
 
-where :code:`<bind_id>` is an arbitrary integer of your choosing. The command will create a new serial interface node
+In the output, look for the "SPP SERVER" section. Under the "RFCOMM" you will find the "Channel" number.
+
+.. code-block::
+
+    ...
+    Service Name: SPP SERVER
+    Service RecHandle: 0x10002
+    Service Class ID List:
+      "Serial Port" (0x1101)
+    Protocol Descriptor List:
+      "L2CAP" (0x0100)
+      "RFCOMM" (0x0003)
+        Channel: 2
+    Profile Descriptor List:
+      "Serial Port" (0x1101)
+        Version: 0x0102
+    ...
+
+Now you can pair the device as follows:
+
+.. code-block::
+
+    rfcomm <bind_id> <mac_addr> <channel>
+
+where :code:`<bind_id>` is an arbitrary integer of your choosing
+and the :code:`<channel>` is the channel reported by the `sdptool` (if not specified `rfcomm` assumes `1` but some devices might communicate via a different channel, e.g. `2`).
+The command will create a new serial interface node
 with the following name: :code:`/dev/rfcomm<bind_id>`.
 The file acts as a regular serial device and allows you to communicate with the Shimmer. The file is also used by the
 library.

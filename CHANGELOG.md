@@ -15,7 +15,7 @@ The project uses semantic versioning.
 
 ## 1.0.0 - 2025-10-25
 
-This is a rebrand of release v.07.0 as v1.0.0.
+This is a rebrand of release v0.7.0 as v1.0.0.
 
 A lot of incoming changes and modifications already present on the main branch
 make the future code base incompatible to previous releases, such as v0.7.0.
