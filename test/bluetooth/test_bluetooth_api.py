@@ -20,6 +20,8 @@ from concurrent.futures import ThreadPoolExecutor, Future
 from typing import BinaryIO
 from unittest import TestCase
 
+import pytest
+
 from pyshimmer.bluetooth.bt_api import BluetoothRequestHandler, ShimmerBluetooth
 from pyshimmer.bluetooth.bt_commands import (
     GetDeviceNameCommand,
@@ -32,138 +34,174 @@ from pyshimmer.bluetooth.bt_commands import (
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
 from pyshimmer.dev.channels import ChDataTypeAssignment, EChannelType
 from pyshimmer.dev.fw_version import FirmwareVersion, EFirmwareType
-from pyshimmer.dev.revisions import HardwareVersion, REV_SHIMMER3
+from pyshimmer.dev.revisions import (
+    HardwareVersion,
+    HardwareRevision,
+    HW_REVISIONS,
+)
 from pyshimmer.test_util import PTYSerialMockCreator
 
 
-class BluetoothRequestHandlerTest(TestCase):
+class TestBluetoothRequestHandler:
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    @pytest.fixture
+    def mock_creator(self) -> PTYSerialMockCreator:
+        mock_creator = PTYSerialMockCreator()
+        mock_creator.create_mock()
 
-        self._mock_creator: PTYSerialMockCreator | None = None
-        self._sot: BluetoothRequestHandler | None = None
+        yield mock_creator
 
-        self._master: BinaryIO | None = None
+        mock_creator.close()
 
-    def setUp(self) -> None:
-        self._mock_creator = PTYSerialMockCreator()
-        serial, self._master = self._mock_creator.create_mock()
+    @pytest.fixture(params=HW_REVISIONS)
+    def revision(self, request) -> HardwareRevision:
+        return request.param
 
-        bt_serial = BluetoothSerial(serial)
-        self._sot = BluetoothRequestHandler(bt_serial)
+    @pytest.fixture
+    def mock_serial(self, mock_creator: PTYSerialMockCreator) -> BluetoothSerial:
+        bt_serial = BluetoothSerial(mock_creator.slave_serial)
+        return bt_serial
 
-    def read_from_master(self, n: int) -> bytes:
-        result = bytes()
-        while len(result) < n:
-            result += self._master.read(n - len(result))
+    @pytest.fixture
+    def sot(
+        self, mock_serial: BluetoothSerial, revision: HardwareRevision
+    ) -> BluetoothRequestHandler:
+        handler = BluetoothRequestHandler(mock_serial, revision)
+        return handler
 
-        return result
-
-    def tearDown(self) -> None:
-        self._mock_creator.close()
-
-    def test_add_remove_stream_cb(self):
+    def test_add_remove_stream_cb(self, sot: BluetoothRequestHandler):
         def cb(_):
             pass
 
-        self._sot.add_stream_callback(cb)
-        self._sot.remove_stream_callback(cb)
+        sot.add_stream_callback(cb)
+        sot.remove_stream_callback(cb)
 
-    def test_add_remove_status_cb(self):
+    def test_add_remove_status_cb(self, sot: BluetoothRequestHandler):
         def cb(_):
             pass
 
-        self._sot.add_status_callback(cb)
-        self._sot.remove_status_callback(cb)
+        sot.add_status_callback(cb)
+        sot.remove_status_callback(cb)
 
-    def test_enque_command(self):
-        cmd = GetDeviceNameCommand(REV_SHIMMER3)
-        compl, resp = self._sot.queue_command(cmd)
+    def test_enque_command(
+        self,
+        mock_creator: PTYSerialMockCreator,
+        sot: BluetoothRequestHandler,
+        revision: HardwareRevision,
+    ):
+        cmd = GetDeviceNameCommand(revision)
+        compl, resp = sot.queue_command(cmd)
 
-        self.assertFalse(compl.has_completed())
-        self.assertFalse(resp.has_result())
+        assert compl.has_completed() is False
+        assert resp.has_result() is False
 
-        r = self.read_from_master(1)
-        self.assertEqual(r, b"\x7b")
+        r = mock_creator.read_from_master(1)
+        assert r == b"\x7b"
 
-        self._master.write(b"\xff")
-        self._sot.process_single_input_event()
+        mock_creator.write_to_master(b"\xff")
+        sot.process_single_input_event()
 
-        self.assertTrue(compl.has_completed())
-        self.assertFalse(resp.has_result())
+        assert compl.has_completed() is True
+        assert resp.has_result() is False
 
-        self._master.write(b"\x7a\x05\x53\x5f\x50\x50\x47")
-        self._sot.process_single_input_event()
+        mock_creator.write_to_master(b"\x7a\x05\x53\x5f\x50\x50\x47")
+        sot.process_single_input_event()
 
-        self.assertTrue(resp.has_result())
-        self.assertEqual(resp.get_result(), "S_PPG")
+        assert resp.has_result() is True
+        assert resp.get_result() == "S_PPG"
 
-    def test_enqueue_multibyte(self):
-        cmd = GetStringCommand(REV_SHIMMER3, 0x10, b"\x0a\x0b")
-        compl, resp = self._sot.queue_command(cmd)
+    def test_enqueue_multibyte(
+        self,
+        mock_creator: PTYSerialMockCreator,
+        revision: HardwareRevision,
+        sot: BluetoothRequestHandler,
+    ):
+        cmd = GetStringCommand(revision, 0x10, b"\x0a\x0b")
+        compl, resp = sot.queue_command(cmd)
 
-        r = self.read_from_master(1)
-        self.assertEqual(r, b"\x10")
+        r = mock_creator.read_from_master(1)
+        assert r == b"\x10"
 
-        self._master.write(b"\xff")
-        self._sot.process_single_input_event()
+        mock_creator.write_to_master(b"\xff")
+        sot.process_single_input_event()
 
-        self._master.write(b"\x0a\x0b\x02ab")
-        self._sot.process_single_input_event()
+        mock_creator.write_to_master(b"\x0a\x0b\x02ab")
+        sot.process_single_input_event()
 
-        self.assertTrue(compl.has_completed())
-        self.assertTrue(resp.has_result())
-        self.assertEqual(resp.get_result(), "ab")
+        assert compl.has_completed() is True
+        assert resp.has_result() is True
+        assert resp.get_result() == "ab"
 
-    def test_enqueue_multiple_commands(self):
-        cmd1 = GetDeviceNameCommand(REV_SHIMMER3)
-        cmd2 = GetStatusCommand(REV_SHIMMER3)
+    def test_enqueue_multiple_commands(
+        self,
+        mock_creator: PTYSerialMockCreator,
+        revision: HardwareRevision,
+        sot: BluetoothRequestHandler,
+    ):
+        cmd1 = GetDeviceNameCommand(revision)
+        cmd2 = GetStatusCommand(revision)
 
-        compl1, resp1 = self._sot.queue_command(cmd1)
-        compl2, resp2 = self._sot.queue_command(cmd2)
+        compl1, resp1 = sot.queue_command(cmd1)
+        compl2, resp2 = sot.queue_command(cmd2)
 
-        r = self.read_from_master(2)
-        self.assertEqual(r, b"\x7b\x72")
+        r = mock_creator.read_from_master(2)
+        assert r == b"\x7b\x72"
 
-        self._master.write(b"\xff\x7a\x05\x53\x5f\x50\x50\x47")
-        self._master.write(b"\xff\x8a\x71\x21")
+        mock_creator.write_to_master(b"\xff\x7a\x05\x53\x5f\x50\x50\x47")
+        mock_creator.write_to_master(b"\xff\x8a\x71\x21")
 
-        self._sot.process_single_input_event()
-        self.assertTrue(compl1.has_completed())
+        sot.process_single_input_event()
+        assert compl1.has_completed() is True
 
-        self._sot.process_single_input_event()
-        self.assertTrue(resp1.has_result())
-        self.assertEqual(resp1.get_result(), "S_PPG")
+        sot.process_single_input_event()
+        assert resp1.has_result() is True
+        assert resp1.get_result() == "S_PPG"
 
-        self._sot.process_single_input_event()
-        self.assertTrue(compl2.has_completed())
+        sot.process_single_input_event()
+        assert compl2.has_completed() is True
 
-        self._sot.process_single_input_event()
-        self.assertTrue(resp2.has_result())
-        self.assertEqual(
-            resp2.get_result(), [True, False, False, False, False, True, False, False]
-        )
+        sot.process_single_input_event()
+        assert resp2.has_result() is True
+        assert resp2.get_result() == [
+            True,
+            False,
+            False,
+            False,
+            False,
+            True,
+            False,
+            False,
+        ]
 
-    def test_queue_command_no_resp(self):
-        cmd = SetDeviceNameCommand(REV_SHIMMER3, "S_PPG")
-        compl, resp = self._sot.queue_command(cmd)
+    def test_queue_command_no_resp(
+        self,
+        mock_creator: PTYSerialMockCreator,
+        revision: HardwareRevision,
+        sot: BluetoothRequestHandler,
+    ):
+        cmd = SetDeviceNameCommand(revision, "S_PPG")
+        compl, resp = sot.queue_command(cmd)
 
-        self.assertFalse(compl.has_completed())
-        self.assertEqual(resp, None)
+        assert compl.has_completed() is False
+        assert resp is None
 
-        r = self.read_from_master(7)
-        self.assertEqual(r, b"\x79\x05S_PPG")
+        r = mock_creator.read_from_master(7)
+        assert r == b"\x79\x05S_PPG"
 
-        self._master.write(b"\xff")
-        self._sot.process_single_input_event()
-        self.assertTrue(compl.has_completed())
+        mock_creator.write_to_master(b"\xff")
+        sot.process_single_input_event()
+        assert compl.has_completed() is True
 
-    def test_queue_unknown_instream(self):
+    def test_queue_unknown_instream(
+        self,
+        mock_creator: PTYSerialMockCreator,
+        revision: HardwareRevision,
+        sot: BluetoothRequestHandler,
+    ):
         class InStreamCommand(ResponseCommand):
 
             def __init__(self):
-                super().__init__(REV_SHIMMER3, b"\x8a\x42")
+                super().__init__(revision, b"\x8a\x42")
 
             def send(self, ser: BluetoothSerial) -> None:
                 ser.write(b"\x42")
@@ -171,153 +209,191 @@ class BluetoothRequestHandlerTest(TestCase):
             def receive(self, ser: BluetoothSerial) -> any:
                 return ser.read_response(b"\x8a\x42")
 
-        compl, resp = self._sot.queue_command(InStreamCommand())
+        compl, resp = sot.queue_command(InStreamCommand())
 
-        r = self.read_from_master(1)
-        self.assertEqual(r, b"\x42")
+        r = mock_creator.read_from_master(1)
+        assert r == b"\x42"
 
-        self._master.write(b"\xff\x8a\x42")
-        self._sot.process_single_input_event()
-        self.assertTrue(compl.has_completed())
+        mock_creator.write_to_master(b"\xff\x8a\x42")
+        sot.process_single_input_event()
+        assert compl.has_completed() is True
 
-        self._sot.process_single_input_event()
-        self.assertTrue(resp.has_result())
+        sot.process_single_input_event()
+        assert resp.has_result() is True
 
-    def test_get_status_command(self):
-        cmd = GetStatusCommand(REV_SHIMMER3)
-        compl, resp = self._sot.queue_command(cmd)
+    def test_get_status_command(
+        self,
+        mock_creator: PTYSerialMockCreator,
+        revision: HardwareRevision,
+        sot: BluetoothRequestHandler,
+    ):
 
-        self.assertFalse(compl.has_completed())
-        self.assertFalse(resp.has_result())
+        cmd = GetStatusCommand(revision)
+        compl, resp = sot.queue_command(cmd)
 
-        r = self.read_from_master(1)
-        self.assertEqual(r, b"\x72")
+        assert compl.has_completed() is False
+        assert resp.has_result() is False
 
-        self._master.write(b"\xff\x8a\x71\x21")
-        self._sot.process_single_input_event()
-        self.assertTrue(compl.has_completed())
-        self.assertFalse(resp.has_result())
+        r = mock_creator.read_from_master(1)
+        assert r == b"\x72"
 
-        self._sot.process_single_input_event()
-        self.assertTrue(resp.has_result())
-        self.assertEqual(
-            resp.get_result(), [True, False, False, False, False, True, False, False]
-        )
+        mock_creator.write_to_master(b"\xff\x8a\x71\x21")
+        sot.process_single_input_event()
+        assert compl.has_completed() is True
+        assert resp.has_result() is False
 
-    def test_incorrect_resp_code_fail(self):
-        cmd = GetDeviceNameCommand(REV_SHIMMER3)
-        _ = self._sot.queue_command(cmd)
+        sot.process_single_input_event()
+        assert resp.has_result() is True
+        assert resp.get_result() == [
+            True,
+            False,
+            False,
+            False,
+            False,
+            True,
+            False,
+            False,
+        ]
 
-        self._master.write(b"\xff\xfe")
-        self._sot.process_single_input_event()
-        self.assertRaises(ValueError, self._sot.process_single_input_event)
+    def test_incorrect_resp_code_fail(
+        self,
+        mock_creator: PTYSerialMockCreator,
+        revision: HardwareRevision,
+        sot: BluetoothRequestHandler,
+    ):
 
-    def test_data_packet(self):
+        cmd = GetDeviceNameCommand(revision)
+        _ = sot.queue_command(cmd)
+
+        mock_creator.write_to_master(b"\xff\xfe")
+        sot.process_single_input_event()
+
+        with pytest.raises(ValueError):
+            sot.process_single_input_event()
+
+    def test_data_packet(
+        self,
+        mock_creator: PTYSerialMockCreator,
+        sot: BluetoothRequestHandler,
+    ):
         results: list[DataPacket] = []
 
         data_pkt_1 = b"\x00\xde\xd0\xb2\x26\x07"
         data_pkt_2 = b"\x00\x1e\xd1\xb2\xfc\x06"
 
         ch_types = [EChannelType.TIMESTAMP, EChannelType.INTERNAL_ADC_A1]
-        self._sot.set_stream_types([(c, ChDataTypeAssignment[c]) for c in ch_types])
-        self._sot.add_stream_callback(results.append)
+        sot.stream_types = [(c, ChDataTypeAssignment[c]) for c in ch_types]
+        sot.add_stream_callback(results.append)
 
-        self._master.write(data_pkt_1)
-        self._master.write(data_pkt_2)
+        mock_creator.write_to_master(data_pkt_1)
+        mock_creator.write_to_master(data_pkt_2)
 
-        self._sot.process_single_input_event()
-        self.assertEqual(len(results), 1)
+        sot.process_single_input_event()
+        assert len(results) == 1
         pkt = results[0]
 
-        self.assertEqual(pkt.channels, ch_types)
-        self.assertEqual(pkt[EChannelType.TIMESTAMP], 0xB2D0DE)
-        self.assertEqual(pkt[EChannelType.INTERNAL_ADC_A1], 0x0726)
+        assert pkt.channels == ch_types
+        assert pkt[EChannelType.TIMESTAMP] == 0xB2D0DE
+        assert pkt[EChannelType.INTERNAL_ADC_A1] == 0x0726
 
-        self._sot.process_single_input_event()
-        self.assertEqual(len(results), 2)
+        sot.process_single_input_event()
+        assert len(results) == 2
         pkt = results[1]
 
-        self.assertEqual(pkt.channels, ch_types)
-        self.assertEqual(pkt[EChannelType.TIMESTAMP], 0xB2D11E)
-        self.assertEqual(pkt[EChannelType.INTERNAL_ADC_A1], 0x06FC)
+        assert pkt.channels == ch_types
+        assert pkt[EChannelType.TIMESTAMP] == 0xB2D11E
+        assert pkt[EChannelType.INTERNAL_ADC_A1] == 0x06FC
 
-    def test_get_status_response(self):
+    def test_get_status_response(
+        self, mock_creator: PTYSerialMockCreator, sot: BluetoothRequestHandler
+    ):
         status_resp: list[list[bool]] = []
 
         stat_pkt_1 = b"\x8a\x71\x20"
         stat_pkt_2 = b"\x8a\x71\x21"
-        self._sot.add_status_callback(status_resp.append)
+        sot.add_status_callback(status_resp.append)
 
-        self._master.write(stat_pkt_1)
-        self._master.write(stat_pkt_2)
+        mock_creator.write_to_master(stat_pkt_1)
+        mock_creator.write_to_master(stat_pkt_2)
 
-        self._sot.process_single_input_event()
-        self.assertEqual(len(status_resp), 1)
-        self.assertEqual(
-            status_resp[0], [False, False, False, False, False, True, False, False]
-        )
+        sot.process_single_input_event()
+        assert len(status_resp) == 1
+        assert status_resp[0] == [False, False, False, False, False, True, False, False]
 
-        self._sot.process_single_input_event()
-        self.assertEqual(len(status_resp), 2)
-        self.assertEqual(
-            status_resp[1], [True, False, False, False, False, True, False, False]
-        )
+        sot.process_single_input_event()
+        assert len(status_resp) == 2
+        assert status_resp[1] == [True, False, False, False, False, True, False, False]
 
-    def test_get_status_response_update_mixed(self):
+    def test_get_status_response_update_mixed(
+        self,
+        mock_creator: PTYSerialMockCreator,
+        revision: HardwareRevision,
+        sot: BluetoothRequestHandler,
+    ):
         stat_pkt_1 = b"\x8a\x71\x20"
         stat_pkt_2 = b"\x8a\x71\x21"
 
         status_resp: list[list[bool]] = []
-        self._sot.add_status_callback(status_resp.append)
+        sot.add_status_callback(status_resp.append)
 
-        compl, resp = self._sot.queue_command(GetStatusCommand(REV_SHIMMER3))
-        r = self.read_from_master(1)
-        self.assertEqual(r, b"\x72")
+        compl, resp = sot.queue_command(GetStatusCommand(revision))
+        r = mock_creator.read_from_master(1)
+        assert r == b"\x72"
 
-        self._master.write(b"\xff" + stat_pkt_1)
-        self._master.write(stat_pkt_2)
+        mock_creator.write_to_master(b"\xff" + stat_pkt_1)
+        mock_creator.write_to_master(stat_pkt_2)
 
-        self._sot.process_single_input_event()
-        self.assertTrue(compl.has_completed())
+        sot.process_single_input_event()
+        assert compl.has_completed() is True
 
-        self._sot.process_single_input_event()
-        self.assertTrue(resp.has_result())
-        self.assertEqual(
-            resp.get_result(), [False, False, False, False, False, True, False, False]
-        )
+        sot.process_single_input_event()
+        assert resp.has_result() is True
+        assert resp.get_result() == [
+            False,
+            False,
+            False,
+            False,
+            False,
+            True,
+            False,
+            False,
+        ]
 
-        self._sot.process_single_input_event()
-        self.assertEqual(len(status_resp), 1)
-        self.assertEqual(
-            status_resp[0], [True, False, False, False, False, True, False, False]
-        )
+        sot.process_single_input_event()
+        assert len(status_resp) == 1
+        assert status_resp[0] == [True, False, False, False, False, True, False, False]
 
-    def test_clear_queues(self):
-        compl1, resp1 = self._sot.queue_command(GetDeviceNameCommand(REV_SHIMMER3))
-        compl2, resp2 = self._sot.queue_command(GetDeviceNameCommand(REV_SHIMMER3))
+    def test_clear_queues(
+        self,
+        mock_creator: PTYSerialMockCreator,
+        revision: HardwareRevision,
+        sot: BluetoothRequestHandler,
+    ):
+        compl1, resp1 = sot.queue_command(GetDeviceNameCommand(revision))
+        compl2, resp2 = sot.queue_command(GetDeviceNameCommand(revision))
 
-        self.assertFalse(compl1.has_completed())
-        self.assertFalse(resp1.has_result())
+        assert compl1.has_completed() is False
+        assert resp1.has_result() is False
 
         # Ensure that the first command has been passed into the response queue
-        self._master.write(b"\xff")
-        self._sot.process_single_input_event()
+        mock_creator.write_to_master(b"\xff")
+        sot.process_single_input_event()
 
-        self.assertTrue(compl1.has_completed())
-        self.assertFalse(resp1.has_result())
+        assert compl1.has_completed() is True
+        assert resp1.has_result() is False
 
-        self.assertFalse(compl2.has_completed())
-        self.assertFalse(resp2.has_result())
+        assert compl2.has_completed() is False
+        assert resp2.has_result() is False
 
-        self._sot.clear_queues()
+        sot.clear_queues()
 
-        self.assertTrue(compl1.has_completed())
-        self.assertTrue(resp1.has_result())
-        self.assertEqual(resp1.get_result(), None)
+        assert compl1.has_completed() is True
+        assert resp1.has_result() is True
+        assert resp1.get_result() is None
 
-        self.assertTrue(compl2.has_completed())
-        self.assertTrue(resp2.has_result())
-        self.assertEqual(resp2.get_result(), None)
+        assert compl2.has_completed() is True
+        assert resp2.has_result() is True
+        assert resp2.get_result() is None
 
 
 class ShimmerBluetoothIntegrationTest(TestCase):
