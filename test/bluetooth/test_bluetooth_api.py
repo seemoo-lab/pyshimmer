@@ -18,9 +18,9 @@ from __future__ import annotations
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, Future
 from typing import BinaryIO
-from unittest import TestCase
 
 import pytest
+
 
 from pyshimmer.bluetooth.bt_api import BluetoothRequestHandler, ShimmerBluetooth
 from pyshimmer.bluetooth.bt_commands import (
@@ -32,12 +32,14 @@ from pyshimmer.bluetooth.bt_commands import (
     ResponseCommand,
 )
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
-from pyshimmer.dev.channels import ChDataTypeAssignment, EChannelType
+from pyshimmer.dev.channels import ChDataTypeAssignment, EChannelType, ChannelDataType
 from pyshimmer.dev.fw_version import FirmwareVersion, EFirmwareType
 from pyshimmer.dev.revisions import (
     HardwareVersion,
     HardwareRevision,
     HW_REVISIONS,
+    REV_SHIMMER3,
+    Shimmer3Revision,
 )
 from pyshimmer.test_util import PTYSerialMockCreator
 
@@ -68,6 +70,22 @@ class TestBluetoothRequestHandler:
     ) -> BluetoothRequestHandler:
         handler = BluetoothRequestHandler(mock_serial, revision)
         return handler
+
+    def test_stream_types(self, sot: BluetoothRequestHandler):
+        assert sot.stream_types == []
+
+        sot.stream_types = [
+            (EChannelType.TIMESTAMP, ChannelDataType(4, signed=False, le=True))
+        ]
+        assert len(sot.stream_types) == 1
+        assert sot.stream_types[0][0] == EChannelType.TIMESTAMP
+
+    def test_revision(self, sot: BluetoothRequestHandler, revision: HardwareRevision):
+        assert sot.hardware_revision is revision
+        new_revision = Shimmer3Revision()
+
+        sot.hardware_revision = new_revision
+        assert sot.hardware_revision is new_revision
 
     def test_add_remove_stream_cb(self, sot: BluetoothRequestHandler):
         def cb(_):
@@ -396,24 +414,19 @@ class TestBluetoothRequestHandler:
         assert resp2.get_result() is None
 
 
-class ShimmerBluetoothIntegrationTest(TestCase):
+class IntegrationTestHelper:
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self):
+        self.executor = ThreadPoolExecutor(max_workers=1)
+        self.mock_creator = PTYSerialMockCreator()
+        self.sot: ShimmerBluetooth | None = None
 
-        self._executor = ThreadPoolExecutor(max_workers=1)
-
-        self._mock_creator: PTYSerialMockCreator | None = None
-        self._sot: ShimmerBluetooth | None = None
-
-        self._master: BinaryIO | None = None
-
-    def _submit_handler_fn(
+    def submit_handler_fn(
         self, fn: Callable[[BinaryIO, ShimmerBluetooth], any]
     ) -> Future:
-        return self._executor.submit(fn, self._master, self._sot)
+        return self.executor.submit(fn, self.mock_creator.master_fobj, self.sot)
 
-    def _submit_req_resp_handler(self, req_len: int, resp: bytes) -> Future:
+    def submit_req_resp_handler(self, req_len: int, resp: bytes) -> Future:
         def master_fn(master: BinaryIO, _) -> bytes:
             req = bytes()
             while len(req) < req_len:
@@ -422,172 +435,253 @@ class ShimmerBluetoothIntegrationTest(TestCase):
             master.write(resp)
             return req
 
-        return self._submit_handler_fn(master_fn)
+        return self.submit_handler_fn(master_fn)
 
-    def do_setup(self, initialize: bool = True, **kwargs) -> None:
-        self._mock_creator = PTYSerialMockCreator()
-        serial, self._master = self._mock_creator.create_mock()
-
-        self._sot = ShimmerBluetooth(serial, **kwargs)
-
-        if initialize:
-            # The Bluetooth API automatically requests the firmware version upon
-            # initialization. We must prepare a proper response beforehand.
-            req_future_fw = self._submit_req_resp_handler(
-                req_len=1, resp=b"\xff\x2f\x03\x00\x00\x00\x0b\x00"
-            )
-            req_future_hw = self._submit_req_resp_handler(
-                req_len=1, resp=b"\xff\x25\x03"
-            )
-            self._sot.initialize()
-
-            # Check that it properly asked for the firmware version
-            result = req_future_fw.result()
-            assert result == b"\x2e"
-            result = req_future_hw.result()
-            assert result == b"\x3f"
-
-    def tearDown(self) -> None:
-        self._sot.shutdown()
-        self._mock_creator.close()
-
-    def test_context_manager(self):
-        self.do_setup(initialize=False)
-
+    def queue_initialization_data(
+        self, version: HardwareVersion | int
+    ) -> tuple[Future, Future]:
         # The Bluetooth API automatically requests the firmware version upon
         # initialization. We must prepare a proper response beforehand.
-        req_future_fw = self._submit_req_resp_handler(
+        req_future_fw = self.submit_req_resp_handler(
             req_len=1, resp=b"\xff\x2f\x03\x00\x00\x00\x0b\x00"
         )
-        req_future_hw = self._submit_req_resp_handler(req_len=1, resp=b"\xff\x25\x03")
-        with self._sot:
+
+        hw_version_bin = version.to_bytes(length=1)
+        req_future_hw = self.submit_req_resp_handler(
+            req_len=1, resp=b"\xff\x25" + hw_version_bin
+        )
+        return req_future_fw, req_future_hw
+
+    def execute_sot_initialization(
+        self, version: HardwareVersion | int = HardwareVersion.SHIMMER3
+    ) -> None:
+
+        req_future_fw, req_future_hw = self.queue_initialization_data(version)
+
+        self.sot.initialize()
+
+        # Check that it properly asked for the firmware version
+        result = req_future_fw.result()
+        assert result == b"\x2e"
+        result = req_future_hw.result()
+        assert result == b"\x3f"
+
+    def setup(
+        self,
+        run_sot_initialize: bool = True,
+        hw_version: HardwareVersion | int = HardwareVersion.SHIMMER3,
+        **bt_kwargs,
+    ):
+        self.mock_creator.create_mock()
+
+        self.sot = ShimmerBluetooth(self.mock_creator.slave_serial, **bt_kwargs)
+
+        if run_sot_initialize:
+            self.execute_sot_initialization(hw_version)
+
+    def teardown(self):
+        self.sot.shutdown()
+        self.mock_creator.close()
+        self.executor.shutdown(cancel_futures=True)
+
+
+class TestShimmerBluetoothIntegration:
+
+    @pytest.fixture
+    def helper(self) -> IntegrationTestHelper:
+        helper = IntegrationTestHelper()
+
+        yield helper
+
+        helper.teardown()
+
+    @pytest.fixture(params=[HardwareVersion.SHIMMER3])
+    def hw_version(self, request) -> HardwareVersion:
+        return request.param
+
+    def test_properties(self, helper: IntegrationTestHelper):
+        helper.setup(run_sot_initialize=True)
+
+        assert helper.sot.hardware_revision == REV_SHIMMER3
+        assert helper.sot.hardware_version == HardwareVersion.SHIMMER3
+        assert helper.sot.firmware_type == EFirmwareType.LogAndStream
+        assert helper.sot.firmware_version == FirmwareVersion(0, 11, 0)
+
+    def test_custom_revision(self, helper: IntegrationTestHelper):
+        custom_revision = Shimmer3Revision()
+
+        helper.setup(
+            run_sot_initialize=True,
+            hw_version=HardwareVersion.SHIMMER3,
+            # Set a custom revision
+            revision=custom_revision,
+        )
+
+        assert helper.sot.hardware_version == HardwareVersion.SHIMMER3
+        assert helper.sot.hardware_revision == custom_revision
+
+    def test_error_if_unsupported_version(self, helper: IntegrationTestHelper):
+        helper.setup(run_sot_initialize=False)
+
+        helper.queue_initialization_data(version=HardwareVersion.SHIMMER2)
+
+        with pytest.raises(ValueError):
+            helper.sot.initialize()
+
+    def test_context_manager(self, helper: IntegrationTestHelper):
+        helper.setup(run_sot_initialize=False)
+
+        req_future_fw = helper.submit_req_resp_handler(
+            req_len=1, resp=b"\xff\x2f\x03\x00\x00\x00\x0b\x00"
+        )
+        req_future_hw = helper.submit_req_resp_handler(req_len=1, resp=b"\xff\x25\x03")
+        with helper.sot:
             # We check that the API properly asked for the firmware version
             req_data_fw = req_future_fw.result()
-            self.assertEqual(req_data_fw, b"\x2e")
+            assert req_data_fw == b"\x2e"
             req_data_hw = req_future_hw.result()
-            self.assertEqual(req_data_hw, b"\x3f")
+            assert req_data_hw == b"\x3f"
 
             # It should now be in an initialized state
-            self.assertTrue(self._sot.initialized)
+            assert helper.sot.initialized is True
 
-    def test_version_and_capabilities(self):
-        self.do_setup(initialize=True)
+    def test_version_and_capabilities(
+        self, helper: IntegrationTestHelper, hw_version: HardwareVersion
+    ):
+        helper.setup(run_sot_initialize=True, hw_version=hw_version)
 
-        self.assertTrue(self._sot.initialized)
-        self.assertIsNotNone(self._sot.capabilities)
-        self.assertEqual(self._sot.capabilities.fw_type, EFirmwareType.LogAndStream)
-        self.assertEqual(self._sot.capabilities.version, FirmwareVersion(0, 11, 0))
+        assert helper.sot.initialized is True
+        assert helper.sot.capabilities is not None
 
-    def test_get_sampling_rate(self):
-        self.do_setup()
+        assert helper.sot.capabilities.fw_type == EFirmwareType.LogAndStream
+        assert helper.sot.capabilities.version == FirmwareVersion(0, 11, 0)
 
-        ftr = self._submit_req_resp_handler(1, b"\xff\x04\x40\x00")
-        r = self._sot.get_sampling_rate()
+    def test_get_sampling_rate(
+        self, helper: IntegrationTestHelper, hw_version: HardwareVersion
+    ):
+        helper.setup(run_sot_initialize=True, hw_version=hw_version)
 
-        self.assertEqual(ftr.result(), b"\x03")
-        self.assertEqual(r, 512.0)
+        ftr = helper.submit_req_resp_handler(1, b"\xff\x04\x40\x00")
+        r = helper.sot.get_sampling_rate()
 
-    def test_get_data_types(self):
-        self.do_setup()
+        assert ftr.result() == b"\x03"
+        assert r == 512.0
 
-        ftr = self._submit_req_resp_handler(
+    def test_get_data_types(
+        self, helper: IntegrationTestHelper, hw_version: HardwareVersion
+    ):
+        helper.setup(run_sot_initialize=True, hw_version=hw_version)
+
+        ftr = helper.submit_req_resp_handler(
             1, b"\xff\x02\x40\x00\x01\xff\x01\x09\x01\x01\x12"
         )
-        r = self._sot.get_data_types()
+        r = helper.sot.get_data_types()
 
-        self.assertEqual(ftr.result(), b"\x01")
-        self.assertEqual(r, [EChannelType.TIMESTAMP, EChannelType.INTERNAL_ADC_A1])
+        assert ftr.result() == b"\x01"
+        assert r == [EChannelType.TIMESTAMP, EChannelType.INTERNAL_ADC_A1]
 
-    def test_streaming(self):
-        self.do_setup()
+    def test_streaming(
+        self, helper: IntegrationTestHelper, hw_version: HardwareVersion
+    ):
+        helper.setup(run_sot_initialize=True, hw_version=hw_version)
 
         pkts = []
 
         def pkt_handler(new_pkt: DataPacket) -> None:
             pkts.append(new_pkt)
 
-        inquiry_ftr = self._submit_req_resp_handler(
+        inquiry_ftr = helper.submit_req_resp_handler(
             1, b"\xff\x02\x40\x00\x01\xff\x01\x09\x01\x01\x12"
         )
-        start_streaming_ftr = self._submit_req_resp_handler(1, b"\xff")
-        self._submit_req_resp_handler(0, b"\x00\x25\x13\xf4\x4a\x07")
-        stop_streaming_ftr = self._submit_req_resp_handler(1, b"\xff")
+        start_streaming_ftr = helper.submit_req_resp_handler(1, b"\xff")
+        helper.submit_req_resp_handler(0, b"\x00\x25\x13\xf4\x4a\x07")
+        stop_streaming_ftr = helper.submit_req_resp_handler(1, b"\xff")
 
-        self._sot.add_stream_callback(pkt_handler)
-        self._sot.start_streaming()
+        helper.sot.add_stream_callback(pkt_handler)
+        helper.sot.start_streaming()
 
-        self.assertEqual(inquiry_ftr.result(), b"\x01")
-        self.assertEqual(start_streaming_ftr.result(), b"\x07")
+        assert inquiry_ftr.result() == b"\x01"
+        assert start_streaming_ftr.result() == b"\x07"
 
-        self._sot.stop_streaming()
-        self.assertEqual(stop_streaming_ftr.result(), b"\x20")
+        helper.sot.stop_streaming()
+        assert stop_streaming_ftr.result() == b"\x20"
 
-        self.assertEqual(len(pkts), 1)
+        assert len(pkts) == 1
         pkt = pkts[0]
 
-        self.assertEqual(pkt[EChannelType.TIMESTAMP], 15995685)
-        self.assertEqual(pkt[EChannelType.INTERNAL_ADC_A1], 1866)
+        assert pkt[EChannelType.TIMESTAMP] == 15995685
+        assert pkt[EChannelType.INTERNAL_ADC_A1] == 1866
 
-    def test_status_update(self):
-        self.do_setup()
+    def test_status_update(
+        self, helper: IntegrationTestHelper, hw_version: HardwareVersion
+    ):
+        helper.setup(run_sot_initialize=True, hw_version=hw_version)
 
         pkts = []
 
         def status_handler(new_pkt: list[bool]) -> None:
             pkts.append(new_pkt)
 
-        self._sot.add_status_callback(status_handler)
+        helper.sot.add_status_callback(status_handler)
 
-        self._submit_req_resp_handler(1, b"\x8a\x71\x20\xff\x7a\x03ABC")
-        r = self._sot.get_device_name()
-        self.assertEqual(r, "ABC")
+        helper.submit_req_resp_handler(1, b"\x8a\x71\x20\xff\x7a\x03ABC")
+        r = helper.sot.get_device_name()
+        assert r == "ABC"
 
-        self.assertEqual(len(pkts), 1)
+        assert len(pkts) == 1
         pkt = pkts[0]
 
-        self.assertEqual(pkt, [False, False, False, False, False, True, False, False])
+        assert pkt == [False, False, False, False, False, True, False, False]
 
-    def test_get_firmware_version(self):
-        self.do_setup()
+    def test_get_firmware_version(
+        self, helper: IntegrationTestHelper, hw_version: HardwareVersion
+    ):
+        helper.setup(run_sot_initialize=True, hw_version=hw_version)
 
-        self._submit_req_resp_handler(1, b"\xff\x2f\x03\x00\x01\x00\x02\x03")
-        fwtype, fwver = self._sot.get_firmware_version()
+        helper.submit_req_resp_handler(1, b"\xff\x2f\x03\x00\x01\x00\x02\x03")
+        fwtype, fwver = helper.sot.get_firmware_version()
 
-        self.assertEqual(fwtype, EFirmwareType.LogAndStream)
-        self.assertEqual(fwver, FirmwareVersion(1, 2, 3))
+        assert fwtype == EFirmwareType.LogAndStream
+        assert fwver == FirmwareVersion(1, 2, 3)
 
-    def test_get_hardware_version(self):
-        self.do_setup()
+    def test_get_hardware_version(self, helper: IntegrationTestHelper):
+        helper.setup()
 
-        self._submit_req_resp_handler(1, b"\xff\x25\x03")
-        hw_version = self._sot.get_device_hardware_version()
-        self.assertEqual(hw_version, HardwareVersion.SHIMMER3)
+        helper.submit_req_resp_handler(1, b"\xff\x25\x03")
+        hw_version = helper.sot.get_device_hardware_version()
+        assert hw_version == HardwareVersion.SHIMMER3
 
-        self._submit_req_resp_handler(1, b"\xff\x25\x0a")
-        hw_version = self._sot.get_device_hardware_version()
-        self.assertEqual(hw_version, HardwareVersion.SHIMMER3R)
+        helper.submit_req_resp_handler(1, b"\xff\x25\x0a")
+        hw_version = helper.sot.get_device_hardware_version()
+        assert hw_version == HardwareVersion.SHIMMER3R
 
-        self._submit_req_resp_handler(1, b"\xff\x25\x04")
-        hw_version = self._sot.get_device_hardware_version()
-        self.assertEqual(hw_version, HardwareVersion.UNKNOWN)
+        helper.submit_req_resp_handler(1, b"\xff\x25\x04")
+        hw_version = helper.sot.get_device_hardware_version()
+        assert hw_version == HardwareVersion.UNKNOWN
 
-    def test_status_ack_disable(self):
-        self.do_setup(initialize=False)
+    def test_status_ack_disable(
+        self, helper: IntegrationTestHelper, hw_version: HardwareVersion
+    ):
+        helper.setup(run_sot_initialize=False, hw_version=hw_version)
 
         # Queue response for version command
-        self._submit_req_resp_handler(1, b"\xff\x2f\x03\x00\x00\x00\x0f\x04")
-        self._submit_req_resp_handler(1, b"\xff\x25\x03")
+        helper.submit_req_resp_handler(1, b"\xff\x2f\x03\x00\x00\x00\x0f\x04")
+        helper.submit_req_resp_handler(1, b"\xff\x25\x03")
         # Queue response for disabling the status acknowledgment
-        req_future = self._submit_req_resp_handler(2, b"\xff")
+        req_future = helper.submit_req_resp_handler(2, b"\xff")
 
-        self._sot.initialize()
+        helper.sot.initialize()
         req_data = req_future.result()
-        self.assertEqual(req_data, b"\xa3\x00")
+        assert req_data == b"\xa3\x00"
 
-    def test_status_ack_not_disable(self):
-        self.do_setup(initialize=False, disable_status_ack=False)
+    def test_status_ack_not_disable(
+        self, helper: IntegrationTestHelper, hw_version: HardwareVersion
+    ):
+        helper.setup(
+            run_sot_initialize=False, hw_version=hw_version, disable_status_ack=False
+        )
 
         # Queue response for version command
-        self._submit_req_resp_handler(1, b"\xff\x2f\x03\x00\x00\x00\x0f\x04")
-        self._submit_req_resp_handler(1, b"\xff\x25\x03")
-        self._sot.initialize()
+        helper.submit_req_resp_handler(1, b"\xff\x2f\x03\x00\x00\x00\x0f\x04")
+        helper.submit_req_resp_handler(1, b"\xff\x25\x03")
+        helper.sot.initialize()

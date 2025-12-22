@@ -384,6 +384,7 @@ class ShimmerBluetooth:
         self._initialized = False
         self._disable_ack = disable_status_ack
 
+        self._fw_type: EFirmwareType | None = None
         self._fw_version: FirmwareVersion | None = None
         self._fw_caps: FirmwareCapabilities | None = None
         self._hw_version: HardwareVersion | None = None
@@ -400,6 +401,28 @@ class ShimmerBluetooth:
         return self._initialized
 
     @property
+    def firmware_type(self) -> EFirmwareType | None:
+        """Return the firmware type being run on the device
+
+        This property shall only be accessed after invoking initialize().
+
+        :return: An EFirmwareType instance or None if the connection has
+            not been initialized.
+        """
+        return self._fw_type
+
+    @property
+    def firmware_version(self) -> FirmwareVersion | None:
+        """Return the firmware version of the device
+
+        This property shall only be accessed after invoking initialize().
+
+        :return: A FirmwareVersion instance or None if the connection has
+            not been initialized.
+        """
+        return self._fw_version
+
+    @property
     def capabilities(self) -> FirmwareCapabilities:
         """Return the capabilities of the device firmware
 
@@ -409,6 +432,27 @@ class ShimmerBluetooth:
             capabilities of the firmware
         """
         return self._fw_caps
+
+    @property
+    def hardware_version(self) -> HardwareVersion | None:
+        """Return the hardware version of the device
+
+        This property shall only be accessed after invoking initialize().
+
+        :return: A HardwareVersion instance or None if the connection has
+            not been initialized.
+        """
+        return self._hw_version
+
+    @property
+    def hardware_revision(self) -> HardwareRevision:
+        """Return the hardware revision instance being used for communication
+
+        :return: A valid hardware revision instance - it does not necessarily need
+            to match the hardware version if a custom revision was provided to the
+            constructor.
+        """
+        return self._revision
 
     def __enter__(self):
         self.initialize()
@@ -428,8 +472,8 @@ class ShimmerBluetooth:
         # Start the thread to enable communication with the device
         self._thread.start()
 
-        fw_type, fw_ver = self.get_firmware_version()
-        self._fw_caps = FirmwareCapabilities(fw_type, fw_ver)
+        self._fw_type, self._fw_version = self.get_firmware_version()
+        self._fw_caps = FirmwareCapabilities(self._fw_type, self._fw_version)
         self._hw_version = self.get_device_hardware_version()
 
         # If the revision was set manually, we don't want to automatically
