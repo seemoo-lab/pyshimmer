@@ -66,7 +66,7 @@ from pyshimmer.dev.channels import (
 )
 from pyshimmer.dev.exg import ExGRegister
 from pyshimmer.dev.fw_version import (
-    EFirmwareType,
+    FirmwareType,
     FirmwareVersion,
     FirmwareCapabilities,
 )
@@ -384,7 +384,7 @@ class ShimmerBluetooth:
         self._initialized = False
         self._disable_ack = disable_status_ack
 
-        self._fw_type: EFirmwareType | None = None
+        self._fw_type: FirmwareType | None = None
         self._fw_version: FirmwareVersion | None = None
         self._fw_caps: FirmwareCapabilities | None = None
         self._hw_version: HardwareVersion | None = None
@@ -401,7 +401,7 @@ class ShimmerBluetooth:
         return self._initialized
 
     @property
-    def firmware_type(self) -> EFirmwareType | None:
+    def firmware_type(self) -> FirmwareType | None:
         """Return the firmware type being run on the device
 
         This property shall only be accessed after invoking initialize().
@@ -625,7 +625,7 @@ class ShimmerBluetooth:
         """
         return self._process_and_wait(GetStatusCommand(self._revision))
 
-    def get_firmware_version(self) -> tuple[EFirmwareType, FirmwareVersion]:
+    def get_firmware_version(self) -> tuple[FirmwareType, FirmwareVersion]:
         """Get the version of the running firmware
 
         :return: The firmware type as enum, i.e. SDLog or LogAndStream

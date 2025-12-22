@@ -49,7 +49,7 @@ from pyshimmer.bluetooth.bt_commands import (
 )
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
 from pyshimmer.dev.channels import ChDataTypeAssignment, EChannelType, ESensorGroup
-from pyshimmer.dev.fw_version import EFirmwareType
+from pyshimmer.dev.fw_version import FirmwareType
 
 from pyshimmer.dev.revisions import (
     HardwareVersion,
@@ -188,7 +188,7 @@ class TestBluetoothCommands:
         fw_type, major, minor, patch = self.assert_cmd(
             cmd, b"\x2e", b"\x2f", b"\x2f\x03\x00\x00\x00\x0b\x00"
         )
-        assert fw_type == EFirmwareType.LogAndStream
+        assert fw_type == FirmwareType.LogAndStream
         assert major == 0
         assert minor == 11
         assert patch == 0

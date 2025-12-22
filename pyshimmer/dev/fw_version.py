@@ -28,10 +28,7 @@ def ensure_firmware_version(func):
     return wrapper
 
 
-class EFirmwareType(Enum):
-    BtStream = auto()
-    SDLog = auto()
-    LogAndStream = auto()
+
 
 
 class FirmwareVersion:
@@ -71,12 +68,12 @@ class FirmwareVersion:
 
 class FirmwareCapabilities:
 
-    def __init__(self, fw_type: EFirmwareType, version: FirmwareVersion):
+    def __init__(self, fw_type: FirmwareType, version: FirmwareVersion):
         self._fw_type = fw_type
         self._version = version
 
     @property
-    def fw_type(self) -> EFirmwareType:
+    def fw_type(self) -> FirmwareType:
         return self._fw_type
 
     @property
@@ -86,19 +83,23 @@ class FirmwareCapabilities:
     @property
     def supports_ack_disable(self) -> bool:
         return (
-            self._fw_type == EFirmwareType.LogAndStream
-            and self._version >= FirmwareVersion(major=0, minor=15, rel=4)
+                self._fw_type == FirmwareType.LogAndStream
+                and self._version >= FirmwareVersion(major=0, minor=15, rel=4)
         )
 
+class FirmwareType(Enum):
+    BtStream = auto()
+    SDLog = auto()
+    LogAndStream = auto()
 
 FirmwareTypeValueAssignment = {
-    0x01: EFirmwareType.BtStream,
-    0x02: EFirmwareType.SDLog,
-    0x03: EFirmwareType.LogAndStream,
+    0x01: FirmwareType.BtStream,
+    0x02: FirmwareType.SDLog,
+    0x03: FirmwareType.LogAndStream,
 }
 
 
-def get_firmware_type(f_type: int) -> EFirmwareType:
+def get_firmware_type(f_type: int) -> FirmwareType:
     if f_type not in FirmwareTypeValueAssignment:
         raise ValueError(f"Unknown firmware type: 0x{f_type:x}")
 

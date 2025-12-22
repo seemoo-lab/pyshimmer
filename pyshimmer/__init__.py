@@ -19,7 +19,7 @@ from .bluetooth.bt_commands import DataPacket
 from .dev.base import DEFAULT_BAUDRATE
 from .dev.channels import ChannelDataType, EChannelType
 from .dev.exg import ExGMux, ExGRLDLead, ERLDRef, ExGRegister
-from .dev.fw_version import EFirmwareType
+from .dev.fw_version import FirmwareType
 from .dev.revisions import (
     HardwareRevision,
     Shimmer3Revision,

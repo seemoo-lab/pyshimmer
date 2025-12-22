@@ -33,7 +33,7 @@ from pyshimmer.bluetooth.bt_commands import (
 )
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
 from pyshimmer.dev.channels import ChDataTypeAssignment, EChannelType, ChannelDataType
-from pyshimmer.dev.fw_version import FirmwareVersion, EFirmwareType
+from pyshimmer.dev.fw_version import FirmwareVersion, FirmwareType
 from pyshimmer.dev.revisions import (
     HardwareVersion,
     HardwareRevision,
@@ -504,7 +504,7 @@ class TestShimmerBluetoothIntegration:
 
         assert helper.sot.hardware_revision == REV_SHIMMER3
         assert helper.sot.hardware_version == HardwareVersion.SHIMMER3
-        assert helper.sot.firmware_type == EFirmwareType.LogAndStream
+        assert helper.sot.firmware_type == FirmwareType.LogAndStream
         assert helper.sot.firmware_version == FirmwareVersion(0, 11, 0)
 
     def test_custom_revision(self, helper: IntegrationTestHelper):
@@ -553,7 +553,7 @@ class TestShimmerBluetoothIntegration:
         assert helper.sot.initialized is True
         assert helper.sot.capabilities is not None
 
-        assert helper.sot.capabilities.fw_type == EFirmwareType.LogAndStream
+        assert helper.sot.capabilities.fw_type == FirmwareType.LogAndStream
         assert helper.sot.capabilities.version == FirmwareVersion(0, 11, 0)
 
     def test_get_sampling_rate(
@@ -641,7 +641,7 @@ class TestShimmerBluetoothIntegration:
         helper.submit_req_resp_handler(1, b"\xff\x2f\x03\x00\x01\x00\x02\x03")
         fwtype, fwver = helper.sot.get_firmware_version()
 
-        assert fwtype == EFirmwareType.LogAndStream
+        assert fwtype == FirmwareType.LogAndStream
         assert fwver == FirmwareVersion(1, 2, 3)
 
     def test_get_hardware_version(self, helper: IntegrationTestHelper):

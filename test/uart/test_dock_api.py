@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from unittest import TestCase
 
-from pyshimmer import EFirmwareType, ShimmerDock
+from pyshimmer import FirmwareType, ShimmerDock
 from pyshimmer.test_util import MockSerial
 
 
@@ -88,7 +88,7 @@ class DockAPITest(TestCase):
         self.assertEqual(mock.test_get_write_data(), b"\x24\x03\x02\x01\x03\xca\xdc")
 
         self.assertEqual(hw_ver, 3)
-        self.assertEqual(fw_type, EFirmwareType.LogAndStream)
+        self.assertEqual(fw_type, FirmwareType.LogAndStream)
         self.assertEqual(major, 0)
         self.assertEqual(minor, 11)
         self.assertEqual(patch, 0)
