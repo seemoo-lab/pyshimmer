@@ -23,7 +23,7 @@ class HardwareVersion(IntEnum):
     def __new__(cls, version: int, revision: HardwareRevision | None):
         # Strips the revision argument from the tuple and only assigns the
         # version ID as enum value
-        obj = int.__new__(cls)
+        obj = int.__new__(cls, version)
         obj._value_ = version
         obj._revision = revision
         return obj

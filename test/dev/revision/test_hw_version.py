@@ -5,6 +5,10 @@ from pyshimmer import HardwareVersion
 
 class TestHardwareVersion:
 
+    def test_version(self):
+        assert int(HardwareVersion.SHIMMER3) == 3
+        assert int(HardwareVersion.SHIMMER3R) == 10
+
     def test_revision_access(self):
         ver_shimmer3 = HardwareVersion.SHIMMER3
         assert ver_shimmer3.revision is not None
