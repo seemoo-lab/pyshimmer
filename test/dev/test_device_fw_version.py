@@ -19,23 +19,23 @@ from unittest import TestCase
 
 from pyshimmer.dev.fw_version import (
     FirmwareVersion,
-    get_firmware_type,
     FirmwareType,
     FirmwareCapabilities,
 )
 
 
-class DeviceFirmwareVersionTest(TestCase):
+class TestFirmwareType:
 
-    def test_get_firmware_type(self):
-        r = get_firmware_type(0x01)
-        self.assertEqual(r, FirmwareType.BtStream)
-        r = get_firmware_type(0x02)
-        self.assertEqual(r, FirmwareType.SDLog)
-        r = get_firmware_type(0x03)
-        self.assertEqual(r, FirmwareType.LogAndStream)
+    def tet_firmware_type(self):
+        r = FirmwareType.from_int(0x01)
+        assert r == FirmwareType.BtStream
+        r = FirmwareType.from_int(0x02)
+        assert r == FirmwareType.SDLog
+        r = FirmwareType.from_int(0x03)
+        assert r == FirmwareType.LogAndStream
 
-        self.assertRaises(ValueError, get_firmware_type, 0xFF)
+        r = FirmwareType.from_int(100)
+        assert r == FirmwareType.Unknown
 
 
 class FirmwareCapabilitiesTest(TestCase):

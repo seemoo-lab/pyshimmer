@@ -21,7 +21,7 @@ from serial import Serial
 
 from pyshimmer.dev.base import sec2ticks, ticks2sec
 from pyshimmer.dev.exg import ExGRegister
-from pyshimmer.dev.fw_version import get_firmware_type, FirmwareType
+from pyshimmer.dev.fw_version import FirmwareType
 from pyshimmer.uart.dock_const import *
 from pyshimmer.uart.dock_serial import DockSerial
 from pyshimmer.util import unpack
@@ -195,7 +195,7 @@ class ShimmerDock:
         hw_ver, fw_type_bin, major, minor, rel = self._read_response_wformat_verify(
             UART_COMP_SHIMMER, UART_PROP_VER, "<BHHBB"
         )
-        fw_type = get_firmware_type(fw_type_bin)
+        fw_type = FirmwareType.from_int(fw_type_bin)
         return hw_ver, fw_type, major, minor, rel
 
     def get_firmware_type(self) -> FirmwareType:

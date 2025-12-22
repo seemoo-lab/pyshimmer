@@ -15,7 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from __future__ import annotations
 
-from enum import Enum, auto
+from enum import IntEnum
 
 
 def ensure_firmware_version(func):
@@ -26,9 +26,6 @@ def ensure_firmware_version(func):
         return func(self, other)
 
     return wrapper
-
-
-
 
 
 class FirmwareVersion:
@@ -83,24 +80,22 @@ class FirmwareCapabilities:
     @property
     def supports_ack_disable(self) -> bool:
         return (
-                self._fw_type == FirmwareType.LogAndStream
-                and self._version >= FirmwareVersion(major=0, minor=15, rel=4)
+            self._fw_type == FirmwareType.LogAndStream
+            and self._version >= FirmwareVersion(major=0, minor=15, rel=4)
         )
 
-class FirmwareType(Enum):
-    BtStream = auto()
-    SDLog = auto()
-    LogAndStream = auto()
 
-FirmwareTypeValueAssignment = {
-    0x01: FirmwareType.BtStream,
-    0x02: FirmwareType.SDLog,
-    0x03: FirmwareType.LogAndStream,
-}
+class FirmwareType(IntEnum):
+    BtStream = 0x01
+    SDLog = 0x02
+    LogAndStream = 0x03
+    Unknown = -1
 
+    @classmethod
+    def from_int(cls, value: int) -> FirmwareType:
+        """Converts an Integer to the corresponding FirmwareType enum
 
-def get_firmware_type(f_type: int) -> FirmwareType:
-    if f_type not in FirmwareTypeValueAssignment:
-        raise ValueError(f"Unknown firmware type: 0x{f_type:x}")
-
-    return FirmwareTypeValueAssignment[f_type]
+        :param value: Integer representing firmware type
+        :return: Corresponding FirmwareType enum member, or Unknown if unrecognised
+        """
+        return cls._value2member_map_.get(value, cls.Unknown)

@@ -28,7 +28,7 @@ from pyshimmer.dev.channels import (
     ESensorGroup,
 )
 from pyshimmer.dev.exg import ExGRegister
-from pyshimmer.dev.fw_version import get_firmware_type
+from pyshimmer.dev.fw_version import FirmwareType
 from pyshimmer.dev.revisions import HardwareRevision, HardwareVersion
 from pyshimmer.util import (
     bit_is_set,
@@ -419,7 +419,7 @@ class GetFirmwareVersionCommand(ResponseCommand):
         fw_type_bin, major, minor, rel = ser.read_response(
             FW_VERSION_RESPONSE, arg_format="<HHBB"
         )
-        fw_type = get_firmware_type(fw_type_bin)
+        fw_type = FirmwareType.from_int(fw_type_bin)
         return fw_type, major, minor, rel
 
 
