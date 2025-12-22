@@ -69,8 +69,8 @@ from pyshimmer.dev.fw_version import (
     EFirmwareType,
     FirmwareVersion,
     FirmwareCapabilities,
-    HardwareVersion,
 )
+from pyshimmer.dev.revisions import HardwareVersion
 from pyshimmer.serial_base import ReadAbort
 from pyshimmer.util import fmt_hex, PeekQueue
 

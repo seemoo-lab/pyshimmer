@@ -31,8 +31,8 @@ from pyshimmer.bluetooth.bt_commands import (
 )
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
 from pyshimmer.dev.channels import ChDataTypeAssignment, EChannelType
-from pyshimmer.dev.fw_version import FirmwareVersion, EFirmwareType, HardwareVersion
-from pyshimmer.dev.revisions import REV_SHIMMER3
+from pyshimmer.dev.fw_version import FirmwareVersion, EFirmwareType
+from pyshimmer.dev.revisions import HardwareVersion, REV_SHIMMER3
 from pyshimmer.test_util import PTYSerialMockCreator
 
 

@@ -30,8 +30,8 @@ from pyshimmer.dev.channels import (
     serialize_sensorlist,
 )
 from pyshimmer.dev.exg import ExGRegister
-from pyshimmer.dev.fw_version import HardwareVersion, get_firmware_type
-from pyshimmer.dev.revisions import HardwareRevision
+from pyshimmer.dev.fw_version import get_firmware_type
+from pyshimmer.dev.revisions import HardwareRevision, HardwareVersion
 from pyshimmer.util import (
     bit_is_set,
     resp_code_to_bytes,

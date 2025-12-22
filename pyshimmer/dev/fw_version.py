@@ -15,7 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from __future__ import annotations
 
-from enum import Enum, IntEnum, auto
+from enum import Enum, auto
 
 
 def ensure_firmware_version(func):
@@ -103,23 +103,3 @@ def get_firmware_type(f_type: int) -> EFirmwareType:
         raise ValueError(f"Unknown firmware type: 0x{f_type:x}")
 
     return FirmwareTypeValueAssignment[f_type]
-
-
-class HardwareVersion(IntEnum):
-    """Represents the supported Shimmer device hardware versions"""
-
-    SHIMMER1 = 0
-    SHIMMER2 = 1
-    SHIMMER2R = 2
-    SHIMMER3 = 3
-    SHIMMER3R = 10
-    UNKNOWN = -1
-
-    @classmethod
-    def from_int(cls, value: int) -> HardwareVersion:
-        """Converts an Integer to the corresponding HardwareVersion enum
-
-        :param value: Integer representing device hardware version
-        :return: Corresponding HardwareVersion enum member, or UNKNOWN if unrecognised
-        """
-        return cls._value2member_map_.get(value, cls.UNKNOWN)

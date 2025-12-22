@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from .revision import HardwareRevision
 from .shimmer3 import Shimmer3Revision
+from .hw_version import HardwareVersion
 
 REV_SHIMMER3 = Shimmer3Revision()
 HW_REVISIONS = [
