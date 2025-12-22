@@ -446,7 +446,7 @@ class IntegrationTestHelper:
             req_len=1, resp=b"\xff\x2f\x03\x00\x00\x00\x0b\x00"
         )
 
-        hw_version_bin = version.to_bytes(length=1)
+        hw_version_bin = version.to_bytes(length=1, byteorder="big")
         req_future_hw = self.submit_req_resp_handler(
             req_len=1, resp=b"\xff\x25" + hw_version_bin
         )
