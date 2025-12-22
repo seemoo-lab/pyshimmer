@@ -11,13 +11,13 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
+from .hw_version import HardwareVersion
+
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from .revision import HardwareRevision
-from .shimmer3 import Shimmer3Revision
-from .hw_version import HardwareVersion
+from .shimmer3 import Shimmer3Revision, REV_SHIMMER3
 
-REV_SHIMMER3 = Shimmer3Revision()
 HW_REVISIONS = [
     REV_SHIMMER3,
 ]
