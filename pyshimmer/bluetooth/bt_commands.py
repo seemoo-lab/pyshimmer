@@ -21,13 +21,11 @@ from collections.abc import Iterable
 
 from pyshimmer.bluetooth.bt_const import *
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
-from pyshimmer.dev.base import dr2sr, sr2dr, sec2ticks, ticks2sec
 from pyshimmer.dev.calibration import AllCalibration
 from pyshimmer.dev.channels import (
     ChannelDataType,
     EChannelType,
     ESensorGroup,
-    serialize_sensorlist,
 )
 from pyshimmer.dev.exg import ExGRegister
 from pyshimmer.dev.fw_version import get_firmware_type
@@ -246,7 +244,7 @@ class GetSamplingRateCommand(ResponseCommand):
 
     def receive(self, ser: BluetoothSerial) -> float:
         sr_clock = ser.read_response(SAMPLING_RATE_RESPONSE, arg_format="<H")
-        sr = dr2sr(sr_clock)
+        sr = self._rev.dr2sr(sr_clock)
         return sr
 
 
@@ -257,7 +255,7 @@ class SetSamplingRateCommand(ShimmerCommand):
         self._sr = sr
 
     def send(self, ser: BluetoothSerial) -> None:
-        dr = sr2dr(self._sr)
+        dr = self._rev.sr2dr(self._sr)
         ser.write_command(SET_SAMPLING_RATE_COMMAND, "<H", dr)
 
 
@@ -342,7 +340,7 @@ class GetRealTimeClockCommand(ResponseCommand):
 
     def receive(self, ser: BluetoothSerial) -> float:
         t_ticks = ser.read_response(RWC_RESPONSE, arg_format="<Q")
-        return ticks2sec(t_ticks)
+        return self._rev.ticks2sec(t_ticks)
 
 
 class SetRealTimeClockCommand(ShimmerCommand):
@@ -359,7 +357,7 @@ class SetRealTimeClockCommand(ShimmerCommand):
         self._time = int(ts_sec)
 
     def send(self, ser: BluetoothSerial) -> None:
-        t_ticks = sec2ticks(self._time)
+        t_ticks = self._rev.sec2ticks(self._time)
         ser.write_command(SET_RWC_COMMAND, "<Q", t_ticks)
 
 
@@ -484,7 +482,7 @@ class InquiryCommand(ResponseCommand):
         )
         channel_conf = ser.read(n_ch)
 
-        sr = dr2sr(sr_val)
+        sr = self._rev.dr2sr(sr_val)
         ctypes = self.decode_channel_types(channel_conf)
 
         return sr, buf_size, ctypes
@@ -596,7 +594,7 @@ class SetSensorsCommand(ShimmerCommand):
         self._sensors = list(sensors)
 
     def send(self, ser: BluetoothSerial) -> None:
-        bitfield_bin = serialize_sensorlist(self._sensors)
+        bitfield_bin = self._rev.serialize_sensorlist(self._sensors)
         ser.write_command(SET_SENSORS_COMMAND, "<3s", bitfield_bin)
 
 
