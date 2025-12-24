@@ -198,15 +198,15 @@ class TestBluetoothCommands:
     (REV_SHIMMER3,  b"\x02\x40\x00\x01\xff\x01\x09\x01\x01\x12", 512.0, 1, [EChannelType.INTERNAL_ADC_A1]),
     (REV_SHIMMER3R, b"\x02\x40\x00\x00\x01\t\x00\x00\x00\x01\x01", 512.0, 1, [EChannelType.INTERNAL_ADC_A1]),
     ])
-    def test_inquiry_command(self, rev: HardwareRevision, payload):
+    def test_inquiry_command(self, rev: HardwareRevision, payload, exp_sr, exp_buf, exp_ctypes):
         cmd = InquiryCommand(rev)
         sr, buf_size, ctypes = self.assert_cmd(
             cmd, b"\x01", b"\x02", payload
         )
 
-        assert sr == 512.0
-        assert buf_size == 1
-        assert ctypes == [EChannelType.INTERNAL_ADC_A1]
+        assert sr == exp_sr
+        assert buf_size == exp_buf
+        assert ctypes == exp_ctypes
 
     @pytest.mark.parametrize("rev", HW_REVISIONS)
     def test_start_streaming_command(self, rev: HardwareRevision):
