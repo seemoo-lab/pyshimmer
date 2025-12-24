@@ -196,7 +196,7 @@ class TestBluetoothCommands:
 
     @pytest.mark.parametrize("rev,payload,exp_sr,exp_buf,exp_ctypes", [
     (REV_SHIMMER3,  b"\x02\x40\x00\x01\xff\x01\x09\x01\x01\x12", 512.0, 1, [EChannelType.INTERNAL_ADC_A1]),
-    (REV_SHIMMER3R, b"\x02\x40\x00\x00\x01\t\x00\x00\x00\x01\x01", 512.0, 1, [EChannelType.INTERNAL_ADC_A1]),
+    (REV_SHIMMER3R, b"\x02\x40\x00\x00\x01\t\x00\x00\x00\x01\x01\0x12", 512.0, 1, [EChannelType.INTERNAL_ADC_A1]),
     ])
     def test_inquiry_command(self, rev: HardwareRevision, payload, exp_sr, exp_buf, exp_ctypes):
         cmd = InquiryCommand(rev)
