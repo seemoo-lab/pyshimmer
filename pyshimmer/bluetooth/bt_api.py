@@ -31,7 +31,8 @@ from pyshimmer.bluetooth.bt_commands import (
     SetRealTimeClockCommand,
     GetStatusCommand,
     GetFirmwareVersionCommand,
-    InquiryCommand,
+    Shimmer3InquiryCommand,
+    Shimmer3RInquiryCommand,
     StartStreamingCommand,
     StopStreamingCommand,
     DataPacket,
@@ -714,7 +715,12 @@ class ShimmerBluetooth:
             - The active data channels of the device as list, does not include the
               TIMESTAMP channel
         """
-        return self._process_and_wait(InquiryCommand(self._revision))
+        if self._hw_version == HardwareVersion.SHIMMER3R:
+            cmd = Shimmer3RInquiryCommand(self._revision)
+        else:
+            cmd = Shimmer3InquiryCommand(self._revision)
+
+        return self._process_and_wait(cmd)
 
     def get_data_types(self):
         """Get the active data channels of the device

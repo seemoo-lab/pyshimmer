@@ -29,7 +29,7 @@ from pyshimmer.dev.channels import (
 )
 from pyshimmer.dev.exg import ExGRegister
 from pyshimmer.dev.fw_version import FirmwareType
-from pyshimmer.dev.revisions import HardwareRevision, HardwareVersion, Shimmer3RRevision
+from pyshimmer.dev.revisions import HardwareRevision, HardwareVersion
 from pyshimmer.util import (
     bit_is_set,
     resp_code_to_bytes,
@@ -458,14 +458,17 @@ class GetAllCalibrationCommand(ResponseCommand):
 
 class InquiryCommand(ResponseCommand):
 
-    def __init__(self, rev: HardwareRevision):
+    def __init__(self, rev: HardwareRevision, response_format: str):
         """Perform an inquiry to determine the sample rate, buffer size,
         and active data channels
 
         :param rev: The hardware revision of the Shimmer device this command
             will be sent to
+        :param response_format: The struct format to use for unpacking the
+            response
         """
         super().__init__(rev, INQUIRY_RESPONSE)
+        self._response_format = response_format
 
     @staticmethod
     def decode_channel_types(ct_bin: bytes) -> list[EChannelType]:
@@ -477,13 +480,8 @@ class InquiryCommand(ResponseCommand):
         ser.write_command(INQUIRY_COMMAND)
 
     def receive(self, ser: BluetoothSerial) -> any:
-        if isinstance(self._rev, Shimmer3RRevision):
-            arg_format = "<HI3xBB"
-        else:
-            arg_format = "<HIBB"
-
         sr_val, _, n_ch, buf_size = ser.read_response(
-            INQUIRY_RESPONSE, arg_format=arg_format
+            INQUIRY_RESPONSE, arg_format=self._response_format
         )
         channel_conf = ser.read(n_ch)
 
@@ -491,6 +489,18 @@ class InquiryCommand(ResponseCommand):
         ctypes = self.decode_channel_types(channel_conf)
 
         return sr, buf_size, ctypes
+
+
+class Shimmer3InquiryCommand(InquiryCommand):
+
+    def __init__(self, rev: HardwareRevision):
+        super().__init__(rev, response_format="<HIBB")
+
+
+class Shimmer3RInquiryCommand(InquiryCommand):
+
+    def __init__(self, rev: HardwareRevision):
+        super().__init__(rev, response_format="<HI3xBB")
 
 
 class StartStreamingCommand(OneShotCommand):
