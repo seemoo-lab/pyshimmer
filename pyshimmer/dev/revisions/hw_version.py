@@ -4,6 +4,7 @@ from enum import IntEnum
 
 from .revision import HardwareRevision
 from .shimmer3 import REV_SHIMMER3
+from .shimmer3r import REV_SHIMMER3R
 
 
 class HardwareVersion(IntEnum):
@@ -17,7 +18,7 @@ class HardwareVersion(IntEnum):
     SHIMMER2 = (1, None)
     SHIMMER2R = (2, None)
     SHIMMER3 = (3, REV_SHIMMER3)
-    SHIMMER3R = (10, None)
+    SHIMMER3R = (10, REV_SHIMMER3R)
     UNKNOWN = (-1, None)
 
     def __new__(cls, version: int, revision: HardwareRevision | None):

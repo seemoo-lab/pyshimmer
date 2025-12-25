@@ -18,7 +18,8 @@ from __future__ import annotations
 import struct
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
-
+from pyshimmer.dev.revisions.shimmer3 import REV_SHIMMER3
+from pyshimmer.dev.revisions.shimmer3r import REV_SHIMMER3R
 from pyshimmer.bluetooth.bt_const import *
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
 from pyshimmer.dev.calibration import AllCalibration
@@ -476,9 +477,13 @@ class InquiryCommand(ResponseCommand):
     def send(self, ser: BluetoothSerial) -> None:
         ser.write_command(INQUIRY_COMMAND)
 
-    def receive(self, ser: BluetoothSerial) -> any:
+    def receive(self, ser: BluetoothSerial) -> any:        
+        if self._rev is REV_SHIMMER3:
+            arg_format = "<HIBB"
+        elif self._rev is REV_SHIMMER3R:
+            arg_format = "<HI3xBB"   
         sr_val, _, n_ch, buf_size = ser.read_response(
-            INQUIRY_RESPONSE, arg_format="<HIBB"
+            INQUIRY_RESPONSE, arg_format=arg_format
         )
         channel_conf = ser.read(n_ch)
 

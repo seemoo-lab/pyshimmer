@@ -17,7 +17,9 @@
 from .hw_version import HardwareVersion
 from .revision import HardwareRevision
 from .shimmer3 import Shimmer3Revision, REV_SHIMMER3
+from .shimmer3r import Shimmer3RRevision, REV_SHIMMER3R
 
 HW_REVISIONS = [
     REV_SHIMMER3,
+    REV_SHIMMER3R
 ]
