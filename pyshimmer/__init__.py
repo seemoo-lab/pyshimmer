@@ -27,7 +27,7 @@ from .dev.revisions import (
     REV_SHIMMER3,
     HardwareVersion,
     Shimmer3RRevision,
-    REV_SHIMMER3R
+    REV_SHIMMER3R,
 )
 from .reader.binary_reader import ShimmerBinaryReader
 from .reader.shimmer_reader import ShimmerReader

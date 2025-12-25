@@ -23,8 +23,8 @@ from typing import overload
 
 import numpy as np
 
-from ..channels import EChannelType, ChannelDataType, ESensorGroup
 from pyshimmer.util import bit_is_set, flatten_list
+from ..channels import EChannelType, ChannelDataType, ESensorGroup
 
 
 class HardwareRevision(ABC):

@@ -70,7 +70,11 @@ from pyshimmer.dev.fw_version import (
     FirmwareVersion,
     FirmwareCapabilities,
 )
-from pyshimmer.dev.revisions import HardwareVersion, HardwareRevision, REV_SHIMMER3, REV_SHIMMER3R
+from pyshimmer.dev.revisions import (
+    HardwareVersion,
+    HardwareRevision,
+    REV_SHIMMER3,
+)
 from pyshimmer.serial_base import ReadAbort
 from pyshimmer.util import fmt_hex, PeekQueue
 

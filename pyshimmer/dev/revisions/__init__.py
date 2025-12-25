@@ -21,5 +21,5 @@ from .shimmer3r import Shimmer3RRevision, REV_SHIMMER3R
 
 HW_REVISIONS = [
     REV_SHIMMER3,
-    REV_SHIMMER3R
+    REV_SHIMMER3R,
 ]
