@@ -29,9 +29,7 @@ from pyshimmer.dev.channels import (
 )
 from pyshimmer.dev.exg import ExGRegister
 from pyshimmer.dev.fw_version import FirmwareType
-from pyshimmer.dev.revisions import HardwareRevision, HardwareVersion
-from pyshimmer.dev.revisions.shimmer3 import REV_SHIMMER3
-from pyshimmer.dev.revisions.shimmer3r import REV_SHIMMER3R
+from pyshimmer.dev.revisions import HardwareRevision, HardwareVersion, Shimmer3RRevision
 from pyshimmer.util import (
     bit_is_set,
     resp_code_to_bytes,
@@ -479,10 +477,11 @@ class InquiryCommand(ResponseCommand):
         ser.write_command(INQUIRY_COMMAND)
 
     def receive(self, ser: BluetoothSerial) -> any:
-        if self._rev is REV_SHIMMER3:
-            arg_format = "<HIBB"
-        elif self._rev is REV_SHIMMER3R:
+        if isinstance(self._rev, Shimmer3RRevision):
             arg_format = "<HI3xBB"
+        else:
+            arg_format = "<HIBB"
+
         sr_val, _, n_ch, buf_size = ser.read_response(
             INQUIRY_RESPONSE, arg_format=arg_format
         )

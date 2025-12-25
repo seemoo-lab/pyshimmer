@@ -56,7 +56,7 @@ from pyshimmer.dev.revisions import (
     HardwareRevision,
     HW_REVISIONS,
     REV_SHIMMER3,
-    REV_SHIMMER3R
+    REV_SHIMMER3R,
 )
 from pyshimmer.test_util import MockSerial
 
@@ -194,19 +194,28 @@ class TestBluetoothCommands:
         assert minor == 11
         assert patch == 0
 
-    @pytest.mark.parametrize("rev,payload,exp_sr,exp_buf,exp_ctypes", [
-    (REV_SHIMMER3,  b"\x02\x40\x00\x01\xff\x01\x09\x01\x01\x12", 512.0, 1, [EChannelType.INTERNAL_ADC_A1]),
-    (REV_SHIMMER3R, b"\x02\x40\x00\x02\x00\x01\x09\x00\x00\x00\x01\x01\x12", 512.0, 1, [EChannelType.INTERNAL_ADC_A1]),
-    ])
-    def test_inquiry_command(self, rev: HardwareRevision, payload, exp_sr, exp_buf, exp_ctypes):
-        cmd = InquiryCommand(rev)
+    def test_inquiry_command_shimmer3(self):
+        cmd = InquiryCommand(REV_SHIMMER3)
         sr, buf_size, ctypes = self.assert_cmd(
-            cmd, b"\x01", b"\x02", payload
+            cmd, b"\x01", b"\x02", b"\x02\x40\x00\x01\xff\x01\x09\x01\x01\x12"
         )
 
-        assert sr == exp_sr
-        assert buf_size == exp_buf
-        assert ctypes == exp_ctypes
+        assert sr == 512.0
+        assert buf_size == 1
+        assert ctypes == [EChannelType.INTERNAL_ADC_A1]
+
+    def test_inquiry_command_shimmer3r(self):
+        cmd = InquiryCommand(REV_SHIMMER3R)
+        sr, buf_size, ctypes = self.assert_cmd(
+            cmd,
+            b"\x01",
+            b"\x02",
+            b"\x02\x40\x00\x02\x00\x01\x09\x00\x00\x00\x01\x01\x12",
+        )
+
+        assert sr == 512.0
+        assert buf_size == 1
+        assert ctypes == [EChannelType.INTERNAL_ADC_A1]
 
     @pytest.mark.parametrize("rev", HW_REVISIONS)
     def test_start_streaming_command(self, rev: HardwareRevision):
