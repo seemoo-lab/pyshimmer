@@ -495,7 +495,7 @@ class TestShimmerBluetoothIntegration:
 
         helper.teardown()
 
-    @pytest.fixture(params=[HardwareVersion.SHIMMER3])
+    @pytest.fixture(params=[HardwareVersion.SHIMMER3, HardwareVersion.SHIMMER3R])
     def hw_version(self, request) -> HardwareVersion:
         return request.param
 
@@ -572,9 +572,12 @@ class TestShimmerBluetoothIntegration:
     ):
         helper.setup(run_sot_initialize=True, hw_version=hw_version)
 
-        ftr = helper.submit_req_resp_handler(
-            1, b"\xff\x02\x40\x00\x01\xff\x01\x09\x01\x01\x12"
-        )
+        if hw_version == HardwareVersion.SHIMMER3R:
+            response = b"\xff\x02\x40\x00\x02\x00\x01\x09\x00\x00\x00\x01\x01\x12"
+        else:
+            response = b"\xff\x02\x40\x00\x01\xff\x01\x09\x01\x01\x12"
+
+        ftr = helper.submit_req_resp_handler(1, response)
         r = helper.sot.get_data_types()
 
         assert ftr.result() == b"\x01"
@@ -590,9 +593,12 @@ class TestShimmerBluetoothIntegration:
         def pkt_handler(new_pkt: DataPacket) -> None:
             pkts.append(new_pkt)
 
-        inquiry_ftr = helper.submit_req_resp_handler(
-            1, b"\xff\x02\x40\x00\x01\xff\x01\x09\x01\x01\x12"
-        )
+        if hw_version == HardwareVersion.SHIMMER3R:
+            response = b"\xff\x02\x40\x00\x02\x00\x01\x09\x00\x00\x00\x01\x01\x12"
+        else:
+            response = b"\xff\x02\x40\x00\x01\xff\x01\x09\x01\x01\x12"
+
+        inquiry_ftr = helper.submit_req_resp_handler(1, response)
         start_streaming_ftr = helper.submit_req_resp_handler(1, b"\xff")
         helper.submit_req_resp_handler(0, b"\x00\x25\x13\xf4\x4a\x07")
         stop_streaming_ftr = helper.submit_req_resp_handler(1, b"\xff")
