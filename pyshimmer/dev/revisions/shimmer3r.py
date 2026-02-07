@@ -201,6 +201,3 @@ class Shimmer3RRevision(BaseRevision):
             self.SENSOR_BIT_ASSIGNMENT,
             self.SENSOR_ORDER,
         )
-
-
-REV_SHIMMER3R = Shimmer3RRevision()

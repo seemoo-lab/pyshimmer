@@ -52,13 +52,7 @@ from pyshimmer.bluetooth.bt_serial import BluetoothSerial
 from pyshimmer.dev.channels import ChDataTypeAssignment, EChannelType, ESensorGroup
 from pyshimmer.dev.fw_version import FirmwareType
 
-from pyshimmer.dev.revisions import (
-    HardwareVersion,
-    HardwareRevision,
-    HW_REVISIONS,
-    REV_SHIMMER3,
-    REV_SHIMMER3R,
-)
+from pyshimmer.dev.revisions import HardwareVersion, HardwareRevision, RevisionRegistry
 from pyshimmer.test_util import MockSerial
 
 
@@ -102,7 +96,9 @@ class TestBluetoothCommands:
     def test_response_command_code_conversion(self):
         class TestCommand(ResponseCommand):
             def __init__(self, rcode: int | bytes | tuple[int, ...]):
-                super().__init__(REV_SHIMMER3, rcode)
+                super().__init__(
+                    RevisionRegistry.get_revision(HardwareVersion.SHIMMER3), rcode
+                )
 
             def send(self, ser: BluetoothSerial) -> None:
                 pass
@@ -125,17 +121,17 @@ class TestBluetoothCommands:
         cmd = TestCommand(b"\x10\x20")
         assert cmd.get_response_code() == b"\x10\x20"
 
-    @pytest.mark.parametrize("rev", HW_REVISIONS)
+    @pytest.mark.parametrize("rev", RevisionRegistry.ALL_REVISIONS)
     def test_get_sampling_rate_command(self, rev):
         cmd = GetSamplingRateCommand(rev)
         self.assert_cmd(cmd, b"\x03", b"\x04", b"\x04\x40\x00", 512.0)
 
-    @pytest.mark.parametrize("rev", HW_REVISIONS)
+    @pytest.mark.parametrize("rev", RevisionRegistry.ALL_REVISIONS)
     def test_set_sampling_rate_command(self, rev: HardwareRevision):
         cmd = SetSamplingRateCommand(rev, sr=512.0)
         self.assert_cmd(cmd, b"\x05\x40\x00")
 
-    @pytest.mark.parametrize("rev", HW_REVISIONS)
+    @pytest.mark.parametrize("rev", RevisionRegistry.ALL_REVISIONS)
     def test_get_battery_state_command(self, rev: HardwareRevision):
         cmd = GetBatteryCommand(rev, in_percent=True)
         self.assert_cmd(cmd, b"\x95", b"\x8a\x94", b"\x8a\x94\x30\x0b\x80", 100)
@@ -145,7 +141,7 @@ class TestBluetoothCommands:
             cmd, b"\x95", b"\x8a\x94", b"\x8a\x94\x2e\x0b\x80", 4.168246153846154
         )
 
-    @pytest.mark.parametrize("rev", HW_REVISIONS)
+    @pytest.mark.parametrize("rev", RevisionRegistry.ALL_REVISIONS)
     def test_set_sensors_command(self, rev: HardwareRevision):
         sensors = [
             ESensorGroup.GYRO,
@@ -155,17 +151,17 @@ class TestBluetoothCommands:
         cmd = SetSensorsCommand(rev, sensors)
         self.assert_cmd(cmd, b"\x08\x40\x01\x04")
 
-    @pytest.mark.parametrize("rev", HW_REVISIONS)
+    @pytest.mark.parametrize("rev", RevisionRegistry.ALL_REVISIONS)
     def test_get_config_time_command(self, rev: HardwareRevision):
         cmd = GetConfigTimeCommand(rev)
         self.assert_cmd(cmd, b"\x87", b"\x86", b"\x86\x02\x34\x32", 42)
 
-    @pytest.mark.parametrize("rev", HW_REVISIONS)
+    @pytest.mark.parametrize("rev", RevisionRegistry.ALL_REVISIONS)
     def test_set_config_time_command(self, rev: HardwareRevision):
         cmd = SetConfigTimeCommand(rev, 43)
         self.assert_cmd(cmd, b"\x85\x02\x34\x33")
 
-    @pytest.mark.parametrize("rev", HW_REVISIONS)
+    @pytest.mark.parametrize("rev", RevisionRegistry.ALL_REVISIONS)
     def test_get_rtc(self, rev: HardwareRevision):
         cmd = GetRealTimeClockCommand(rev)
         r = self.assert_cmd(
@@ -173,18 +169,18 @@ class TestBluetoothCommands:
         )
         assert r == pytest.approx(4903.3837585)
 
-    @pytest.mark.parametrize("rev", HW_REVISIONS)
+    @pytest.mark.parametrize("rev", RevisionRegistry.ALL_REVISIONS)
     def test_set_rtc(self, rev: HardwareRevision):
         cmd = SetRealTimeClockCommand(rev, 10)
         self.assert_cmd(cmd, b"\x8f\x00\x00\x05\x00\x00\x00\x00\x00")
 
-    @pytest.mark.parametrize("rev", HW_REVISIONS)
+    @pytest.mark.parametrize("rev", RevisionRegistry.ALL_REVISIONS)
     def test_get_status_command(self, rev: HardwareRevision):
         cmd = GetStatusCommand(rev)
         expected_result = [True, False, True, False, False, True, False, False]
         self.assert_cmd(cmd, b"\x72", b"\x8a\x71", b"\x8a\x71\x25", expected_result)
 
-    @pytest.mark.parametrize("rev", HW_REVISIONS)
+    @pytest.mark.parametrize("rev", RevisionRegistry.ALL_REVISIONS)
     def test_get_firmware_version_command(self, rev: HardwareRevision):
         cmd = GetFirmwareVersionCommand(rev)
         fw_type, major, minor, patch = self.assert_cmd(
@@ -196,7 +192,9 @@ class TestBluetoothCommands:
         assert patch == 0
 
     def test_inquiry_command_shimmer3(self):
-        cmd = Shimmer3InquiryCommand(REV_SHIMMER3)
+        cmd = Shimmer3InquiryCommand(
+            RevisionRegistry.get_revision(HardwareVersion.SHIMMER3)
+        )
         sr, buf_size, ctypes = self.assert_cmd(
             cmd, b"\x01", b"\x02", b"\x02\x40\x00\x01\xff\x01\x09\x01\x01\x12"
         )
@@ -206,7 +204,9 @@ class TestBluetoothCommands:
         assert ctypes == [EChannelType.INTERNAL_ADC_A1]
 
     def test_inquiry_command_shimmer3r(self):
-        cmd = Shimmer3RInquiryCommand(REV_SHIMMER3R)
+        cmd = Shimmer3RInquiryCommand(
+            RevisionRegistry.get_revision(HardwareVersion.SHIMMER3R)
+        )
         sr, buf_size, ctypes = self.assert_cmd(
             cmd,
             b"\x01",
@@ -218,27 +218,27 @@ class TestBluetoothCommands:
         assert buf_size == 1
         assert ctypes == [EChannelType.INTERNAL_ADC_A1]
 
-    @pytest.mark.parametrize("rev", HW_REVISIONS)
+    @pytest.mark.parametrize("rev", RevisionRegistry.ALL_REVISIONS)
     def test_start_streaming_command(self, rev: HardwareRevision):
         cmd = StartStreamingCommand(rev)
         self.assert_cmd(cmd, b"\x07")
 
-    @pytest.mark.parametrize("rev", HW_REVISIONS)
+    @pytest.mark.parametrize("rev", RevisionRegistry.ALL_REVISIONS)
     def test_stop_streaming_command(self, rev: HardwareRevision):
         cmd = StopStreamingCommand(rev)
         self.assert_cmd(cmd, b"\x20")
 
-    @pytest.mark.parametrize("rev", HW_REVISIONS)
+    @pytest.mark.parametrize("rev", RevisionRegistry.ALL_REVISIONS)
     def test_start_logging_command(self, rev: HardwareRevision):
         cmd = StartLoggingCommand(rev)
         self.assert_cmd(cmd, b"\x92")
 
-    @pytest.mark.parametrize("rev", HW_REVISIONS)
+    @pytest.mark.parametrize("rev", RevisionRegistry.ALL_REVISIONS)
     def test_stop_logging_command(self, rev: HardwareRevision):
         cmd = StopLoggingCommand(rev)
         self.assert_cmd(cmd, b"\x93")
 
-    @pytest.mark.parametrize("rev", HW_REVISIONS)
+    @pytest.mark.parametrize("rev", RevisionRegistry.ALL_REVISIONS)
     def test_get_exg_register_command(self, rev: HardwareRevision):
         cmd = GetEXGRegsCommand(rev, 1)
         r = self.assert_cmd(
@@ -249,7 +249,7 @@ class TestBluetoothCommands:
         )
         assert r.binary == b"\x00\x80\x10\x00\x00\x00\x00\x00\x02\x01"
 
-    @pytest.mark.parametrize("rev", HW_REVISIONS)
+    @pytest.mark.parametrize("rev", RevisionRegistry.ALL_REVISIONS)
     def test_get_exg_reg_fail(self, rev: HardwareRevision):
         serial, mock = self.create_mock()
         cmd = GetEXGRegsCommand(rev, 1)
@@ -258,7 +258,7 @@ class TestBluetoothCommands:
         with pytest.raises(ValueError):
             cmd.receive(serial)
 
-    @pytest.mark.parametrize("rev", HW_REVISIONS)
+    @pytest.mark.parametrize("rev", RevisionRegistry.ALL_REVISIONS)
     def test_get_allcalibration_command(self, rev: HardwareRevision):
         response_data = (
             b"\x2d\x08\xcd\x08\xcd\x08\xcd\x00\x5c\x00\x5c\x00\x5c\x00\x9c\x00"
@@ -281,27 +281,27 @@ class TestBluetoothCommands:
         r = self.assert_cmd(cmd, b"\x2c", b"\x2d", response_data)
         assert r.binary == expected_result
 
-    @pytest.mark.parametrize("rev", HW_REVISIONS)
+    @pytest.mark.parametrize("rev", RevisionRegistry.ALL_REVISIONS)
     def test_set_exg_register_command(self, rev: HardwareRevision):
         cmd = SetEXGRegsCommand(rev, 1, 0x02, b"\x10\x00")
         self.assert_cmd(cmd, b"\x61\x01\x02\x02\x10\x00")
 
-    @pytest.mark.parametrize("rev", HW_REVISIONS)
+    @pytest.mark.parametrize("rev", RevisionRegistry.ALL_REVISIONS)
     def test_get_experiment_id_command(self, rev: HardwareRevision):
         cmd = GetExperimentIDCommand(rev)
         self.assert_cmd(cmd, b"\x7e", b"\x7d", b"\x7d\x06a_test", "a_test")
 
-    @pytest.mark.parametrize("rev", HW_REVISIONS)
+    @pytest.mark.parametrize("rev", RevisionRegistry.ALL_REVISIONS)
     def test_set_experiment_id_command(self, rev: HardwareRevision):
         cmd = SetExperimentIDCommand(rev, "A_Test")
         self.assert_cmd(cmd, b"\x7c\x06A_Test")
 
-    @pytest.mark.parametrize("rev", HW_REVISIONS)
+    @pytest.mark.parametrize("rev", RevisionRegistry.ALL_REVISIONS)
     def test_get_device_name_command(self, rev: HardwareRevision):
         cmd = GetDeviceNameCommand(rev)
         self.assert_cmd(cmd, b"\x7b", b"\x7a", b"\x7a\x05S_PPG", "S_PPG")
 
-    @pytest.mark.parametrize("rev", HW_REVISIONS)
+    @pytest.mark.parametrize("rev", RevisionRegistry.ALL_REVISIONS)
     def test_get_hardware_version(self, rev: HardwareRevision):
         cmd = GetShimmerHardwareVersion(rev)
         self.assert_cmd(cmd, b"\x3f", b"\x25", b"\x25\x00", HardwareVersion.SHIMMER1)
@@ -311,12 +311,12 @@ class TestBluetoothCommands:
         self.assert_cmd(cmd, b"\x3f", b"\x25", b"\x25\x0a", HardwareVersion.SHIMMER3R)
         self.assert_cmd(cmd, b"\x3f", b"\x25", b"\x25\x04", HardwareVersion.UNKNOWN)
 
-    @pytest.mark.parametrize("rev", HW_REVISIONS)
+    @pytest.mark.parametrize("rev", RevisionRegistry.ALL_REVISIONS)
     def test_set_device_name_command(self, rev: HardwareRevision):
         cmd = SetDeviceNameCommand(rev, "S_PPG")
         self.assert_cmd(cmd, b"\x79\x05S_PPG")
 
-    @pytest.mark.parametrize("rev", HW_REVISIONS)
+    @pytest.mark.parametrize("rev", RevisionRegistry.ALL_REVISIONS)
     def test_set_status_ack_command(self, rev: HardwareRevision):
         cmd = SetStatusAckCommand(rev, enabled=True)
         self.assert_cmd(cmd, b"\xa3\x01")
@@ -324,12 +324,12 @@ class TestBluetoothCommands:
         cmd = SetStatusAckCommand(rev, enabled=False)
         self.assert_cmd(cmd, b"\xa3\x00")
 
-    @pytest.mark.parametrize("rev", HW_REVISIONS)
+    @pytest.mark.parametrize("rev", RevisionRegistry.ALL_REVISIONS)
     def test_dummy_command(self, rev: HardwareRevision):
         cmd = DummyCommand(rev)
         self.assert_cmd(cmd, b"\x96")
 
-    @pytest.mark.parametrize("rev", HW_REVISIONS)
+    @pytest.mark.parametrize("rev", RevisionRegistry.ALL_REVISIONS)
     def test_data_packet(self, rev: HardwareRevision):
         serial, mock = self.create_mock()
 

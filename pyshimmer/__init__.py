@@ -23,11 +23,9 @@ from .dev.fw_version import FirmwareType
 from .dev.revisions import (
     HardwareRevision,
     Shimmer3Revision,
-    HW_REVISIONS,
-    REV_SHIMMER3,
+    RevisionRegistry,
     HardwareVersion,
     Shimmer3RRevision,
-    REV_SHIMMER3R,
 )
 from .reader.binary_reader import ShimmerBinaryReader
 from .reader.shimmer_reader import ShimmerReader

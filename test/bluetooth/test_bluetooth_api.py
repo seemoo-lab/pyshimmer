@@ -21,7 +21,6 @@ from typing import BinaryIO
 
 import pytest
 
-
 from pyshimmer.bluetooth.bt_api import BluetoothRequestHandler, ShimmerBluetooth
 from pyshimmer.bluetooth.bt_commands import (
     GetDeviceNameCommand,
@@ -37,9 +36,8 @@ from pyshimmer.dev.fw_version import FirmwareVersion, FirmwareType
 from pyshimmer.dev.revisions import (
     HardwareVersion,
     HardwareRevision,
-    HW_REVISIONS,
-    REV_SHIMMER3,
     Shimmer3Revision,
+    RevisionRegistry,
 )
 from pyshimmer.test_util import PTYSerialMockCreator
 
@@ -55,7 +53,7 @@ class TestBluetoothRequestHandler:
 
         mock_creator.close()
 
-    @pytest.fixture(params=HW_REVISIONS)
+    @pytest.fixture(params=RevisionRegistry.ALL_REVISIONS)
     def revision(self, request) -> HardwareRevision:
         return request.param
 
@@ -502,7 +500,7 @@ class TestShimmerBluetoothIntegration:
     def test_properties(self, helper: IntegrationTestHelper):
         helper.setup(run_sot_initialize=True)
 
-        assert helper.sot.hardware_revision == REV_SHIMMER3
+        assert isinstance(helper.sot.hardware_revision, Shimmer3Revision)
         assert helper.sot.hardware_version == HardwareVersion.SHIMMER3
         assert helper.sot.firmware_type == FirmwareType.LogAndStream
         assert helper.sot.firmware_version == FirmwareVersion(0, 11, 0)

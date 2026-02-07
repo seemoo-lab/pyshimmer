@@ -71,11 +71,7 @@ from pyshimmer.dev.fw_version import (
     FirmwareVersion,
     FirmwareCapabilities,
 )
-from pyshimmer.dev.revisions import (
-    HardwareVersion,
-    HardwareRevision,
-    REV_SHIMMER3,
-)
+from pyshimmer.dev.revisions import HardwareVersion, HardwareRevision, RevisionRegistry
 from pyshimmer.serial_base import ReadAbort
 from pyshimmer.util import fmt_hex, PeekQueue
 
@@ -375,7 +371,7 @@ class ShimmerBluetooth:
 
         if revision is None:
             self._revision_is_custom = False
-            self._revision = REV_SHIMMER3
+            self._revision = RevisionRegistry.get_revision(HardwareVersion.SHIMMER3)
         else:
             self._revision_is_custom = True
             self._revision = revision
@@ -484,15 +480,10 @@ class ShimmerBluetooth:
         # If the revision was set manually, we don't want to automatically
         # update it
         if not self._revision_is_custom:
-            if self._hw_version.revision is None:
-                raise ValueError(
-                    f"Hardware version {self._hw_version} is not" f"supported."
-                )
-            else:
-                # Update the request handler with the actually used revision
-                self._revision = self._bluetooth.hardware_revision = (
-                    self._hw_version.revision
-                )
+            # Update the request handler with the actually used revision
+            self._revision = self._bluetooth.hardware_revision = (
+                RevisionRegistry.get_revision(self._hw_version)
+            )
 
         if self.capabilities.supports_ack_disable and self._disable_ack:
             self.set_status_ack(enabled=False)
