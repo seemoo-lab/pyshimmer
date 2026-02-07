@@ -23,7 +23,7 @@ from typing import overload
 
 import numpy as np
 
-from pyshimmer.util import bit_is_set, flatten_list
+from pyshimmer.util import bit_is_set, flatten_list, unwrap
 from ..channels import EChannelType, ChannelDataType, ESensorGroup
 from .hw_version import HardwareVersion
 
@@ -93,6 +93,15 @@ class HardwareRevision(ABC):
             t_ticks: A clock tick counter for which to calculate the time in seconds
         Returns:
             A floating point time in seconds that is equivalent to the number of clock ticks
+        """
+        pass
+
+    @abstractmethod
+    def get_channel_dtype(self, channel: EChannelType) -> ChannelDataType:
+        """Return the channel data type for a single channel
+
+        :param channel: The channel for which to return the data type
+        :return: The channel data type
         """
         pass
 
@@ -178,6 +187,20 @@ class HardwareRevision(ABC):
         """
         pass
 
+    @abstractmethod
+    def unwrap_device_timestamps(self, timestamps: np.ndarray) -> np.ndarray:
+        """Unwrap the device timestamps
+
+        The timestamps recorded by the Shimmer devices have a size limitation.
+        If they reach their upper limit, they overflow and restart counting
+        at zero. This function detects these wrap-arounds in the dataset and
+        undoes them.
+
+        :param timestamps: A 1D array of timestamps which need to be unwrapped
+        :return: An unwrapped version of the 1D input array with the same length
+        """
+        pass
+
 
 class BaseRevision(HardwareRevision):
 
@@ -229,6 +252,9 @@ class BaseRevision(HardwareRevision):
     def ticks2sec(self, t_ticks: int | np.ndarray) -> float | np.ndarray:
         return t_ticks / self._dev_clock_rate
 
+    def get_channel_dtype(self, channel: EChannelType) -> ChannelDataType:
+        return self._channel_data_types[channel]
+
     def get_channel_dtypes(
         self, channels: Iterable[EChannelType]
     ) -> list[ChannelDataType]:
@@ -275,3 +301,9 @@ class BaseRevision(HardwareRevision):
 
         sensors_sorted = sorted(sensors, key=sort_key_fn)
         return sensors_sorted
+
+    def unwrap_device_timestamps(self, timestamps: np.ndarray) -> np.ndarray:
+        ts_dtype = self.get_channel_dtype(EChannelType.TIMESTAMP)
+        uint_max = 2 ** (8 * ts_dtype.size)
+
+        return unwrap(timestamps, uint_max)

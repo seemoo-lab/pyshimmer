@@ -26,6 +26,7 @@ from pyshimmer.dev.channels import (
     get_enabled_channels,
     EChannelType,
 )
+from pyshimmer.dev.revisions import HardwareRevision
 from pyshimmer.dev.exg import is_exg_ch, get_exg_ch, ExGRegister
 from pyshimmer.reader.binary_reader import ShimmerBinaryReader
 from pyshimmer.reader.reader_const import (
@@ -33,12 +34,6 @@ from pyshimmer.reader.reader_const import (
     EXG_ADC_OFFSET,
     TRIAXCAL_SENSORS,
 )
-from pyshimmer.util import unwrap
-
-
-def unwrap_device_timestamps(ts_dev: np.ndarray) -> np.ndarray:
-    ts_dtype = ChDataTypeAssignment[EChannelType.TIMESTAMP]
-    return unwrap(ts_dev, 2 ** (8 * ts_dtype.size))
 
 
 def fit_linear_1d(xp, fp, x):
@@ -212,7 +207,7 @@ class ShimmerReader:
         samples, sync_offsets = self._bin_reader.read_data()
         ts_raw = samples.pop(EChannelType.TIMESTAMP)
 
-        ts_unwrapped = unwrap_device_timestamps(ts_raw)
+        ts_unwrapped = self.hardware_revision.unwrap_device_timestamps(ts_raw)
         ts_sane = self._apply_clock_offsets(ts_unwrapped)
 
         if self._sync and self._bin_reader.has_sync:
@@ -233,6 +228,10 @@ class ShimmerReader:
             return self.timestamp
 
         return self._ch_samples[item]
+
+    @property
+    def hardware_revision(self) -> HardwareRevision:
+        return self._bin_reader.hardware_revision
 
     @property
     def timestamp(self) -> np.ndarray:
