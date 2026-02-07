@@ -25,9 +25,17 @@ import numpy as np
 
 from pyshimmer.util import bit_is_set, flatten_list
 from ..channels import EChannelType, ChannelDataType, ESensorGroup
+from .hw_version import HardwareVersion
 
 
 class HardwareRevision(ABC):
+
+    def __init__(self, hw_version: HardwareVersion):
+        self._hw_version = hw_version
+
+    @property
+    def hardware_version(self) -> HardwareVersion:
+        return self._hw_version
 
     @abstractmethod
     def sr2dr(self, sr: float) -> int:
@@ -175,6 +183,7 @@ class BaseRevision(HardwareRevision):
 
     def __init__(
         self,
+        hw_version: HardwareVersion,
         dev_clock_rate: float,
         sensor_list_dtype: ChannelDataType,
         channel_data_types: dict[EChannelType, ChannelDataType],
@@ -182,6 +191,8 @@ class BaseRevision(HardwareRevision):
         sensor_bit_assignment: dict[ESensorGroup, int],
         sensor_order: dict[ESensorGroup, int],
     ):
+        super().__init__(hw_version)
+
         self._dev_clock_rate = dev_clock_rate
         self._sensor_list_dtype = sensor_list_dtype
         self._channel_data_types = channel_data_types

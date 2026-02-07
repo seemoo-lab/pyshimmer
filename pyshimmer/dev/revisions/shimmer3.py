@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from __future__ import annotations
 
+from .hw_version import HardwareVersion
 from .revision import BaseRevision
 from ..channels import EChannelType, ChannelDataType, ESensorGroup
 
@@ -192,6 +193,7 @@ class Shimmer3Revision(BaseRevision):
 
     def __init__(self):
         super().__init__(
+            HardwareVersion.SHIMMER3,
             self.DEV_CLOCK_RATE,
             self.SENSOR_DTYPE,
             self.CH_DTYPE_ASSIGNMENT,
