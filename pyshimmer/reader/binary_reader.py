@@ -22,12 +22,9 @@ import numpy as np
 
 from pyshimmer.dev.channels import (
     ESensorGroup,
-    get_ch_dtypes,
-    get_enabled_channels,
     EChannelType,
-    ENABLED_SENSORS_LEN,
-    deserialize_sensors,
 )
+from pyshimmer.dev.revisions import RevisionRegistry, HardwareVersion
 from pyshimmer.dev.exg import ExGRegister
 from pyshimmer.util import FileIOBase, unpack, bit_is_set
 from .reader_const import (
@@ -55,6 +52,7 @@ class ShimmerBinaryReader(FileIOBase):
     def __init__(self, fp: BinaryIO):
         super().__init__(fp)
 
+        self._revision = RevisionRegistry.get_revision(HardwareVersion.SHIMMER3)
         self._sensors = []
         self._channels = []
         self._sr = 0
@@ -64,9 +62,8 @@ class ShimmerBinaryReader(FileIOBase):
 
         self._read_header()
 
-    @staticmethod
-    def get_data_channels(sensors):
-        channels = get_enabled_channels(sensors)
+    def get_data_channels(self, sensors):
+        channels = self._revision.get_enabled_channels(sensors)
         channels_with_ts = [EChannelType.TIMESTAMP] + channels
         return channels_with_ts
 
@@ -74,7 +71,7 @@ class ShimmerBinaryReader(FileIOBase):
         self._sr = self._read_sample_rate()
         self._sensors = self._read_enabled_sensors()
         self._channels = self.get_data_channels(self._sensors)
-        self._channel_dtypes = get_ch_dtypes(self._channels)
+        self._channel_dtypes = self._revision.get_channel_dtypes(self._channels)
         self._rtc_diff = self._read_rtc_clock_diff()
         self._start_ts = self._read_start_time()
         self._trial_config = self._read_trial_config()
@@ -88,8 +85,8 @@ class ShimmerBinaryReader(FileIOBase):
 
     def _read_enabled_sensors(self) -> list[ESensorGroup]:
         self._seek(ENABLED_SENSORS_OFFSET)
-        sensor_bitfield = self._read(ENABLED_SENSORS_LEN)
-        enabled_sensors = deserialize_sensors(sensor_bitfield)
+        sensor_bitfield = self._read(self._revision.sensorlist_size)
+        enabled_sensors = self._revision.deserialize_sensorlist(sensor_bitfield)
 
         return enabled_sensors
 
