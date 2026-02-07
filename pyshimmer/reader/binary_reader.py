@@ -24,8 +24,8 @@ from pyshimmer.dev.channels import (
     ESensorGroup,
     EChannelType,
 )
-from pyshimmer.dev.revisions import RevisionRegistry, HardwareVersion
 from pyshimmer.dev.exg import ExGRegister
+from pyshimmer.dev.revisions import RevisionRegistry, HardwareVersion, HardwareRevision
 from pyshimmer.util import FileIOBase, unpack, bit_is_set
 from .reader_const import (
     RTC_CLOCK_DIFF_OFFSET,
@@ -236,6 +236,10 @@ class ShimmerBinaryReader(FileIOBase):
 
         offset, gain, alignment = self._read_triaxcal_params(offset)
         return offset * sc_offset, gain * sc_gain, alignment * sc_alignment
+
+    @property
+    def hardware_revision(self) -> HardwareRevision:
+        return self._revision
 
     @property
     def sample_rate(self) -> int:
