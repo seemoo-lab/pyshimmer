@@ -402,6 +402,9 @@ class SignalPostProcessorTest(TestCase):
         type(mock_reader).enabled_sensors = PropertyMock(
             return_value=list(params.keys())
         )
+        type(mock_reader).hardware_revision = RevisionRegistry.get_revision(
+            HardwareVersion.SHIMMER3
+        )
 
         proc = TriAxCalProcessor()
         actual_dict = proc.process(data_dict, mock_reader)

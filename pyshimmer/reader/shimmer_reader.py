@@ -21,13 +21,9 @@ from typing import BinaryIO
 import numpy as np
 
 from pyshimmer.dev.base import ticks2sec, dr2sr
-from pyshimmer.dev.channels import (
-    ChDataTypeAssignment,
-    get_enabled_channels,
-    EChannelType,
-)
-from pyshimmer.dev.revisions import HardwareRevision
+from pyshimmer.dev.channels import EChannelType
 from pyshimmer.dev.exg import is_exg_ch, get_exg_ch, ExGRegister
+from pyshimmer.dev.revisions import HardwareRevision
 from pyshimmer.reader.binary_reader import ShimmerBinaryReader
 from pyshimmer.reader.reader_const import (
     EXG_ADC_REF_VOLT,
@@ -92,7 +88,7 @@ class ExGProcessor(SingleChannelProcessor):
         exg_reg = reader.get_exg_reg(chip_id)
         gain = exg_reg.get_ch_gain(ch_id)
 
-        ch_dtype = ChDataTypeAssignment[ch_type]
+        ch_dtype = reader.hardware_revision.get_channel_dtype(ch_type)
         resolution = 8 * ch_dtype.size
         sensitivity = EXG_ADC_REF_VOLT / (2 ** (resolution - 1) - 1)
 
@@ -122,7 +118,7 @@ class TriAxCalProcessor(ChannelPostProcessor):
 
         active_sensors = [s for s in reader.enabled_sensors if s in TRIAXCAL_SENSORS]
         for sensor in active_sensors:
-            sensor_channels = get_enabled_channels([sensor])
+            sensor_channels = reader.hardware_revision.get_enabled_channels([sensor])
             channel_data = np.stack([channels[c] for c in sensor_channels])
             o, g, a = reader.get_triaxcal_params(sensor)
 
