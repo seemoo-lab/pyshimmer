@@ -21,6 +21,7 @@ from typing import BinaryIO
 
 import pytest
 
+from pyshimmer import EChannelType, ChannelDataType
 from pyshimmer.bluetooth.bt_api import BluetoothRequestHandler, ShimmerBluetooth
 from pyshimmer.bluetooth.bt_commands import (
     GetDeviceNameCommand,
@@ -31,13 +32,12 @@ from pyshimmer.bluetooth.bt_commands import (
     ResponseCommand,
 )
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
-from pyshimmer.dev.channels import ChDataTypeAssignment, EChannelType, ChannelDataType
 from pyshimmer.dev.fw_version import FirmwareVersion, FirmwareType
 from pyshimmer.dev.revisions import (
     HardwareVersion,
     HardwareRevision,
-    Shimmer3Revision,
     RevisionRegistry,
+    Shimmer3Revision,
 )
 from pyshimmer.test_util import PTYSerialMockCreator
 
@@ -291,6 +291,7 @@ class TestBluetoothRequestHandler:
         self,
         mock_creator: PTYSerialMockCreator,
         sot: BluetoothRequestHandler,
+        revision: HardwareRevision,
     ):
         results: list[DataPacket] = []
 
@@ -298,7 +299,7 @@ class TestBluetoothRequestHandler:
         data_pkt_2 = b"\x00\x1e\xd1\xb2\xfc\x06"
 
         ch_types = [EChannelType.TIMESTAMP, EChannelType.INTERNAL_ADC_A1]
-        sot.stream_types = [(c, ChDataTypeAssignment[c]) for c in ch_types]
+        sot.stream_types = [(c, revision.get_channel_dtype(c)) for c in ch_types]
         sot.add_stream_callback(results.append)
 
         mock_creator.write_to_master(data_pkt_1)

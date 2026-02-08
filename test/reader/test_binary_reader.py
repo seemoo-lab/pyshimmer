@@ -19,8 +19,7 @@ from unittest import TestCase
 
 import numpy as np
 
-from pyshimmer import EChannelType, ExGRegister
-from pyshimmer.dev.channels import ESensorGroup, get_ch_dtypes
+from pyshimmer import EChannelType, ExGRegister, RevisionRegistry, ESensorGroup
 from pyshimmer.reader.shimmer_reader import ShimmerBinaryReader
 from .reader_test_util import (
     get_binary_sample_fpath,
@@ -52,7 +51,10 @@ class ShimmerReaderTest(TestCase):
                 EChannelType.INTERNAL_ADC_A1,
             ]
 
-            sample_size = sum([dt.size for dt in get_ch_dtypes(exp_channels)])
+            revision = RevisionRegistry.REV_SHIMMER3
+            sample_size = sum(
+                [dt.size for dt in revision.get_channel_dtypes(exp_channels)]
+            )
             samples_per_block = int(512 / sample_size)
             block_size = samples_per_block * sample_size
 
@@ -94,7 +96,10 @@ class ShimmerReaderTest(TestCase):
             exp_exg_reg1 = ExGRegister(b"\x00\x80\x10\x00\x00\x00\x00\x00\x02\x01")
             exp_exg_reg2 = ExGRegister(b"\x00\x80\x10\x00\x00\x00\x00\x00\x02\x01")
 
-            sample_size = sum([dt.size for dt in get_ch_dtypes(exp_channels)])
+            revision = RevisionRegistry.REV_SHIMMER3
+            sample_size = sum(
+                [dt.size for dt in revision.get_channel_dtypes(exp_channels)]
+            )
             samples_per_block = int((512 - 9) / sample_size)
             block_size = samples_per_block * sample_size + 9
 
