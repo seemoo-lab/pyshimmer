@@ -19,7 +19,7 @@ import struct
 
 from serial import Serial
 
-from pyshimmer.dev.base import sec2ticks, ticks2sec
+from pyshimmer.dev.revisions import RevisionRegistry
 from pyshimmer.dev.exg import ExGRegister
 from pyshimmer.dev.fw_version import FirmwareType
 from pyshimmer.uart.dock_const import *
@@ -35,6 +35,7 @@ class ShimmerDock:
     """
 
     def __init__(self, ser: Serial, flush_before_req=True):
+        self._revision = RevisionRegistry.REV_SHIMMER3
         self._serial = DockSerial(ser)
         self._flush_before_req = flush_before_req
 
@@ -145,7 +146,7 @@ class ShimmerDock:
 
         :param ts_sec: The UNIX timestamp in seconds
         """
-        ticks = sec2ticks(ts_sec)
+        ticks = self._revision.sec2ticks(ts_sec)
         self._write_packet_wformat(
             UART_SET, UART_COMP_SHIMMER, UART_PROP_RWC_CFG_TIME, "<Q", ticks
         )
@@ -161,7 +162,7 @@ class ShimmerDock:
         ticks = self._read_response_wformat_verify(
             UART_COMP_SHIMMER, UART_PROP_CURR_LOCAL_TIME, "<Q"
         )
-        return ticks2sec(ticks)
+        return self._revision.ticks2sec(ticks)
 
     def get_config_rtc(self) -> float:
         """Get the value that was last set for the real-time clock
@@ -179,7 +180,7 @@ class ShimmerDock:
         ticks = self._read_response_wformat_verify(
             UART_COMP_SHIMMER, UART_PROP_RWC_CFG_TIME, "<Q"
         )
-        return ticks2sec(ticks)
+        return self._revision.ticks2sec(ticks)
 
     def get_firmware_version(self) -> tuple[int, FirmwareType, int, int, int]:
         """Retrieve the firmware version of the device
