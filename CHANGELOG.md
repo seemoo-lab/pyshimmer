@@ -12,6 +12,9 @@ The project uses semantic versioning.
 - Raise required Python version to 3.9 since PEP 604 is used in the code
 - Update the `ChannelDataType` class to use the `int.from_bytes` and
   `int.to_bytes` methods
+- Introduce new hardware revision classes to encapsulate all hardware-specific
+  code. As a consequence, all global functions in `pyshimmer.dev.base` and
+  `pyshimmer.dev.channels` were removed.
 
 ## 1.0.0 - 2025-10-25
 
