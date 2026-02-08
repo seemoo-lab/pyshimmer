@@ -49,7 +49,7 @@ from pyshimmer.bluetooth.bt_commands import (
     GetAllCalibrationCommand,
 )
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
-from pyshimmer.dev.channels import ChDataTypeAssignment, EChannelType, ESensorGroup
+from pyshimmer.dev.channels import EChannelType, ESensorGroup
 from pyshimmer.dev.fw_version import FirmwareType
 
 from pyshimmer.dev.revisions import HardwareVersion, HardwareRevision, RevisionRegistry
@@ -328,7 +328,7 @@ class TestBluetoothCommands:
         serial, mock = self.create_mock()
 
         channels = [EChannelType.TIMESTAMP, EChannelType.INTERNAL_ADC_A1]
-        data_types = [ChDataTypeAssignment[c] for c in channels]
+        data_types = rev.get_channel_dtypes(channels)
         ch_and_types = list(zip(channels, data_types))
 
         pkt = DataPacket(rev, ch_and_types)

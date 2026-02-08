@@ -20,7 +20,6 @@ from typing import BinaryIO
 
 import numpy as np
 
-from pyshimmer.dev.base import ticks2sec, dr2sr
 from pyshimmer.dev.channels import EChannelType
 from pyshimmer.dev.exg import is_exg_ch, get_exg_ch, ExGRegister
 from pyshimmer.dev.revisions import HardwareRevision
@@ -214,7 +213,7 @@ class ShimmerReader:
         else:
             self._ch_samples = samples
 
-        self._ts = ticks2sec(ts_sane)
+        self._ts = self.hardware_revision.ticks2sec(ts_sane)
 
     def get_exg_reg(self, chip_id: int) -> ExGRegister:
         return self._bin_reader.get_exg_reg(chip_id)
@@ -240,7 +239,7 @@ class ShimmerReader:
 
     @property
     def sample_rate(self) -> float:
-        return dr2sr(self._bin_reader.sample_rate)
+        return self.hardware_revision.dr2sr(self._bin_reader.sample_rate)
 
     @property
     def exg_reg1(self) -> ExGRegister:

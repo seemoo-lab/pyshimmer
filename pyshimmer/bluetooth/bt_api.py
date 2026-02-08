@@ -60,7 +60,6 @@ from pyshimmer.bluetooth.bt_const import (
 )
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
 from pyshimmer.dev.channels import (
-    ChDataTypeAssignment,
     ChannelDataType,
     EChannelType,
     ESensorGroup,
@@ -730,7 +729,7 @@ class ShimmerBluetooth:
         """Start streaming data"""
         ctypes = self.get_data_types()
 
-        stream_types = [(t, ChDataTypeAssignment[t]) for t in ctypes]
+        stream_types = [(t, self._revision.get_channel_dtype(t)) for t in ctypes]
         self._bluetooth.stream_types = stream_types
 
         self._process_and_wait(StartStreamingCommand(self._revision))
