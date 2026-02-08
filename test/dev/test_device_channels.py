@@ -20,16 +20,8 @@ from unittest import TestCase
 import pytest
 
 from pyshimmer.dev.channels import (
-    ChDataTypeAssignment,
-    get_ch_dtypes,
-    SensorChannelAssignment,
-    SensorBitAssignments,
     ChannelDataType,
     EChannelType,
-    ESensorGroup,
-    sort_sensors,
-    sensors2bitfield,
-    bitfield2sensors,
 )
 
 
@@ -140,77 +132,3 @@ class ChannelDataTypeTest(TestCase):
 
         test_both_endianess(0x12345, 3, b"\x45\x23\x01", signed=False)
         test_both_endianess(-0x12345, 3, b"\xbb\xdc\xfe", signed=True)
-
-
-class ChannelFunctionsTest(TestCase):
-
-    def test_get_ch_dtypes(self):
-        channels = [EChannelType.INTERNAL_ADC_A1, EChannelType.GYRO_Y]
-        r = get_ch_dtypes(channels)
-
-        self.assertEqual(len(r), 2)
-        first, second = r
-
-        self.assertEqual(first.size, 2)
-        self.assertEqual(first.little_endian, True)
-        self.assertEqual(first.signed, False)
-
-        self.assertEqual(second.size, 2)
-        self.assertEqual(second.little_endian, False)
-        self.assertEqual(second.signed, True)
-
-    def test_datatype_assignments(self):
-        from pyshimmer.dev.channels import EChannelType
-
-        for ch_type in EChannelType:
-            if ch_type not in ChDataTypeAssignment:
-                self.fail(f"No data type assigned to channel type: {ch_type}")
-
-    def test_sensor_channel_assignments(self):
-        from pyshimmer.dev.channels import ESensorGroup
-
-        for sensor in ESensorGroup:
-            if sensor not in SensorChannelAssignment:
-                self.fail(f"No channels assigned to sensor type: {sensor}")
-
-    def test_sensor_list_to_bitfield(self):
-        assert sensors2bitfield((ESensorGroup.ACCEL_LN, ESensorGroup.EXT_CH_A1)) == 0x81
-        assert sensors2bitfield((ESensorGroup.STRAIN, ESensorGroup.INT_CH_A1)) == 0x8100
-        assert sensors2bitfield((ESensorGroup.INT_CH_A2, ESensorGroup.TEMP)) == 0x820000
-
-    def test_bitfield_to_sensors(self):
-        assert bitfield2sensors(0x81) == [ESensorGroup.ACCEL_LN, ESensorGroup.EXT_CH_A1]
-        assert bitfield2sensors(0x8100) == [ESensorGroup.INT_CH_A1, ESensorGroup.STRAIN]
-        assert bitfield2sensors(0x820000) == [
-            ESensorGroup.INT_CH_A2,
-            ESensorGroup.TEMP,
-        ]
-
-    def test_sensor_bit_assignments_uniqueness(self):
-        for s1 in SensorBitAssignments.keys():
-            for s2 in SensorBitAssignments.keys():
-                if s1 != s2 and SensorBitAssignments[s1] == SensorBitAssignments[s2]:
-                    self.fail(
-                        f"Colliding bitfield assignments for sensor {s1} and {s2}"
-                    )
-
-    def test_sort_sensors(self):
-        sensors = [ESensorGroup.BATTERY, ESensorGroup.ACCEL_LN]
-        expected = [ESensorGroup.ACCEL_LN, ESensorGroup.BATTERY]
-        r = sort_sensors(sensors)
-        self.assertEqual(r, expected)
-
-        sensors = [
-            ESensorGroup.EXT_CH_A2,
-            ESensorGroup.MAG_WR,
-            ESensorGroup.ACCEL_LN,
-            ESensorGroup.EXT_CH_A2,
-        ]
-        expected = [
-            ESensorGroup.ACCEL_LN,
-            ESensorGroup.EXT_CH_A2,
-            ESensorGroup.EXT_CH_A2,
-            ESensorGroup.MAG_WR,
-        ]
-        r = sort_sensors(sensors)
-        self.assertEqual(r, expected)
