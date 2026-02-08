@@ -59,9 +59,7 @@ class ShimmerReaderTest(TestCase):
         type(m_br).has_sync = PropertyMock(return_value=False)
         type(m_br).has_global_clock = PropertyMock(return_value=False)
         type(m_br).start_timestamp = PropertyMock(return_value=0)
-        type(m_br).hardware_revision = RevisionRegistry.get_revision(
-            HardwareVersion.SHIMMER3
-        )
+        type(m_br).hardware_revision = RevisionRegistry.REV_SHIMMER3
 
         reader = ShimmerReader(bin_reader=m_br)
         reader.load_file_data()
@@ -88,9 +86,7 @@ class ShimmerReaderTest(TestCase):
         type(m_br).sample_rate = PropertyMock(return_value=sr)
         type(m_br).has_global_clock = PropertyMock(return_value=False)
         type(m_br).start_timestamp = PropertyMock(return_value=0)
-        type(m_br).hardware_revision = RevisionRegistry.get_revision(
-            HardwareVersion.SHIMMER3
-        )
+        type(m_br).hardware_revision = RevisionRegistry.REV_SHIMMER3
 
         samples = {
             EChannelType.VBATT: vbatt,
@@ -126,9 +122,7 @@ class ShimmerReaderTest(TestCase):
         type(m_br).has_sync = PropertyMock(return_value=True)
         type(m_br).has_global_clock = PropertyMock(return_value=False)
         type(m_br).start_timestamp = PropertyMock(return_value=0)
-        type(m_br).hardware_revision = RevisionRegistry.get_revision(
-            HardwareVersion.SHIMMER3
-        )
+        type(m_br).hardware_revision = RevisionRegistry.REV_SHIMMER3
 
         reader = ShimmerReader(bin_reader=m_br)
         reader.load_file_data()
@@ -245,9 +239,7 @@ class ShimmerReaderTest(TestCase):
         type(m_br).start_timestamp = PropertyMock(return_value=0)
         type(m_br).exg_reg1 = PropertyMock(return_value=exg_reg1)
         type(m_br).exg_reg2 = PropertyMock(return_value=exg_reg2)
-        type(m_br).hardware_revision = RevisionRegistry.get_revision(
-            HardwareVersion.SHIMMER3
-        )
+        type(m_br).hardware_revision = RevisionRegistry.REV_SHIMMER3
 
         reader = ShimmerReader(bin_reader=m_br, post_process=False)
         reader.load_file_data()
@@ -402,9 +394,7 @@ class SignalPostProcessorTest(TestCase):
         type(mock_reader).enabled_sensors = PropertyMock(
             return_value=list(params.keys())
         )
-        type(mock_reader).hardware_revision = RevisionRegistry.get_revision(
-            HardwareVersion.SHIMMER3
-        )
+        type(mock_reader).hardware_revision = RevisionRegistry.REV_SHIMMER3
 
         proc = TriAxCalProcessor()
         actual_dict = proc.process(data_dict, mock_reader)

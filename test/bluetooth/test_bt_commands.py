@@ -96,9 +96,7 @@ class TestBluetoothCommands:
     def test_response_command_code_conversion(self):
         class TestCommand(ResponseCommand):
             def __init__(self, rcode: int | bytes | tuple[int, ...]):
-                super().__init__(
-                    RevisionRegistry.get_revision(HardwareVersion.SHIMMER3), rcode
-                )
+                super().__init__(RevisionRegistry.REV_SHIMMER3, rcode)
 
             def send(self, ser: BluetoothSerial) -> None:
                 pass
@@ -192,9 +190,7 @@ class TestBluetoothCommands:
         assert patch == 0
 
     def test_inquiry_command_shimmer3(self):
-        cmd = Shimmer3InquiryCommand(
-            RevisionRegistry.get_revision(HardwareVersion.SHIMMER3)
-        )
+        cmd = Shimmer3InquiryCommand(RevisionRegistry.REV_SHIMMER3)
         sr, buf_size, ctypes = self.assert_cmd(
             cmd, b"\x01", b"\x02", b"\x02\x40\x00\x01\xff\x01\x09\x01\x01\x12"
         )
@@ -204,9 +200,7 @@ class TestBluetoothCommands:
         assert ctypes == [EChannelType.INTERNAL_ADC_A1]
 
     def test_inquiry_command_shimmer3r(self):
-        cmd = Shimmer3RInquiryCommand(
-            RevisionRegistry.get_revision(HardwareVersion.SHIMMER3R)
-        )
+        cmd = Shimmer3RInquiryCommand(RevisionRegistry.REV_SHIMMER3R)
         sr, buf_size, ctypes = self.assert_cmd(
             cmd,
             b"\x01",

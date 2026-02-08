@@ -23,9 +23,12 @@ from .shimmer3r import Shimmer3RRevision
 
 class RevisionRegistry:
 
+    REV_SHIMMER3 = Shimmer3Revision()
+    REV_SHIMMER3R = Shimmer3RRevision()
+
     _MAP = {
-        HardwareVersion.SHIMMER3: Shimmer3Revision(),
-        HardwareVersion.SHIMMER3R: Shimmer3RRevision(),
+        HardwareVersion.SHIMMER3: REV_SHIMMER3,
+        HardwareVersion.SHIMMER3R: REV_SHIMMER3R,
     }
 
     ALL_REVISIONS = tuple(_MAP.values())
