@@ -1,132 +1,120 @@
 from __future__ import annotations
 
-from unittest import TestCase
+import pytest
 
-from pyshimmer import EFirmwareType, ShimmerDock
+from pyshimmer import FirmwareType, ShimmerDock
 from pyshimmer.test_util import MockSerial
 
 
-class DockAPITest(TestCase):
+class TestDockAPI:
 
-    @staticmethod
-    def create_sot(flush: bool = False) -> tuple[ShimmerDock, MockSerial]:
+    @pytest.fixture()
+    def sot_and_mock(self) -> tuple[ShimmerDock, MockSerial]:
         mock = MockSerial()
         # noinspection PyTypeChecker
-        dock = ShimmerDock(mock, flush_before_req=flush)
+        dock = ShimmerDock(mock, flush_before_req=False)
 
         return dock, mock
 
-    def test_context_manager(self):
-        dock, mock = self.create_sot()
+    @pytest.fixture()
+    def sot(self, sot_and_mock: tuple[ShimmerDock, MockSerial]) -> ShimmerDock:
+        return sot_and_mock[0]
 
-        self.assertFalse(mock.test_closed)
+    @pytest.fixture()
+    def mock(self, sot_and_mock: tuple[ShimmerDock, MockSerial]) -> MockSerial:
+        return sot_and_mock[1]
 
-        with dock:
+    def test_context_manager(self, sot: ShimmerDock, mock: MockSerial):
+
+        assert not mock.test_closed
+
+        with sot:
             pass
 
-        self.assertTrue(mock.test_closed)
+        assert mock.test_closed
 
-    def test_unknown_start_char(self):
-        dock, mock = self.create_sot()
-
+    def test_unknown_start_char(self, sot: ShimmerDock, mock: MockSerial):
         mock.test_put_read_data(b"\x25")
-        self.assertRaises(IOError, dock.get_firmware_version)
+        with pytest.raises(IOError):
+            sot.get_firmware_version()
 
-    def test_bad_arg_response(self):
-        dock, mock = self.create_sot()
-
+    def test_bad_arg_response(self, sot: ShimmerDock, mock: MockSerial):
         mock.test_put_read_data(b"\x24\xfd")
-        self.assertRaises(IOError, dock.get_firmware_version)
+        with pytest.raises(IOError):
+            sot.get_firmware_version()
 
-    def test_bad_cmd_response(self):
-        dock, mock = self.create_sot()
-
+    def test_bad_cmd_response(self, sot: ShimmerDock, mock: MockSerial):
         mock.test_put_read_data(b"\x24\xfc")
-        self.assertRaises(IOError, dock.get_firmware_version)
+        with pytest.raises(IOError):
+            sot.get_firmware_version()
 
-    def test_bad_crc_response(self):
-        dock, mock = self.create_sot()
-
+    def test_bad_crc_response(self, sot: ShimmerDock, mock: MockSerial):
         mock.test_put_read_data(b"\x24\xfe")
-        self.assertRaises(IOError, dock.get_firmware_version)
+        with pytest.raises(IOError):
+            sot.get_firmware_version()
 
-    def test_unexpected_cmd_response(self):
-        dock, mock = self.create_sot()
-
+    def test_unexpected_cmd_response(self, sot: ShimmerDock, mock: MockSerial):
         mock.test_put_read_data(b"\x24\x03")
-        self.assertRaises(IOError, dock.get_firmware_version)
+        with pytest.raises(IOError):
+            sot.get_firmware_version()
 
-    def test_unexpected_component(self):
-        dock, mock = self.create_sot()
-
+    def test_unexpected_component(self, sot: ShimmerDock, mock: MockSerial):
         mock.test_put_read_data(b"\x24\x02\x02\x02\x00\x98z")
-        self.assertRaises(IOError, dock.get_firmware_version)
+        with pytest.raises(IOError):
+            sot.get_firmware_version()
 
-    def test_unexpected_property(self):
-        dock, mock = self.create_sot()
-
+    def test_unexpected_property(self, sot: ShimmerDock, mock: MockSerial):
         mock.test_put_read_data(b"\x24\x02\x02\x01\x02\xaaE")
-        self.assertRaises(IOError, dock.get_firmware_version)
+        with pytest.raises(IOError):
+            sot.get_firmware_version()
 
-    def test_get_mac_address(self):
-        dock, mock = self.create_sot()
-
+    def test_get_mac_address(self, sot: ShimmerDock, mock: MockSerial):
         mock.test_put_read_data(b"\x24\x02\x08\x01\x02\x01\x02\x03\x04\x05\x06N\x87")
-        r = dock.get_mac_address()
+        r = sot.get_mac_address()
 
-        self.assertEqual(r, (0x01, 0x02, 0x03, 0x04, 0x05, 0x06))
-        self.assertEqual(mock.test_get_write_data(), b"\x24\x03\x02\x01\x02\xfb\xef")
+        assert r == (0x01, 0x02, 0x03, 0x04, 0x05, 0x06)
+        assert mock.test_get_write_data() == b"\x24\x03\x02\x01\x02\xfb\xef"
 
-    def test_get_firmware_version(self):
-        dock, mock = self.create_sot()
-
+    def test_get_firmware_version(self, sot: ShimmerDock, mock: MockSerial):
         mock.test_put_read_data(
             b"\x24\x02\x09\x01\x03\x03\x03\x00\x00\x00\x0b\x00\x14\x33"
         )
-        hw_ver, fw_type, major, minor, patch = dock.get_firmware_version()
+        hw_ver, fw_type, major, minor, patch = sot.get_firmware_version()
 
-        self.assertEqual(mock.test_get_write_data(), b"\x24\x03\x02\x01\x03\xca\xdc")
+        assert mock.test_get_write_data() == b"\x24\x03\x02\x01\x03\xca\xdc"
 
-        self.assertEqual(hw_ver, 3)
-        self.assertEqual(fw_type, EFirmwareType.LogAndStream)
-        self.assertEqual(major, 0)
-        self.assertEqual(minor, 11)
-        self.assertEqual(patch, 0)
+        assert hw_ver == 3
+        assert fw_type == FirmwareType.LogAndStream
+        assert major == 0
+        assert minor == 11
+        assert patch == 0
 
-    def test_set_rtc(self):
-        dock, mock = self.create_sot()
-
+    def test_set_rtc(self, sot: ShimmerDock, mock: MockSerial):
         mock.test_put_read_data(b"\x24\xff\xd9\xb2")
-        dock.set_rtc(1.0)
+        sot.set_rtc(1.0)
 
+        expected = b"\x24\x01\x0a\x01\x04\x00\x80\x00\x00\x00\x00\x00\x00\x1c\xd2"
         wd = mock.test_get_write_data()
-        self.assertEqual(
-            wd, b"\x24\x01\x0a\x01\x04\x00\x80\x00\x00\x00\x00\x00\x00\x1c\xd2"
-        )
+        assert wd == expected
 
-    def test_get_rtc(self):
-        dock, mock = self.create_sot()
-
+    def test_get_rtc(self, sot: ShimmerDock, mock: MockSerial):
         mock.test_put_read_data(
             b"\x24\x02\x0a\x01\x05\x9d\x3d\x0d\x00\x00\x00\x00\x00\xb0\xc7"
         )
-        r = dock.get_rtc()
-        self.assertAlmostEqual(r, 26.481353759765625)
+        r = sot.get_rtc()
+        assert r == pytest.approx(26.481353759765625)
 
-    def test_get_config_rtc(self):
-        dock, mock = self.create_sot()
-
+    def test_get_config_rtc(self, sot: ShimmerDock, mock: MockSerial):
         mock.test_put_read_data(
             b"\x24\x02\x0a\x01\x04\x00\x00\x15\x00\x00\x00\x00\x00\xe4\xae"
         )
-        r = dock.get_config_rtc()
-        self.assertEqual(r, 42.0)
+        r = sot.get_config_rtc()
+        assert r == 42.0
 
         wd = mock.test_get_write_data()
-        self.assertEqual(wd, b"\x24\x03\x02\x01\x04\x5d\x45")
+        assert wd == b"\x24\x03\x02\x01\x04\x5d\x45"
 
-    def test_get_exg_register(self):
-        dock, mock = self.create_sot()
+    def test_get_exg_register(self, sot: ShimmerDock, mock: MockSerial):
 
         # Due to the firmware bug, we first need to emulate the call to set the
         # DAUGHTER_CARD CARD_ID
@@ -139,14 +127,13 @@ class DockAPITest(TestCase):
         )
         exp_send_data2 = b"\x24\x03\x05\x01\x06\x0a\x0a\x00\x42\x74"
 
-        r = dock.get_exg_register(0)
+        r = sot.get_exg_register(0)
 
         wd = mock.test_get_write_data()
-        self.assertEqual(wd, exp_send_data1 + exp_send_data2)
+        assert wd == exp_send_data1 + exp_send_data2
 
-        self.assertEqual(r.binary, b"\x00\x80\x10\x00\x00\x00\x00\x00\x02\x01")
+        assert r.binary == b"\x00\x80\x10\x00\x00\x00\x00\x00\x02\x01"
 
-    def test_get_exg_register_fail(self):
-        dock, mock = self.create_sot()
-
-        self.assertRaises(ValueError, dock.get_exg_register, -1)
+    def test_get_exg_register_fail(self, sot: ShimmerDock, mock: MockSerial):
+        with pytest.raises(ValueError):
+            sot.get_exg_register(-1)

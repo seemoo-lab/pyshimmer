@@ -21,10 +21,9 @@ from unittest.mock import Mock, PropertyMock
 import numpy as np
 import pandas as pd
 
-from pyshimmer import EChannelType, ExGRegister
-from pyshimmer.dev.base import ticks2sec
-from pyshimmer.dev.channels import ESensorGroup, get_enabled_channels
-from pyshimmer.dev.exg import get_exg_ch
+from pyshimmer.dev.channels import ESensorGroup, EChannelType
+from pyshimmer.dev.exg import ExGRegister, get_exg_ch
+from pyshimmer.dev.revisions import RevisionRegistry
 from pyshimmer.reader.binary_reader import ShimmerBinaryReader
 from pyshimmer.reader.shimmer_reader import (
     ShimmerReader,
@@ -39,13 +38,16 @@ from .reader_test_util import (
     get_triaxcal_sample,
 )
 
+TEST_REVISION = RevisionRegistry.REV_SHIMMER3
+
 
 class ShimmerReaderTest(TestCase):
 
     def test_reader_timestep_interpolation(self):
+
         sr = 5
         ts_dev = np.array([0, 5, 10, 15, 21, 25, 29, 35])
-        ts = ticks2sec(ts_dev)
+        ts = TEST_REVISION.ticks2sec(ts_dev)
         vbatt = np.array([93, 85, 78, 74, 71, 68, 65, 64])
         samples = {
             EChannelType.TIMESTAMP: ts_dev,
@@ -59,6 +61,7 @@ class ShimmerReaderTest(TestCase):
         type(m_br).has_sync = PropertyMock(return_value=False)
         type(m_br).has_global_clock = PropertyMock(return_value=False)
         type(m_br).start_timestamp = PropertyMock(return_value=0)
+        type(m_br).hardware_revision = RevisionRegistry.REV_SHIMMER3
 
         reader = ShimmerReader(bin_reader=m_br)
         reader.load_file_data()
@@ -76,7 +79,7 @@ class ShimmerReaderTest(TestCase):
         ts_dev = np.arange(0, 4 * (2**24), sr)
         ts_dev_wrapped = ts_dev % 2**24
 
-        ts = ticks2sec(ts_dev)
+        ts = TEST_REVISION.ticks2sec(ts_dev)
         vbatt = np.random.randint(0, 100 + 1, len(ts_dev))
 
         m_br = Mock(spec=ShimmerBinaryReader)
@@ -85,6 +88,7 @@ class ShimmerReaderTest(TestCase):
         type(m_br).sample_rate = PropertyMock(return_value=sr)
         type(m_br).has_global_clock = PropertyMock(return_value=False)
         type(m_br).start_timestamp = PropertyMock(return_value=0)
+        type(m_br).hardware_revision = RevisionRegistry.REV_SHIMMER3
 
         samples = {
             EChannelType.VBATT: vbatt,
@@ -120,12 +124,13 @@ class ShimmerReaderTest(TestCase):
         type(m_br).has_sync = PropertyMock(return_value=True)
         type(m_br).has_global_clock = PropertyMock(return_value=False)
         type(m_br).start_timestamp = PropertyMock(return_value=0)
+        type(m_br).hardware_revision = RevisionRegistry.REV_SHIMMER3
 
         reader = ShimmerReader(bin_reader=m_br)
         reader.load_file_data()
 
         ts_sync_dev = ts - np.linspace(1, 0, len(ts))
-        exp_ts = ticks2sec(ts_sync_dev)
+        exp_ts = TEST_REVISION.ticks2sec(ts_sync_dev)
         act_ts = reader.timestamp
 
         self.assertEqual(len(exp_ts), len(act_ts))
@@ -236,6 +241,7 @@ class ShimmerReaderTest(TestCase):
         type(m_br).start_timestamp = PropertyMock(return_value=0)
         type(m_br).exg_reg1 = PropertyMock(return_value=exg_reg1)
         type(m_br).exg_reg2 = PropertyMock(return_value=exg_reg2)
+        type(m_br).hardware_revision = RevisionRegistry.REV_SHIMMER3
 
         reader = ShimmerReader(bin_reader=m_br, post_process=False)
         reader.load_file_data()
@@ -380,7 +386,7 @@ class SignalPostProcessorTest(TestCase):
         o, g, a = np.array([1, 2, 3]), np.diag([4, 5, 6]), np.diag([7, 8, 9])
         params = {ESensorGroup.ACCEL_LN: (o, g, a)}
 
-        ch_types = get_enabled_channels(list(params.keys()))
+        ch_types = TEST_REVISION.get_enabled_channels(list(params.keys()))
 
         data_arr = np.random.randn(3, 100)
         data_dict = {c: data_arr[i] for i, c in enumerate(ch_types)}
@@ -390,6 +396,7 @@ class SignalPostProcessorTest(TestCase):
         type(mock_reader).enabled_sensors = PropertyMock(
             return_value=list(params.keys())
         )
+        type(mock_reader).hardware_revision = RevisionRegistry.REV_SHIMMER3
 
         proc = TriAxCalProcessor()
         actual_dict = proc.process(data_dict, mock_reader)
