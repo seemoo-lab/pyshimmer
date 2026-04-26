@@ -19,25 +19,46 @@ import struct
 
 from serial import Serial
 
-from pyshimmer.dev.revisions import RevisionRegistry
 from pyshimmer.dev.exg import ExGRegister
-from pyshimmer.dev.fw_version import FirmwareType
+from pyshimmer.dev.fw_version import FirmwareType, FirmwareVersion
+from pyshimmer.dev.revisions import RevisionRegistry, HardwareRevision, HardwareVersion
 from pyshimmer.uart.dock_const import *
 from pyshimmer.uart.dock_serial import DockSerial
 from pyshimmer.util import unpack
 
 
 class ShimmerDock:
-    """Main API to communicate with the Shimmer over the Dock UART
 
-    :arg ser: The serial interface to use for communication
+    def __init__(
+        self,
+        ser: Serial,
+        flush_before_req: bool = True,
+        revision: HardwareRevision = None,
+    ):
+        """Main API to communicate with the Shimmer over the Dock UART
 
-    """
-
-    def __init__(self, ser: Serial, flush_before_req=True):
-        self._revision = RevisionRegistry.REV_SHIMMER3
+        :param ser: The serial interface that connects to the Shimmer hardware
+            dock
+        :param flush_before_req: If set to True, the input buffer is flushed
+            before a new command is sent to the Shimmer. There should normally
+            be no harm in turning this option on. It is on by default.
+        :param revision: Manually specify the hardware revision of the Shimmer
+            that is placed in the dock. If set to None, the class will try to
+            automatically determine the revision upon connecting to the Shimmer
+            in the dock.
+        """
         self._serial = DockSerial(ser)
         self._flush_before_req = flush_before_req
+
+        if revision is None:
+            hw_version, _, _ = self.get_hw_sw_version()
+            self._revision = RevisionRegistry.get_revision(hw_version)
+        else:
+            self._revision = revision
+
+    @property
+    def revision(self) -> HardwareRevision:
+        return self._revision
 
     def __enter__(self):
         return self
@@ -182,29 +203,31 @@ class ShimmerDock:
         )
         return self._revision.ticks2sec(ticks)
 
-    def get_firmware_version(self) -> tuple[int, FirmwareType, int, int, int]:
+    def get_hw_sw_version(
+        self,
+    ) -> tuple[HardwareVersion, FirmwareType, FirmwareVersion]:
         """Retrieve the firmware version of the device
 
         :return: A tuple containing the following values:
             - The hardware version, should be 3 for Shimmer3
             - The firmware type: LogAndStream or SDLog
-            - The major release version
-            - The minor release version
-            - The patch level
+            - The firmware version
         """
         self._write_packet(UART_GET, UART_COMP_SHIMMER, UART_PROP_VER)
-        hw_ver, fw_type_bin, major, minor, rel = self._read_response_wformat_verify(
+        hw_ver_int, fw_type_bin, major, minor, rel = self._read_response_wformat_verify(
             UART_COMP_SHIMMER, UART_PROP_VER, "<BHHBB"
         )
+        hw_ver = HardwareVersion.from_int(hw_ver_int)
         fw_type = FirmwareType.from_int(fw_type_bin)
-        return hw_ver, fw_type, major, minor, rel
+        fw_version = FirmwareVersion(major, minor, rel)
+        return hw_ver, fw_type, fw_version
 
     def get_firmware_type(self) -> FirmwareType:
         """Retrieve the active firmware type
 
         :return: The firmware type: LogAndStream or SDLog
         """
-        _, fw_type, _, _, _ = self.get_firmware_version()
+        _, fw_type, _ = self.get_hw_sw_version()
         return fw_type
 
     def get_infomem(self, addr: int, dlen: int) -> bytes:

@@ -2,17 +2,27 @@ from __future__ import annotations
 
 import pytest
 
-from pyshimmer import FirmwareType, ShimmerDock
+from pyshimmer import (
+    FirmwareType,
+    ShimmerDock,
+    RevisionRegistry,
+    HardwareVersion,
+    FirmwareVersion,
+)
 from pyshimmer.test_util import MockSerial
 
 
 class TestDockAPI:
 
-    @pytest.fixture()
-    def sot_and_mock(self) -> tuple[ShimmerDock, MockSerial]:
+    @pytest.fixture(
+        scope="function",
+        params=[RevisionRegistry.REV_SHIMMER3, RevisionRegistry.REV_SHIMMER3R],
+    )
+    def sot_and_mock(self, request) -> tuple[ShimmerDock, MockSerial]:
         mock = MockSerial()
+
         # noinspection PyTypeChecker
-        dock = ShimmerDock(mock, flush_before_req=False)
+        dock = ShimmerDock(mock, flush_before_req=False, revision=request.param)
 
         return dock, mock
 
@@ -33,40 +43,52 @@ class TestDockAPI:
 
         assert mock.test_closed
 
+    def test_hw_ver_detection(self):
+        mock = MockSerial()
+
+        # Put the response data for a Shimmer3 hardware revision
+        mock.test_put_read_data(
+            b"\x24\x02\x09\x01\x03\x03\x03\x00\x00\x00\x0b\x00\x14\x33"
+        )
+
+        dock = ShimmerDock(mock, flush_before_req=False, revision=None)
+
+        assert dock.revision is RevisionRegistry.REV_SHIMMER3
+
     def test_unknown_start_char(self, sot: ShimmerDock, mock: MockSerial):
         mock.test_put_read_data(b"\x25")
         with pytest.raises(IOError):
-            sot.get_firmware_version()
+            sot.get_hw_sw_version()
 
     def test_bad_arg_response(self, sot: ShimmerDock, mock: MockSerial):
         mock.test_put_read_data(b"\x24\xfd")
         with pytest.raises(IOError):
-            sot.get_firmware_version()
+            sot.get_hw_sw_version()
 
     def test_bad_cmd_response(self, sot: ShimmerDock, mock: MockSerial):
         mock.test_put_read_data(b"\x24\xfc")
         with pytest.raises(IOError):
-            sot.get_firmware_version()
+            sot.get_hw_sw_version()
 
     def test_bad_crc_response(self, sot: ShimmerDock, mock: MockSerial):
         mock.test_put_read_data(b"\x24\xfe")
         with pytest.raises(IOError):
-            sot.get_firmware_version()
+            sot.get_hw_sw_version()
 
     def test_unexpected_cmd_response(self, sot: ShimmerDock, mock: MockSerial):
         mock.test_put_read_data(b"\x24\x03")
         with pytest.raises(IOError):
-            sot.get_firmware_version()
+            sot.get_hw_sw_version()
 
     def test_unexpected_component(self, sot: ShimmerDock, mock: MockSerial):
         mock.test_put_read_data(b"\x24\x02\x02\x02\x00\x98z")
         with pytest.raises(IOError):
-            sot.get_firmware_version()
+            sot.get_hw_sw_version()
 
     def test_unexpected_property(self, sot: ShimmerDock, mock: MockSerial):
         mock.test_put_read_data(b"\x24\x02\x02\x01\x02\xaaE")
         with pytest.raises(IOError):
-            sot.get_firmware_version()
+            sot.get_hw_sw_version()
 
     def test_get_mac_address(self, sot: ShimmerDock, mock: MockSerial):
         mock.test_put_read_data(b"\x24\x02\x08\x01\x02\x01\x02\x03\x04\x05\x06N\x87")
@@ -79,15 +101,13 @@ class TestDockAPI:
         mock.test_put_read_data(
             b"\x24\x02\x09\x01\x03\x03\x03\x00\x00\x00\x0b\x00\x14\x33"
         )
-        hw_ver, fw_type, major, minor, patch = sot.get_firmware_version()
+        hw_ver, fw_type, fw_ver = sot.get_hw_sw_version()
 
         assert mock.test_get_write_data() == b"\x24\x03\x02\x01\x03\xca\xdc"
 
-        assert hw_ver == 3
+        assert hw_ver is HardwareVersion.SHIMMER3
         assert fw_type == FirmwareType.LogAndStream
-        assert major == 0
-        assert minor == 11
-        assert patch == 0
+        assert fw_ver == FirmwareVersion(0, 11, 0)
 
     def test_set_rtc(self, sot: ShimmerDock, mock: MockSerial):
         mock.test_put_read_data(b"\x24\xff\xd9\xb2")
