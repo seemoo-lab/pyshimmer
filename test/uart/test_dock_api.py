@@ -34,15 +34,6 @@ class TestDockAPI:
     def mock(self, sot_and_mock: tuple[ShimmerDock, MockSerial]) -> MockSerial:
         return sot_and_mock[1]
 
-    def test_context_manager(self, sot: ShimmerDock, mock: MockSerial):
-
-        assert not mock.test_closed
-
-        with sot:
-            pass
-
-        assert mock.test_closed
-
     def test_hw_ver_detection(self):
         mock = MockSerial()
 

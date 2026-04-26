@@ -112,6 +112,10 @@ class SerialBase:
         self._serial = serial
         self._reader = BufferedReader(serial)
 
+    @property
+    def raw_serial(self) -> Serial:
+        return self._serial
+
     @staticmethod
     def _retrieve_packed(fn_read: Callable[[int], bytes], rformat: str) -> any:
         read_len = struct.calcsize(rformat)
@@ -209,7 +213,3 @@ class SerialBase:
             the format string
         """
         return self._retrieve_packed(self.peek, rformat)
-
-    def close(self) -> None:
-        """Close the underlying serial stream"""
-        self._serial.close()

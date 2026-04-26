@@ -60,12 +60,6 @@ class ShimmerDock:
     def revision(self) -> HardwareRevision:
         return self._revision
 
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_value, exc_traceback):
-        self.close()
-
     def _read_resp_type_or_throw(self, expected: int) -> int:
         r = self._serial.read_byte()
         if r != START_CHAR:
@@ -141,10 +135,6 @@ class ShimmerDock:
         self._serial.start_read_crc_verify()
         self._read_resp_type_or_throw(UART_ACK_RESPONSE)
         self._serial.end_read_crc_verify()
-
-    def close(self) -> None:
-        """Close the underlying serial interface and release all resources"""
-        self._serial.close()
 
     def get_mac_address(self) -> tuple[int, ...]:
         """Retrieve the Bluetooth MAC address of the device

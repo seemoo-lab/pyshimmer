@@ -264,21 +264,19 @@ calls.
 
 
     if __name__ == '__main__':
-        serial = Serial('/dev/rfcomm42', DEFAULT_BAUDRATE)
-        shim_dev = ShimmerBluetooth(serial)
+        with (
+                Serial('/dev/rfcomm42', DEFAULT_BAUDRATE) as serial,
+                ShimmerBluetooth(serial) as shim_dev
+             ):
 
-        shim_dev.initialize()
+            dev_name = shim_dev.get_device_name()
+            print(f'My name is: {dev_name}')
 
-        dev_name = shim_dev.get_device_name()
-        print(f'My name is: {dev_name}')
+            shim_dev.add_stream_callback(handler)
 
-        shim_dev.add_stream_callback(handler)
-
-        shim_dev.start_streaming()
-        time.sleep(5.0)
-        shim_dev.stop_streaming()
-
-        shim_dev.shutdown()
+            shim_dev.start_streaming()
+            time.sleep(5.0)
+            shim_dev.stop_streaming()
 
 The example shows how to make simple calls and how to use the Bluetooth streaming capabilities of the device.
 
@@ -292,13 +290,11 @@ Using the Dock API
     from pyshimmer import ShimmerDock, DEFAULT_BAUDRATE, fmt_hex
 
     if __name__ == '__main__':
-        serial = Serial('/dev/ttyPPGdev', DEFAULT_BAUDRATE)
-        shim_dock = ShimmerDock(serial)
+        with Serial('/dev/ttyPPGdev', DEFAULT_BAUDRATE) as serial:
+            shim_dock = ShimmerDock(serial)
 
-        mac = shim_dock.get_mac_address()
-        print(f'Device MAC: {fmt_hex(mac)}')
-
-        shim_dock.close()
+            mac = shim_dock.get_mac_address()
+            print(f'Device MAC: {fmt_hex(mac)}')
 
 Using the Dock API works very similar to the Bluetooth API. However, it does not require a separate initialization call
 because it does not use a background thread to decode incoming messages.
