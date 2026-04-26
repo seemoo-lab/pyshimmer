@@ -496,7 +496,6 @@ class ShimmerBluetooth:
         """
         self._serial.cancel_read()
         self._thread.join()
-        self._serial.close()
         self._bluetooth.clear_queues()
 
     def _run_readloop(self):

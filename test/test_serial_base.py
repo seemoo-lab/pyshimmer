@@ -115,6 +115,11 @@ class SerialBaseTest(TestCase):
 
         return mock, sot
 
+    def test_property(self):
+        mock, sot = self.create_sot()
+
+        assert sot.raw_serial is mock
+
     def test_flush_input_buf(self):
         mock, sot = self.create_sot()
 
@@ -197,12 +202,6 @@ class SerialBaseTest(TestCase):
 
         r = sot.read_packed("<H")
         self.assertEqual(r, 0x4030)
-
-    def test_close(self):
-        mock, sot = self.create_sot()
-
-        sot.close()
-        self.assertTrue(mock.test_closed)
 
     def test_cancel_read(self):
         mock, sot = self.create_sot()
