@@ -309,9 +309,9 @@ class UtilTest(TestCase):
     def test_shared_conformance_vectors(self):
         """Run the vectors every Shimmer host API is checked against.
 
-        They live in the firmware repository beside the rule they encode, and the Java,
-        C# and TypeScript APIs run the same file. Four implementations of one wire
-        format drifted apart once already - the same unwrap defect sat in all four -
+        They live in the firmware repository beside the rule they encode, and every
+        other Shimmer host API runs the same file. Five implementations of one wire
+        format drifted apart once already - the same unwrap defect sat in all five -
         and reviewing them against each other by hand is what let that happen. If this
         test and its counterparts disagree, one of them is wrong.
         """
@@ -321,6 +321,42 @@ class UtilTest(TestCase):
         self.assertEqual(doc["revision"], 1, "vector file revision")
         self.assertEqual(doc["ticksPerSecond"], 32768)
         self.assertEqual(doc["invalidZeroWindowTicks"], TIMESTAMP_WRAP_WINDOW)
+
+        # A vector that stops being run is a vector that stops protecting anything,
+        # and a loop over whatever the file happens to hold would not notice it go.
+        # Updating this list is the moment to ask what changed upstream.
+        self.assertEqual(
+            [v["id"] for v in doc["vectors"]],
+            [
+                "monotonic-24bit",
+                "wrap-24bit",
+                "wrap-lands-on-zero-24bit",
+                "invalid-zero-signature-24bit",
+                "invalid-zero-no-cascade-24bit",
+                "first-sample-zero-24bit",
+                "wrap-16bit",
+                "zero-on-16bit-is-a-wrap",
+                "backward-step-outside-window-is-a-wrap-24bit",
+                "duplicate-24bit",
+                "reorder-one-period-24bit",
+                "reorder-one-period-16bit",
+                "reorder-across-wrap-boundary-24bit",
+                "wrap-after-heavy-loss-24bit",
+                "wrap-after-heavy-loss-16bit",
+                "wrap-spanning-dropout-1p8s-16bit",
+                "wrap-spanning-dropout-152s-24bit",
+                "rate-unknown-backward-step-is-a-wrap-24bit",
+                "rate-unknown-zero-still-rejected-24bit",
+                "zero-within-window-of-origin-24bit",
+                "zero-within-window-after-wrap-24bit",
+                "reorder-window-boundary-inclusive-24bit",
+                "reorder-window-boundary-exclusive-24bit",
+                "low-rate-clamp-16bit",
+                "high-rate-reorder-24bit",
+                "reorder-beyond-eight-periods-is-a-wrap-24bit",
+                "reorder-onto-origin-then-earlier-packet-24bit",
+            ],
+        )
 
         for vector in doc["vectors"]:
             vid = vector["id"]

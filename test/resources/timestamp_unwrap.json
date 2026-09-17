@@ -724,6 +724,31 @@
         false
       ],
       "expectedFinalCycle": 1
+    },
+    {
+      "id": "reorder-onto-origin-then-earlier-packet-24bit",
+      "description": "A reorder that lands exactly on the counter's origin, followed by a packet from just before it. A host that keeps an unwrapped value and a cycle count rather than the previous raw value has to encode 'no sample yet' somehow, and (0, 0) is the obvious choice - but this sequence reaches (0, 0) mid stream, so that host reads the third packet as a first sample and places it a whole modulo late. The state has to be distinguishable from the value.",
+      "timestampBits": 24,
+      "modulo": 16777216,
+      "samplingRateHz": 504.12307692307695,
+      "ticksPerSample": 65.0,
+      "reorderWindowTicks": 520,
+      "raw": [
+        520,
+        0,
+        16777200
+      ],
+      "expectedUnwrapped": [
+        520,
+        0,
+        -16
+      ],
+      "expectedRejected": [
+        false,
+        false,
+        false
+      ],
+      "expectedFinalCycle": -1
     }
   ]
 }
