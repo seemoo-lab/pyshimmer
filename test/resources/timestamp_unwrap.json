@@ -1,0 +1,729 @@
+{
+  "schemaVersion": 1,
+  "revision": 1,
+  "spec": "docs/SHIMMER3_STREAMING_DATA_FORMAT.md#21-the-timestamp",
+  "ticksPerSecond": 32768,
+  "invalidZeroWindowTicks": 32768,
+  "reorderPeriods": 8,
+  "maxWindowDivisor": 8,
+  "windowDerivation": {
+    "rule": "0 when the rate is unknown, NaN, infinite or <= 0; otherwise min(reorderPeriods * ticksPerSecond / rateHz, modulo / maxWindowDivisor). The tick domain is the 32768 Hz real-time clock the packet counter runs on, never a TCXO sampling clock.",
+    "cases": [
+      {
+        "samplingRateHz": 504.12307692307695,
+        "timestampBits": 24,
+        "expectedReorderWindowTicks": 520.0,
+        "tolerance": 0.0
+      },
+      {
+        "samplingRateHz": 51.2,
+        "timestampBits": 16,
+        "expectedReorderWindowTicks": 5120.0,
+        "tolerance": 0.0
+      },
+      {
+        "samplingRateHz": 51.2,
+        "timestampBits": 24,
+        "expectedReorderWindowTicks": 5120.0,
+        "tolerance": 0.0
+      },
+      {
+        "samplingRateHz": 512.0,
+        "timestampBits": 24,
+        "expectedReorderWindowTicks": 512.0,
+        "tolerance": 0.0
+      },
+      {
+        "samplingRateHz": 1024.0,
+        "timestampBits": 24,
+        "expectedReorderWindowTicks": 256.0,
+        "tolerance": 0.0
+      },
+      {
+        "samplingRateHz": 1.0,
+        "timestampBits": 16,
+        "expectedReorderWindowTicks": 8192.0,
+        "tolerance": 0.0
+      },
+      {
+        "samplingRateHz": 1.0,
+        "timestampBits": 24,
+        "expectedReorderWindowTicks": 262144.0,
+        "tolerance": 0.0
+      },
+      {
+        "samplingRateHz": 0.0,
+        "timestampBits": 24,
+        "expectedReorderWindowTicks": 0.0,
+        "tolerance": 0.0
+      },
+      {
+        "samplingRateHz": null,
+        "timestampBits": 24,
+        "expectedReorderWindowTicks": 0.0,
+        "tolerance": 0.0
+      },
+      {
+        "samplingRateHz": -5.0,
+        "timestampBits": 24,
+        "expectedReorderWindowTicks": 0.0,
+        "tolerance": 0.0
+      },
+      {
+        "samplingRateHz": 512.2950819672132,
+        "timestampBits": 24,
+        "expectedReorderWindowTicks": 511.705088,
+        "tolerance": 0.0001
+      }
+    ]
+  },
+  "vectors": [
+    {
+      "id": "monotonic-24bit",
+      "description": "Ordinary forward motion at 504.123 Hz; nothing is classified.",
+      "timestampBits": 24,
+      "modulo": 16777216,
+      "samplingRateHz": 504.12307692307695,
+      "ticksPerSample": 65.0,
+      "reorderWindowTicks": 520,
+      "raw": [
+        1000,
+        1065,
+        1130
+      ],
+      "expectedUnwrapped": [
+        1000,
+        1065,
+        1130
+      ],
+      "expectedRejected": [
+        false,
+        false,
+        false
+      ],
+      "expectedFinalCycle": 0
+    },
+    {
+      "id": "wrap-24bit",
+      "description": "A genuine roll-over: the counter reached its last tick and started again.",
+      "timestampBits": 24,
+      "modulo": 16777216,
+      "samplingRateHz": 504.12307692307695,
+      "ticksPerSample": 65.0,
+      "reorderWindowTicks": 520,
+      "raw": [
+        16777200,
+        16
+      ],
+      "expectedUnwrapped": [
+        16777200,
+        16777232
+      ],
+      "expectedRejected": [
+        false,
+        false
+      ],
+      "expectedFinalCycle": 1
+    },
+    {
+      "id": "wrap-lands-on-zero-24bit",
+      "description": "A roll-over that lands exactly on zero. Its predecessor is at the top of the range, which is what separates it from a record that was never stamped.",
+      "timestampBits": 24,
+      "modulo": 16777216,
+      "samplingRateHz": 504.12307692307695,
+      "ticksPerSample": 65.0,
+      "reorderWindowTicks": 520,
+      "raw": [
+        16777116,
+        0
+      ],
+      "expectedUnwrapped": [
+        16777116,
+        16777216
+      ],
+      "expectedRejected": [
+        false,
+        false
+      ],
+      "expectedFinalCycle": 1
+    },
+    {
+      "id": "invalid-zero-signature-24bit",
+      "description": "The signature recovered from an affected recording: a stall, then a record the firmware never stamped. Read as a roll-over it costs 512 s.",
+      "timestampBits": 24,
+      "modulo": 16777216,
+      "samplingRateHz": 504.12307692307695,
+      "ticksPerSample": 65.0,
+      "reorderWindowTicks": 520,
+      "raw": [
+        7406116,
+        7406506,
+        0,
+        7406571
+      ],
+      "expectedUnwrapped": [
+        7406116,
+        7406506,
+        7406506,
+        7406571
+      ],
+      "expectedRejected": [
+        false,
+        false,
+        true,
+        false
+      ],
+      "expectedFinalCycle": 0
+    },
+    {
+      "id": "invalid-zero-no-cascade-24bit",
+      "description": "Rejecting one record must not disturb the next: the following sample reads above the retained predecessor and is accepted normally.",
+      "timestampBits": 24,
+      "modulo": 16777216,
+      "samplingRateHz": 504.12307692307695,
+      "ticksPerSample": 65.0,
+      "reorderWindowTicks": 520,
+      "raw": [
+        7406506,
+        0,
+        7406571,
+        7406636
+      ],
+      "expectedUnwrapped": [
+        7406506,
+        7406506,
+        7406571,
+        7406636
+      ],
+      "expectedRejected": [
+        false,
+        true,
+        false,
+        false
+      ],
+      "expectedFinalCycle": 0
+    },
+    {
+      "id": "first-sample-zero-24bit",
+      "description": "A stream may legitimately open on zero; nothing precedes it to contradict it.",
+      "timestampBits": 24,
+      "modulo": 16777216,
+      "samplingRateHz": 504.12307692307695,
+      "ticksPerSample": 65.0,
+      "reorderWindowTicks": 520,
+      "raw": [
+        0,
+        65,
+        130
+      ],
+      "expectedUnwrapped": [
+        0,
+        65,
+        130
+      ],
+      "expectedRejected": [
+        false,
+        false,
+        false
+      ],
+      "expectedFinalCycle": 0
+    },
+    {
+      "id": "wrap-16bit",
+      "description": "The 2-byte counter older firmware uses wraps every 2 s.",
+      "timestampBits": 16,
+      "modulo": 65536,
+      "samplingRateHz": 51.2,
+      "ticksPerSample": 640.0,
+      "reorderWindowTicks": 5120,
+      "raw": [
+        65436,
+        28
+      ],
+      "expectedUnwrapped": [
+        65436,
+        65564
+      ],
+      "expectedRejected": [
+        false,
+        false
+      ],
+      "expectedFinalCycle": 1
+    },
+    {
+      "id": "zero-on-16bit-is-a-wrap",
+      "description": "The invalid-zero rule is scoped to the 3-byte counter. A 2-byte counter's whole range is 2 s, so a stall really can cross it.",
+      "timestampBits": 16,
+      "modulo": 65536,
+      "samplingRateHz": 51.2,
+      "ticksPerSample": 640.0,
+      "reorderWindowTicks": 5120,
+      "raw": [
+        30000,
+        0
+      ],
+      "expectedUnwrapped": [
+        30000,
+        65536
+      ],
+      "expectedRejected": [
+        false,
+        false
+      ],
+      "expectedFinalCycle": 1
+    },
+    {
+      "id": "backward-step-outside-window-is-a-wrap-24bit",
+      "description": "Only an exact zero is exempt. A value of 1 is read as a roll-over, as before.",
+      "timestampBits": 24,
+      "modulo": 16777216,
+      "samplingRateHz": 504.12307692307695,
+      "ticksPerSample": 65.0,
+      "reorderWindowTicks": 520,
+      "raw": [
+        7406506,
+        1
+      ],
+      "expectedUnwrapped": [
+        7406506,
+        16777217
+      ],
+      "expectedRejected": [
+        false,
+        false
+      ],
+      "expectedFinalCycle": 1
+    },
+    {
+      "id": "duplicate-24bit",
+      "description": "The same counter value twice: hold the timeline, do not count a wrap.",
+      "timestampBits": 24,
+      "modulo": 16777216,
+      "samplingRateHz": 504.12307692307695,
+      "ticksPerSample": 65.0,
+      "reorderWindowTicks": 520,
+      "raw": [
+        1000,
+        1065,
+        1065,
+        1130
+      ],
+      "expectedUnwrapped": [
+        1000,
+        1065,
+        1065,
+        1130
+      ],
+      "expectedRejected": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "expectedFinalCycle": 0
+    },
+    {
+      "id": "reorder-one-period-24bit",
+      "description": "Two adjacent packets swapped. Each is placed where it was taken, so the output is not monotonic - and no modulo is added.",
+      "timestampBits": 24,
+      "modulo": 16777216,
+      "samplingRateHz": 504.12307692307695,
+      "ticksPerSample": 65.0,
+      "reorderWindowTicks": 520,
+      "raw": [
+        1000,
+        1130,
+        1065,
+        1195
+      ],
+      "expectedUnwrapped": [
+        1000,
+        1130,
+        1065,
+        1195
+      ],
+      "expectedRejected": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "expectedFinalCycle": 0
+    },
+    {
+      "id": "reorder-one-period-16bit",
+      "description": "The same swap on the 2-byte counter at 51.2 Hz (640 ticks per sample).",
+      "timestampBits": 16,
+      "modulo": 65536,
+      "samplingRateHz": 51.2,
+      "ticksPerSample": 640.0,
+      "reorderWindowTicks": 5120,
+      "raw": [
+        40000,
+        41280,
+        40640,
+        41920
+      ],
+      "expectedUnwrapped": [
+        40000,
+        41280,
+        40640,
+        41920
+      ],
+      "expectedRejected": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "expectedFinalCycle": 0
+    },
+    {
+      "id": "reorder-across-wrap-boundary-24bit",
+      "description": "A packet arriving late from BEFORE a roll-over. In the modular form this is a small step back across the boundary; a host comparing unwrapped values instead sees forward motion of nearly a modulo and never recovers.",
+      "timestampBits": 24,
+      "modulo": 16777216,
+      "samplingRateHz": 504.12307692307695,
+      "ticksPerSample": 65.0,
+      "reorderWindowTicks": 520,
+      "raw": [
+        16777206,
+        5,
+        16777206,
+        70
+      ],
+      "expectedUnwrapped": [
+        16777206,
+        16777221,
+        16777206,
+        16777286
+      ],
+      "expectedRejected": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "expectedFinalCycle": 1
+    },
+    {
+      "id": "wrap-after-heavy-loss-24bit",
+      "description": "A roll-over preceded by a long dropout. Forward motion is the default, so this stays a wrap however much was lost before it.",
+      "timestampBits": 24,
+      "modulo": 16777216,
+      "samplingRateHz": 504.12307692307695,
+      "ticksPerSample": 65.0,
+      "reorderWindowTicks": 520,
+      "raw": [
+        16000000,
+        100
+      ],
+      "expectedUnwrapped": [
+        16000000,
+        16777316
+      ],
+      "expectedRejected": [
+        false,
+        false
+      ],
+      "expectedFinalCycle": 1
+    },
+    {
+      "id": "wrap-after-heavy-loss-16bit",
+      "description": "The same on the 2-byte counter.",
+      "timestampBits": 16,
+      "modulo": 65536,
+      "samplingRateHz": 51.2,
+      "ticksPerSample": 640.0,
+      "reorderWindowTicks": 5120,
+      "raw": [
+        60000,
+        1000
+      ],
+      "expectedUnwrapped": [
+        60000,
+        66536
+      ],
+      "expectedRejected": [
+        false,
+        false
+      ],
+      "expectedFinalCycle": 1
+    },
+    {
+      "id": "wrap-spanning-dropout-1p8s-16bit",
+      "description": "A 1.8 s dropout across the 2 s counter - an ordinary Bluetooth gap. The window must be small enough that this is still read as forward motion.",
+      "timestampBits": 16,
+      "modulo": 65536,
+      "samplingRateHz": 51.2,
+      "ticksPerSample": 640.0,
+      "reorderWindowTicks": 5120,
+      "raw": [
+        60000,
+        53446
+      ],
+      "expectedUnwrapped": [
+        60000,
+        118982
+      ],
+      "expectedRejected": [
+        false,
+        false
+      ],
+      "expectedFinalCycle": 1
+    },
+    {
+      "id": "wrap-spanning-dropout-152s-24bit",
+      "description": "A long dropout spanning the 3-byte counter's roll-over.",
+      "timestampBits": 24,
+      "modulo": 16777216,
+      "samplingRateHz": 504.12307692307695,
+      "ticksPerSample": 65.0,
+      "reorderWindowTicks": 520,
+      "raw": [
+        16000000,
+        4222784
+      ],
+      "expectedUnwrapped": [
+        16000000,
+        21000000
+      ],
+      "expectedRejected": [
+        false,
+        false
+      ],
+      "expectedFinalCycle": 1
+    },
+    {
+      "id": "rate-unknown-backward-step-is-a-wrap-24bit",
+      "description": "With no rate the reorder branch is disabled, so a swapped pair is read as a roll-over. Worse than knowing the rate, identical to older hosts, and safe.",
+      "timestampBits": 24,
+      "modulo": 16777216,
+      "samplingRateHz": null,
+      "ticksPerSample": null,
+      "reorderWindowTicks": 0,
+      "raw": [
+        1000,
+        1130,
+        1065,
+        1195
+      ],
+      "expectedUnwrapped": [
+        1000,
+        1130,
+        16778281,
+        16778411
+      ],
+      "expectedRejected": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "expectedFinalCycle": 1
+    },
+    {
+      "id": "rate-unknown-zero-still-rejected-24bit",
+      "description": "Rejecting an unstamped record needs no rate, so it still happens.",
+      "timestampBits": 24,
+      "modulo": 16777216,
+      "samplingRateHz": null,
+      "ticksPerSample": null,
+      "reorderWindowTicks": 0,
+      "raw": [
+        7406506,
+        0,
+        7406571
+      ],
+      "expectedUnwrapped": [
+        7406506,
+        7406506,
+        7406571
+      ],
+      "expectedRejected": [
+        false,
+        true,
+        false
+      ],
+      "expectedFinalCycle": 0
+    },
+    {
+      "id": "zero-within-window-of-origin-24bit",
+      "description": "A zero close enough to the origin to be a reordered packet is kept as one, not rejected - the reorder test is applied first.",
+      "timestampBits": 24,
+      "modulo": 16777216,
+      "samplingRateHz": 504.12307692307695,
+      "ticksPerSample": 65.0,
+      "reorderWindowTicks": 520,
+      "raw": [
+        300,
+        365,
+        0,
+        430
+      ],
+      "expectedUnwrapped": [
+        300,
+        365,
+        0,
+        430
+      ],
+      "expectedRejected": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "expectedFinalCycle": 0
+    },
+    {
+      "id": "zero-within-window-after-wrap-24bit",
+      "description": "The origin recurs after every roll-over, so the same ordering applies there.",
+      "timestampBits": 24,
+      "modulo": 16777216,
+      "samplingRateHz": 504.12307692307695,
+      "ticksPerSample": 65.0,
+      "reorderWindowTicks": 520,
+      "raw": [
+        16777100,
+        100,
+        165,
+        0,
+        230
+      ],
+      "expectedUnwrapped": [
+        16777100,
+        16777316,
+        16777381,
+        16777216,
+        16777446
+      ],
+      "expectedRejected": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "expectedFinalCycle": 1
+    },
+    {
+      "id": "reorder-window-boundary-inclusive-24bit",
+      "description": "Exactly at the window: reordered. 512 Hz gives a window of exactly 512 ticks in every language, with no rounding to argue about.",
+      "timestampBits": 24,
+      "modulo": 16777216,
+      "samplingRateHz": 512.0,
+      "ticksPerSample": 64.0,
+      "reorderWindowTicks": 512,
+      "raw": [
+        10512,
+        10000
+      ],
+      "expectedUnwrapped": [
+        10512,
+        10000
+      ],
+      "expectedRejected": [
+        false,
+        false
+      ],
+      "expectedFinalCycle": 0
+    },
+    {
+      "id": "reorder-window-boundary-exclusive-24bit",
+      "description": "One tick past the window: a roll-over.",
+      "timestampBits": 24,
+      "modulo": 16777216,
+      "samplingRateHz": 512.0,
+      "ticksPerSample": 64.0,
+      "reorderWindowTicks": 512,
+      "raw": [
+        10513,
+        10000
+      ],
+      "expectedUnwrapped": [
+        10513,
+        16787216
+      ],
+      "expectedRejected": [
+        false,
+        false
+      ],
+      "expectedFinalCycle": 1
+    },
+    {
+      "id": "low-rate-clamp-16bit",
+      "description": "At 1 Hz the unclamped window would exceed the 2-byte modulo and no backward step could ever be a wrap. The clamp keeps wraps detectable.",
+      "timestampBits": 16,
+      "modulo": 65536,
+      "samplingRateHz": 32.0,
+      "ticksPerSample": 1024.0,
+      "reorderWindowTicks": 8192,
+      "raw": [
+        60000,
+        1000
+      ],
+      "expectedUnwrapped": [
+        60000,
+        66536
+      ],
+      "expectedRejected": [
+        false,
+        false
+      ],
+      "expectedFinalCycle": 1
+    },
+    {
+      "id": "high-rate-reorder-24bit",
+      "description": "At 1024 Hz the window is 256 ticks; a swapped pair is still caught.",
+      "timestampBits": 24,
+      "modulo": 16777216,
+      "samplingRateHz": 1024.0,
+      "ticksPerSample": 32.0,
+      "reorderWindowTicks": 256,
+      "raw": [
+        5000,
+        5032,
+        5000,
+        5064
+      ],
+      "expectedUnwrapped": [
+        5000,
+        5032,
+        5000,
+        5064
+      ],
+      "expectedRejected": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "expectedFinalCycle": 0
+    },
+    {
+      "id": "reorder-beyond-eight-periods-is-a-wrap-24bit",
+      "description": "A packet more than eight sample periods late is indistinguishable from a roll-over and is read as one. This is the limit of what a counter can say.",
+      "timestampBits": 24,
+      "modulo": 16777216,
+      "samplingRateHz": 1024.0,
+      "ticksPerSample": 32.0,
+      "reorderWindowTicks": 256,
+      "raw": [
+        5000,
+        5288,
+        5000
+      ],
+      "expectedUnwrapped": [
+        5000,
+        5288,
+        16782216
+      ],
+      "expectedRejected": [
+        false,
+        false,
+        false
+      ],
+      "expectedFinalCycle": 1
+    }
+  ]
+}
