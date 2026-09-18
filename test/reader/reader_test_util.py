@@ -337,7 +337,46 @@ FIXTURE_SHIMMER3R_EXG_24BIT = ConsensysFixture(
     },
 )
 
+# A Shimmer3 with a GSR+ expansion board: wide-range accelerometer, PPG, and GSR.
+# Unlike the Shimmer3R, this revision does not record a channel list, so the case
+# also covers deriving the channels from the enabled sensors.
+FIXTURE_SHIMMER3_GSR_PPG = ConsensysFixture(
+    name="shimmer3_gsr_ppg",
+    device_id="3E36",
+    hw_version=HardwareVersion.SHIMMER3,
+    fw_type=FirmwareType.LogAndStream,
+    fw_version=(1, 1, 4),
+    exp_board=(48, 4, 2),
+    # The board revision is new enough for the second generation of IMU sensors
+    pressure_sensor=EPressureSensor.BMP280,
+    num_samples=4527,
+    sample_rate=51.2,
+    channels=(
+        EChannelType.INTERNAL_ADC_A1,
+        EChannelType.GSR_RAW,
+        EChannelType.ACCEL_WR_X,
+        EChannelType.ACCEL_WR_Y,
+        EChannelType.ACCEL_WR_Z,
+    ),
+    derived_channels=(
+        EChannelType.GSR_RANGE,
+        EChannelType.GSR_RESISTANCE,
+        EChannelType.GSR_CONDUCTANCE,
+    ),
+    columns={
+        "Accel_WR_X_CAL": (EChannelType.ACCEL_WR_X, 1.0),
+        "Accel_WR_Y_CAL": (EChannelType.ACCEL_WR_Y, 1.0),
+        "Accel_WR_Z_CAL": (EChannelType.ACCEL_WR_Z, 1.0),
+        "GSR_Range_CAL": (EChannelType.GSR_RANGE, 1.0),
+        "GSR_Skin_Conductance_CAL": (EChannelType.GSR_CONDUCTANCE, 1.0),
+        "GSR_Skin_Resistance_CAL": (EChannelType.GSR_RESISTANCE, 1.0),
+        # The reference export reports the PPG channel in mV, we report it in V
+        "PPG_A13_CAL": (EChannelType.INTERNAL_ADC_A1, 1000.0),
+    },
+)
+
 CONSENSYS_FIXTURES = [
+    FIXTURE_SHIMMER3_GSR_PPG,
     FIXTURE_SHIMMER3R_BMP390_GSR,
     FIXTURE_SHIMMER3R_EXG_24BIT,
 ]

@@ -18,12 +18,13 @@ recording device.
 | `sdlog_sync_slave.bin` | `sdlog_sync_slave.csv.gz` | PPG of a synchronized trial, recorded by a slave device. The export holds the **uncalibrated** PPG channel. |
 | `triaxcal_sample.bin` | `triaxcal_uncalibrated.csv.gz`, `triaxcal_calibrated.csv.gz` | All four triaxial sensors, for the kinematic calibration |
 | `ecg.bin` | `ecg_uncalibrated.csv.gz`, `ecg_calibrated.csv.gz` | ExG in 24 bit mode |
+| `shimmer3_gsr_ppg.bin` | `shimmer3_gsr_ppg_calibrated.csv.gz` | GSR+ expansion board (SR48-4-2), firmware v1.1.4. Wide-range accelerometer, PPG, and GSR. The Shimmer3 does not record a channel list, so this also covers deriving the set and order of channels from the enabled sensors. It carries no pressure channels, so the BMP280 is **not** covered. |
 
 ## Shimmer3R
 
 Both recordings were made with LogAndStream and are not synchronized. See
 `CONSENSYS_FIXTURES` in `reader_test_util.py` for the properties that the tests
-expect of them.
+expect of these and of the Shimmer3 recording above.
 
 | File | Reference export | Contents |
 | --- | --- | --- |
