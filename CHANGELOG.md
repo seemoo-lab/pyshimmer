@@ -27,6 +27,12 @@ The project uses semantic versioning.
 - The reader now parses the firmware version and the expansion board details
   from the file header and exposes them as `ShimmerBinaryReader.firmware_type`,
   `firmware_version`, and `expansion_board`.
+- Tests that compare the reader against exports of the Shimmer reference
+  tooling for two Shimmer3R recordings, one covering the BMP390, PPG, and GSR
+  channels and one covering the ExG channels in 24 bit mode. Unlike the
+  synthetic test files, these check the reader against a known-good
+  implementation on data written by an actual device. See
+  `test/reader/resources/README.md` for the provenance of the files.
 - Conversion of the galvanic skin response channel. The raw channel encodes the
   active range of the GSR circuit alongside the ADC reading. The reader keeps it
   and adds the range, the skin resistance in kOhm, and the skin conductance in

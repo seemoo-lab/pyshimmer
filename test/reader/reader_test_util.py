@@ -15,11 +15,17 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from __future__ import annotations
 
+import gzip
 import struct
 from collections.abc import Iterable
+from dataclasses import dataclass
 from pathlib import Path
 
+import pandas as pd
+
 from pyshimmer.dev.channels import EChannelType, ESensorGroup
+from pyshimmer.dev.fw_version import FirmwareType
+from pyshimmer.dev.pressure import EPressureSensor
 from pyshimmer.dev.revisions import RevisionRegistry, HardwareVersion
 
 _res_folder_name = "resources"
@@ -181,3 +187,157 @@ def build_shimmer3r_file(
             data += dtype.encode(value)
 
     return bytes(header) + bytes(data)
+
+
+@dataclass(frozen=True)
+class ConsensysFixture:
+    """A binary data file paired with a reference export of its contents
+
+    The reference export is produced by the Shimmer reference tooling and holds the
+    calibrated channels of the same recording. It allows us to check the reader
+    against a known-good implementation.
+
+    :param name: Base name of the two resource files
+    :param device_id: The device id that the reference export prefixes its column
+        names with
+    :param hw_version: The expected hardware revision of the recording device
+    :param fw_type: The expected firmware type of the recording device
+    :param fw_version: The expected firmware version as (major, minor, rel)
+    :param exp_board: The expected expansion board as (id, rev, rev_special)
+    :param pressure_sensor: The expected pressure sensor of the recording device
+    :param num_samples: The expected number of samples in the recording
+    :param sample_rate: The expected sample rate in Hz
+    :param channels: The expected data channels in the order of the file
+    :param derived_channels: The channels that post processing is expected to add
+    :param columns: Maps the name of a column of the reference export, without the
+        device id prefix, to the channel it corresponds to and the factor by which
+        the channel must be multiplied to obtain the unit of the column
+    """
+
+    name: str
+    device_id: str
+    hw_version: HardwareVersion
+    fw_type: FirmwareType
+    fw_version: tuple[int, int, int]
+    exp_board: tuple[int, int, int]
+    pressure_sensor: EPressureSensor
+    num_samples: int
+    sample_rate: float
+    channels: tuple[EChannelType, ...]
+    derived_channels: tuple[EChannelType, ...]
+    columns: dict[str, tuple[EChannelType, float]]
+
+    @property
+    def bin_path(self) -> Path:
+        return get_resources_dir() / f"{self.name}.bin"
+
+    @property
+    def csv_path(self) -> Path:
+        return get_resources_dir() / f"{self.name}_calibrated.csv.gz"
+
+    def column_name(self, column: str) -> str:
+        return f"Shimmer_{self.device_id}_{column}"
+
+    def read_reference(self) -> pd.DataFrame:
+        """Read the reference export of this recording
+
+        The export is a tab-separated file that is preceded by a separator hint and
+        followed by a row of units.
+
+        :return: The contents of the export as floating point values
+        """
+        with gzip.open(self.csv_path, "rt") as f:
+            df = pd.read_csv(f, sep="\t", skiprows=1)
+
+        # Drop the row of units and the trailing column caused by the line-final
+        # separator of the export
+        df = df.iloc[1:].reset_index(drop=True)
+        df = df[[c for c in df.columns if not c.startswith("Unnamed")]]
+
+        return df.astype(float)
+
+
+# A Shimmer3R with a GSR+ expansion board: wide-range accelerometer, BMP390
+# pressure sensor, PPG, and GSR
+FIXTURE_SHIMMER3R_BMP390_GSR = ConsensysFixture(
+    name="shimmer3r_bmp390_gsr",
+    device_id="86F8",
+    hw_version=HardwareVersion.SHIMMER3R,
+    fw_type=FirmwareType.LogAndStream,
+    fw_version=(1, 1, 14),
+    exp_board=(48, 8, 1),
+    pressure_sensor=EPressureSensor.BMP390,
+    num_samples=2923,
+    sample_rate=51.2,
+    # The file header lists pressure before temperature, which matches neither the
+    # channel id order nor any static sensor order
+    channels=(
+        EChannelType.PRESSURE,
+        EChannelType.TEMPERATURE,
+        EChannelType.ACCEL_WR_X,
+        EChannelType.ACCEL_WR_Y,
+        EChannelType.ACCEL_WR_Z,
+        EChannelType.INTERNAL_ADC_A1,
+        EChannelType.GSR_RAW,
+    ),
+    derived_channels=(
+        EChannelType.GSR_RANGE,
+        EChannelType.GSR_RESISTANCE,
+        EChannelType.GSR_CONDUCTANCE,
+    ),
+    columns={
+        "LIS2DW12_ACC_X_CAL": (EChannelType.ACCEL_WR_X, 1.0),
+        "LIS2DW12_ACC_Y_CAL": (EChannelType.ACCEL_WR_Y, 1.0),
+        "LIS2DW12_ACC_Z_CAL": (EChannelType.ACCEL_WR_Z, 1.0),
+        "GSR_Range_CAL": (EChannelType.GSR_RANGE, 1.0),
+        "GSR_Skin_Conductance_CAL": (EChannelType.GSR_CONDUCTANCE, 1.0),
+        "GSR_Skin_Resistance_CAL": (EChannelType.GSR_RESISTANCE, 1.0),
+        # The reference export reports the PPG channel in mV, we report it in V
+        "PPG_A1_CAL": (EChannelType.INTERNAL_ADC_A1, 1000.0),
+        "BMP390_Pressure_CAL": (EChannelType.PRESSURE, 1.0),
+        "BMP390_Temperature_CAL": (EChannelType.TEMPERATURE, 1.0),
+    },
+)
+
+# A Shimmer3R with an ExG expansion board: wide-range accelerometer and both ExG
+# chips in 24 bit mode, driven by their internal test signal
+FIXTURE_SHIMMER3R_EXG_24BIT = ConsensysFixture(
+    name="shimmer3r_exg_24bit",
+    device_id="9A3F",
+    hw_version=HardwareVersion.SHIMMER3R,
+    fw_type=FirmwareType.LogAndStream,
+    fw_version=(1, 1, 15),
+    exp_board=(47, 8, 1),
+    pressure_sensor=EPressureSensor.BMP390,
+    num_samples=2533,
+    sample_rate=51.2,
+    channels=(
+        EChannelType.ACCEL_WR_X,
+        EChannelType.ACCEL_WR_Y,
+        EChannelType.ACCEL_WR_Z,
+        EChannelType.EXG1_STATUS,
+        EChannelType.EXG1_CH1_24BIT,
+        EChannelType.EXG1_CH2_24BIT,
+        EChannelType.EXG2_STATUS,
+        EChannelType.EXG2_CH1_24BIT,
+        EChannelType.EXG2_CH2_24BIT,
+    ),
+    derived_channels=(),
+    columns={
+        "LIS2DW12_ACC_X_CAL": (EChannelType.ACCEL_WR_X, 1.0),
+        "LIS2DW12_ACC_Y_CAL": (EChannelType.ACCEL_WR_Y, 1.0),
+        "LIS2DW12_ACC_Z_CAL": (EChannelType.ACCEL_WR_Z, 1.0),
+        "ECG_EMG_Status1_CAL": (EChannelType.EXG1_STATUS, 1.0),
+        "ECG_EMG_Status2_CAL": (EChannelType.EXG2_STATUS, 1.0),
+        # The reference export reports the ExG channels in mV, we report them in V
+        "Test_CHIP1_CH1_24BIT_CAL": (EChannelType.EXG1_CH1_24BIT, 1000.0),
+        "Test_CHIP1_CH2_24BIT_CAL": (EChannelType.EXG1_CH2_24BIT, 1000.0),
+        "Test_CHIP2_CH1_24BIT_CAL": (EChannelType.EXG2_CH1_24BIT, 1000.0),
+        "Test_CHIP2_CH2_24BIT_CAL": (EChannelType.EXG2_CH2_24BIT, 1000.0),
+    },
+)
+
+CONSENSYS_FIXTURES = [
+    FIXTURE_SHIMMER3R_BMP390_GSR,
+    FIXTURE_SHIMMER3R_EXG_24BIT,
+]
