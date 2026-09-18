@@ -17,8 +17,15 @@ from __future__ import annotations
 
 from .hw_version import HardwareVersion
 from .revision import BaseRevision
+from ..base import (
+    EExpansionBoard,
+    EXP_BOARD_NEW_IMU_SPECIAL_REV,
+    ExpansionBoard,
+)
 from ..calibration import TriaxCalibSpec
 from ..channels import EChannelType, ChannelDataType, ESensorGroup
+from ..fw_version import FirmwareType, FirmwareVersion
+from ..pressure import EPressureSensor
 
 
 class Shimmer3Revision(BaseRevision):
@@ -33,6 +40,24 @@ class Shimmer3Revision(BaseRevision):
 
     # The set and order of channels is derived from the enabled sensors
     SD_CHANNEL_LIST_OFFSET = None
+
+    # Location of the pressure sensor calibration parameters in a data file. The
+    # BMP280 stores two additional bytes apart from the main block.
+    PRESSURE_CALIB_BLOCKS: dict[EPressureSensor, list[tuple[int, int]]] = {
+        EPressureSensor.BMP180: [(0xA0, 22)],
+        EPressureSensor.BMP280: [(0xA0, 22), (0xDE, 2)],
+    }
+
+    # An expansion board at this revision or newer carries the newer set of IMU
+    # sensors, which includes the BMP280 instead of the BMP180
+    NEW_IMU_BOARD_REV: dict[int, int] = {
+        EExpansionBoard.SHIMMER3: 6,
+        EExpansionBoard.EXG_UNIFIED: 3,
+        EExpansionBoard.GSR_UNIFIED: 3,
+        EExpansionBoard.BR_AMP_UNIFIED: 3,
+        EExpansionBoard.PROTO3_DELUXE: 3,
+        EExpansionBoard.PROTO3_MINI: 3,
+    }
 
     TRIAXCAL_SPECS: dict[ESensorGroup, TriaxCalibSpec] = {
         ESensorGroup.ACCEL_LN: TriaxCalibSpec(offset=0x8B, alignment_scaling=100.0),
@@ -218,6 +243,38 @@ class Shimmer3Revision(BaseRevision):
             self.SENSOR_ORDER,
             self.SD_HEADER_LEN,
             self.TRIAXCAL_SPECS,
+            self.PRESSURE_CALIB_BLOCKS,
             sd_channel_list_offset=self.SD_CHANNEL_LIST_OFFSET,
             is_sd_sync_supported=True,
         )
+
+    def has_new_imu_sensors(self, exp_board: ExpansionBoard) -> bool:
+        """Check if the device carries the newer set of IMU sensors
+
+        Later Shimmer3 units are fitted with a different set of sensors, among them
+        the BMP280 barometer instead of the BMP180 and the KXTC9-2050 low-noise
+        accelerometer instead of the KXRB5-2042. Which set a device carries is
+        determined by the attached expansion board.
+
+        :param exp_board: The expansion board attached to the device
+        :return: True if the device carries the newer sensors
+        """
+        if exp_board.rev_special == EXP_BOARD_NEW_IMU_SPECIAL_REV:
+            return True
+
+        min_rev = self.NEW_IMU_BOARD_REV.get(exp_board.board_id, None)
+        if min_rev is None:
+            return False
+
+        return exp_board.rev >= min_rev
+
+    def get_pressure_sensor(
+        self,
+        exp_board: ExpansionBoard,
+        fw_type: FirmwareType,
+        fw_version: FirmwareVersion,
+    ) -> EPressureSensor:
+        if self.has_new_imu_sensors(exp_board):
+            return EPressureSensor.BMP280
+
+        return EPressureSensor.BMP180

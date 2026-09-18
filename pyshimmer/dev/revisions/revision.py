@@ -24,8 +24,11 @@ from typing import overload
 import numpy as np
 
 from pyshimmer.util import bit_is_set, flatten_list, unwrap
+from ..base import ExpansionBoard
 from ..calibration import TriaxCalibSpec
 from ..channels import EChannelType, ChannelDataType, ESensorGroup
+from ..fw_version import FirmwareType, FirmwareVersion
+from ..pressure import EPressureSensor
 from .hw_version import HardwareVersion
 
 
@@ -243,6 +246,41 @@ class HardwareRevision(ABC):
         pass
 
     @abstractmethod
+    def get_pressure_calib_blocks(
+        self, pressure_sensor: EPressureSensor
+    ) -> list[tuple[int, int]]:
+        """Return the location of the pressure calibration block in a data file
+
+        The calibration parameters of the pressure sensor are not necessarily stored
+        contiguously. This function returns the list of (offset, length) pairs which
+        must be read and concatenated to obtain the calibration block.
+
+        :param pressure_sensor: The pressure sensor model of the device
+        :return: A list of (file offset, length) pairs
+        """
+        pass
+
+    @abstractmethod
+    def get_pressure_sensor(
+        self,
+        exp_board: ExpansionBoard,
+        fw_type: FirmwareType,
+        fw_version: FirmwareVersion,
+    ) -> EPressureSensor:
+        """Determine which pressure sensor is fitted to a device
+
+        Which of the Bosch pressure sensors a device carries depends on the hardware
+        revision and on the attached expansion board, and for some models also on the
+        firmware version.
+
+        :param exp_board: The expansion board attached to the device
+        :param fw_type: The type of firmware that recorded the data
+        :param fw_version: The version of the firmware that recorded the data
+        :return: The pressure sensor model of the device
+        """
+        pass
+
+    @abstractmethod
     def unwrap_device_timestamps(self, timestamps: np.ndarray) -> np.ndarray:
         """Unwrap the device timestamps
 
@@ -270,6 +308,7 @@ class BaseRevision(HardwareRevision):
         sensor_order: dict[ESensorGroup, int],
         sd_header_len: int,
         triaxcal_specs: dict[ESensorGroup, TriaxCalibSpec],
+        pressure_calib_blocks: dict[EPressureSensor, list[tuple[int, int]]],
         sd_channel_list_offset: int | None = None,
         is_sd_sync_supported: bool = True,
     ):
@@ -283,6 +322,7 @@ class BaseRevision(HardwareRevision):
         self._sensor_order = sensor_order
         self._sd_header_len = sd_header_len
         self._triaxcal_specs = triaxcal_specs
+        self._pressure_calib_blocks = pressure_calib_blocks
         self._sd_channel_list_offset = sd_channel_list_offset
         self._is_sd_sync_supported = is_sd_sync_supported
 
@@ -390,6 +430,18 @@ class BaseRevision(HardwareRevision):
             )
 
         return spec
+
+    def get_pressure_calib_blocks(
+        self, pressure_sensor: EPressureSensor
+    ) -> list[tuple[int, int]]:
+        blocks = self._pressure_calib_blocks.get(pressure_sensor, None)
+        if blocks is None:
+            raise ValueError(
+                f"Pressure sensor {pressure_sensor.name} does not store calibration "
+                f"parameters for hardware version {self.hardware_version.name}"
+            )
+
+        return blocks
 
     def unwrap_device_timestamps(self, timestamps: np.ndarray) -> np.ndarray:
         ts_dtype = self.get_channel_dtype(EChannelType.TIMESTAMP)

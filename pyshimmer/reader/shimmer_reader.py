@@ -107,6 +107,39 @@ class PPGProcessor(SingleChannelProcessor):
         return y / 1000.0
 
 
+class PressureProcessor(ChannelPostProcessor):
+    """Compensates the barometric pressure and temperature channels
+
+    The pressure sensors report two uncompensated ADC readings which must be combined
+    with the calibration parameters of the device to obtain a pressure in kPa and a
+    temperature in degrees Celsius. If the device did not store any calibration
+    parameters, both channels are left untouched.
+    """
+
+    def process(
+        self, channels: dict[EChannelType, np.ndarray], reader: ShimmerBinaryReader
+    ) -> dict[EChannelType, np.ndarray]:
+        pressure_channels = [EChannelType.PRESSURE, EChannelType.TEMPERATURE]
+        if not all(c in channels for c in pressure_channels):
+            return channels
+
+        calib = reader.pressure_calibration
+        if calib is None:
+            # The device did not store calibration parameters, so the raw readings
+            # cannot be converted into physical units
+            return channels
+
+        pressure, temperature = calib.calibrate(
+            channels[EChannelType.PRESSURE], channels[EChannelType.TEMPERATURE]
+        )
+
+        result = channels.copy()
+        result[EChannelType.PRESSURE] = pressure
+        result[EChannelType.TEMPERATURE] = temperature
+
+        return result
+
+
 class TriAxCalProcessor(ChannelPostProcessor):
 
     def process(
@@ -168,6 +201,7 @@ class ShimmerReader:
                 ExGProcessor(),
                 PPGProcessor(),
                 TriAxCalProcessor(),
+                PressureProcessor(),
             ]
 
     @staticmethod

@@ -37,8 +37,23 @@ def main(args=None):
         print(f"File: {file_path}")
         print(f"Hardware revision: {revision.hardware_version.name}")
         print(f"Sampling rate: {reader.sample_rate:.4f} Hz")
+        print(
+            f"Firmware: {bin_reader.firmware_type.name} "
+            f"{bin_reader.firmware_version.major}."
+            f"{bin_reader.firmware_version.minor}."
+            f"{bin_reader.firmware_version.rel}"
+        )
         print(f"Enabled sensors: {[s.name for s in bin_reader.enabled_sensors]}")
         print(f"Synchronized trial: {bin_reader.has_sync}")
+
+        if ESensorGroup.PRESSURE in bin_reader.enabled_sensors:
+            # The pressure channels are only reported in kPa and degrees Celsius if
+            # the device stored the calibration parameters of its pressure sensor
+            has_calib = bin_reader.pressure_calibration is not None
+            print(
+                f"Pressure sensor: {bin_reader.pressure_sensor.name}, "
+                f"calibrated: {has_calib}"
+            )
         print()
 
         ts = reader.timestamp

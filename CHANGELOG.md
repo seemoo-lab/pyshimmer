@@ -19,6 +19,14 @@ The project uses semantic versioning.
   triaxial calibration block within a data file.
 - An example that reads a binary file and prints its metadata and channel
   statistics, see `examples/reader_example.py`.
+- Compensation of the barometric pressure and temperature channels. The reader
+  now reports them in kPa and degrees Celsius instead of raw ADC counts. The
+  BMP180, BMP280, BMP390, and BMP581 are supported, and the sensor model is
+  determined from the hardware revision, the expansion board, and the firmware
+  version recorded in the file header.
+- The reader now parses the firmware version and the expansion board details
+  from the file header and exposes them as `ShimmerBinaryReader.firmware_type`,
+  `firmware_version`, and `expansion_board`.
 
 ### Changed
 - Binary files recorded by a Shimmer3R store the set and order of their data

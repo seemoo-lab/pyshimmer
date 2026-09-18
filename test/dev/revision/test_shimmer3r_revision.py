@@ -17,7 +17,16 @@ from __future__ import annotations
 
 import pytest
 
-from pyshimmer import Shimmer3RRevision, EChannelType, HardwareVersion
+from pyshimmer import (
+    EExpansionBoard,
+    ExpansionBoard,
+    EPressureSensor,
+    FirmwareType,
+    FirmwareVersion,
+    Shimmer3RRevision,
+    EChannelType,
+    HardwareVersion,
+)
 from pyshimmer.dev.channels import ESensorGroup
 
 
@@ -132,3 +141,72 @@ class TestShimmer3RRevision:
             ESensorGroup.MAG_REG,
             ESensorGroup.GYRO,
         ]
+
+    def test_pressure_sensor_bmp390(self, revision: Shimmer3RRevision):
+        fw = (FirmwareType.LogAndStream, FirmwareVersion(1, 1, 14))
+
+        for board in [
+            # Older boards carry the BMP390
+            ExpansionBoard(EExpansionBoard.SHIMMER3, 11, 1),
+            ExpansionBoard(EExpansionBoard.EXG_UNIFIED, 8, 1),
+            ExpansionBoard(EExpansionBoard.BR_AMP_UNIFIED, 4, 1),
+            # The GSR+ board carries the BMP390 at revisions 7.0, 7.1, 8.0, and 8.1
+            ExpansionBoard(EExpansionBoard.GSR_UNIFIED, 7, 1),
+            ExpansionBoard(EExpansionBoard.GSR_UNIFIED, 8, 1),
+            ExpansionBoard(EExpansionBoard.LOG_FILE, 255, 255),
+        ]:
+            assert (
+                revision.get_pressure_sensor(board, *fw) == EPressureSensor.BMP390
+            ), board
+
+    def test_pressure_sensor_bmp581(self, revision: Shimmer3RRevision):
+        fw = (FirmwareType.LogAndStream, FirmwareVersion(1, 1, 14))
+
+        for board in [
+            ExpansionBoard(EExpansionBoard.SHIMMER3, 11, 2),
+            ExpansionBoard(EExpansionBoard.EXG_UNIFIED, 8, 2),
+            ExpansionBoard(EExpansionBoard.BR_AMP_UNIFIED, 4, 2),
+            # The GSR+ board carries the BMP581 within revision 7 from 7.2 onwards
+            # and again from 8.2 onwards
+            ExpansionBoard(EExpansionBoard.GSR_UNIFIED, 7, 2),
+            ExpansionBoard(EExpansionBoard.GSR_UNIFIED, 8, 2),
+            ExpansionBoard(EExpansionBoard.GSR_UNIFIED, 9, 0),
+        ]:
+            assert (
+                revision.get_pressure_sensor(board, *fw) == EPressureSensor.BMP581
+            ), board
+
+    def test_pressure_sensor_bmp581_requires_firmware(
+        self, revision: Shimmer3RRevision
+    ):
+        board = ExpansionBoard(EExpansionBoard.SHIMMER3, 11, 2)
+
+        # The pre-compensated output only exists from LogAndStream v1.01.006 onwards
+        assert (
+            revision.get_pressure_sensor(
+                board, FirmwareType.LogAndStream, FirmwareVersion(1, 1, 5)
+            )
+            == EPressureSensor.BMP390
+        )
+        assert (
+            revision.get_pressure_sensor(
+                board, FirmwareType.LogAndStream, FirmwareVersion(1, 1, 6)
+            )
+            == EPressureSensor.BMP581
+        )
+        assert (
+            revision.get_pressure_sensor(
+                board, FirmwareType.SDLog, FirmwareVersion(1, 1, 14)
+            )
+            == EPressureSensor.BMP390
+        )
+
+    def test_pressure_calib_blocks(self, revision: Shimmer3RRevision):
+        assert revision.get_pressure_calib_blocks(EPressureSensor.BMP390) == [
+            (0xA0, 21)
+        ]
+        # The BMP581 compensates on the chip and stores no parameters
+        assert revision.get_pressure_calib_blocks(EPressureSensor.BMP581) == []
+
+        with pytest.raises(ValueError):
+            revision.get_pressure_calib_blocks(EPressureSensor.BMP280)

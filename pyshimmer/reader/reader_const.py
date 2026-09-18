@@ -31,6 +31,18 @@ TRIAL_CONFIG_OFFSET = 0x10
 # therefore be read before the layout of the remaining header is known.
 HW_VERSION_OFFSET = 0x1E
 
+# The firmware identifier and version, stored as three big-endian 16bit values
+# followed by two single bytes
+FW_TYPE_OFFSET = 0x22
+FW_VERSION_OFFSET = 0x24
+
+# The expansion board id, revision, and special revision
+EXP_BOARD_OFFSET = 0xD6
+EXP_BOARD_LEN = 0x03
+
+# The oversampling setting of the pressure sensor, stored in bits 4 and 5
+PRESSURE_RESOLUTION_OFFSET = 0x0B
+
 BLOCK_LEN = 0x200
 
 TRIAL_CONFIG_SYNC = 0x04 << 8 * 0

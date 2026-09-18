@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from .hw_version import HardwareVersion
 from .revision import BaseRevision
+from ..base import EExpansionBoard, ExpansionBoard
 from ..calibration import TriaxCalibSpec
 from ..channels import (
     EChannelType,
@@ -24,6 +25,8 @@ from ..channels import (
     ESensorGroup,
     PackedChannelDataType,
 )
+from ..fw_version import FirmwareType, FirmwareVersion
+from ..pressure import EPressureSensor
 
 
 class Shimmer3RRevision(BaseRevision):
@@ -39,6 +42,24 @@ class Shimmer3RRevision(BaseRevision):
     # The header records the number of channels, followed by one channel id per
     # channel. This list determines the set and order of the recorded channels.
     SD_CHANNEL_LIST_OFFSET = 0x13A
+
+    # Location of the pressure sensor calibration parameters in a data file. The
+    # BMP581 compensates on the chip and stores no parameters.
+    PRESSURE_CALIB_BLOCKS: dict[EPressureSensor, list[tuple[int, int]]] = {
+        EPressureSensor.BMP390: [(0xA0, 21)],
+        EPressureSensor.BMP581: [],
+    }
+
+    # A board at this revision or newer carries the BMP581 instead of the BMP390
+    BMP581_BOARD_REV: dict[int, tuple[int, int]] = {
+        EExpansionBoard.SHIMMER3: (11, 2),
+        EExpansionBoard.EXG_UNIFIED: (8, 2),
+        EExpansionBoard.GSR_UNIFIED: (8, 2),
+        EExpansionBoard.BR_AMP_UNIFIED: (4, 2),
+    }
+
+    # The pre-compensated BMP581 output only exists from this firmware onwards
+    BMP581_MIN_FW = (FirmwareType.LogAndStream, FirmwareVersion(1, 1, 6))
 
     TRIAXCAL_SPECS: dict[ESensorGroup, TriaxCalibSpec] = {
         ESensorGroup.ACCEL_LN: TriaxCalibSpec(offset=0x8B, alignment_scaling=100.0),
@@ -239,7 +260,36 @@ class Shimmer3RRevision(BaseRevision):
             self.SENSOR_ORDER,
             self.SD_HEADER_LEN,
             self.TRIAXCAL_SPECS,
+            self.PRESSURE_CALIB_BLOCKS,
             sd_channel_list_offset=self.SD_CHANNEL_LIST_OFFSET,
             # Synchronized Shimmer3R recordings are not supported yet
             is_sd_sync_supported=False,
         )
+
+    def get_pressure_sensor(
+        self,
+        exp_board: ExpansionBoard,
+        fw_type: FirmwareType,
+        fw_version: FirmwareVersion,
+    ) -> EPressureSensor:
+        min_rev = self.BMP581_BOARD_REV.get(exp_board.board_id, None)
+        board_eligible = min_rev is not None and exp_board.is_at_least(
+            exp_board.board_id, *min_rev
+        )
+
+        # The GSR+ board carries the BMP581 in two separate revision bands: 7.2 and
+        # newer within revision 7, and everything from 8.2 onwards. Revisions 7.0,
+        # 7.1, 8.0, and 8.1 carry the BMP390, so a single comparison cannot express
+        # the range.
+        if exp_board.board_id == EExpansionBoard.GSR_UNIFIED:
+            board_eligible = (
+                exp_board.rev == 7 and exp_board.rev_special >= 2
+            ) or exp_board.is_at_least(EExpansionBoard.GSR_UNIFIED, 8, 2)
+
+        min_fw_type, min_fw_version = self.BMP581_MIN_FW
+        fw_eligible = fw_type == min_fw_type and fw_version >= min_fw_version
+
+        if board_eligible and fw_eligible:
+            return EPressureSensor.BMP581
+
+        return EPressureSensor.BMP390

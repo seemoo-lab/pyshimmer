@@ -346,6 +346,12 @@ automatically interpolates the data to the common timestamp information of the m
 **Note**: Synchronized recordings are currently only supported for the Shimmer3. Reading a synchronized Shimmer3R
 recording raises a :code:`NotImplementedError`.
 
+**Note**: The barometric pressure and temperature channels are reported in kPa and degrees Celsius. This requires the
+calibration parameters of the pressure sensor, which the device stores in the file header. If a device did not store
+them, both channels are returned as raw ADC counts instead. Check
+:code:`ShimmerBinaryReader.pressure_calibration` to tell the two cases apart. Be aware that the first few samples of a
+recording are logged before the pressure sensor has settled and are not meaningful.
+
 **Note**: Please be aware that although you have configured a sampling frequency f for your measurements, it can happen that observations are missing.
 Usually the observed time difference is a multiple of the sampling period 1 / f.
 However, this is not the case for the time difference between the first two observations.

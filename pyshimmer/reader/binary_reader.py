@@ -20,11 +20,22 @@ from typing import BinaryIO
 
 import numpy as np
 
+from pyshimmer.dev.base import ExpansionBoard
 from pyshimmer.dev.channels import (
     ESensorGroup,
     EChannelType,
 )
 from pyshimmer.dev.exg import ExGRegister
+from pyshimmer.dev.fw_version import FirmwareType, FirmwareVersion
+from pyshimmer.dev.pressure import (
+    BMP180Calibration,
+    BMP280Calibration,
+    BMP390Calibration,
+    BMP581Calibration,
+    EPressureSensor,
+    PressureCalibration,
+    has_calib_params,
+)
 from pyshimmer.dev.revisions import RevisionRegistry, HardwareVersion, HardwareRevision
 from pyshimmer.util import FileIOBase, unpack, bit_is_set
 from .reader_const import (
@@ -38,6 +49,11 @@ from .reader_const import (
     TRIAL_CONFIG_SYNC,
     BLOCK_LEN,
     HW_VERSION_OFFSET,
+    FW_TYPE_OFFSET,
+    FW_VERSION_OFFSET,
+    EXP_BOARD_OFFSET,
+    EXP_BOARD_LEN,
+    PRESSURE_RESOLUTION_OFFSET,
     EXG_REG_OFFSET,
     EXG_REG_LEN,
     TRIAXCAL_FMT,
@@ -62,6 +78,7 @@ class ShimmerBinaryReader(FileIOBase):
         self._rtc_diff = 0
         self._start_ts = 0
         self._trial_config = 0
+        self._pressure_calib = None
 
         if hw_version is None:
             hw_version = self._read_hardware_version()
@@ -83,6 +100,12 @@ class ShimmerBinaryReader(FileIOBase):
         self._start_ts = self._read_start_time()
         self._trial_config = self._read_trial_config()
         self._exg_regs = self._read_exg_regs()
+        self._fw_type, self._fw_version = self._read_firmware_version()
+        self._exp_board = self._read_expansion_board()
+        self._pressure_sensor = self._revision.get_pressure_sensor(
+            self._exp_board, self._fw_type, self._fw_version
+        )
+        self._pressure_calib = self._read_pressure_calib()
 
         if self.has_sync and not self._revision.is_sd_sync_supported:
             raise NotImplementedError(
@@ -103,6 +126,52 @@ class ShimmerBinaryReader(FileIOBase):
             )
 
         return version
+
+    def _read_firmware_version(self) -> tuple[FirmwareType, FirmwareVersion]:
+        self._seek(FW_TYPE_OFFSET)
+        fw_type = FirmwareType.from_int(self._read_packed(">H"))
+
+        self._seek(FW_VERSION_OFFSET)
+        major, minor, rel = self._read_packed(">HBB")
+
+        return fw_type, FirmwareVersion(major=major, minor=minor, rel=rel)
+
+    def _read_expansion_board(self) -> ExpansionBoard:
+        self._seek(EXP_BOARD_OFFSET)
+        board_id, rev, rev_special = self._read(EXP_BOARD_LEN)
+
+        return ExpansionBoard(board_id=board_id, rev=rev, rev_special=rev_special)
+
+    def _read_pressure_resolution(self) -> int:
+        self._seek(PRESSURE_RESOLUTION_OFFSET)
+        return (self._read_packed("B") >> 4) & 0x03
+
+    def _read_pressure_calib(self) -> PressureCalibration | None:
+        """Read the calibration parameters of the pressure sensor
+
+        :return: The calibration of the pressure sensor, or None if the device did
+            not store any parameters
+        """
+        if self._pressure_sensor == EPressureSensor.BMP581:
+            # The BMP581 compensates its readings on the chip
+            return BMP581Calibration()
+
+        blocks = self._revision.get_pressure_calib_blocks(self._pressure_sensor)
+
+        block = b""
+        for offset, length in blocks:
+            self._seek(offset)
+            block += self._read(length)
+
+        if not has_calib_params(block):
+            return None
+
+        if self._pressure_sensor == EPressureSensor.BMP180:
+            return BMP180Calibration(block, self._read_pressure_resolution())
+        if self._pressure_sensor == EPressureSensor.BMP280:
+            return BMP280Calibration(block)
+
+        return BMP390Calibration(block)
 
     def _read_sample_rate(self) -> int:
         self._seek(SR_OFFSET)
@@ -286,6 +355,32 @@ class ShimmerBinaryReader(FileIOBase):
     @property
     def hardware_revision(self) -> HardwareRevision:
         return self._revision
+
+    @property
+    def firmware_type(self) -> FirmwareType:
+        return self._fw_type
+
+    @property
+    def firmware_version(self) -> FirmwareVersion:
+        return self._fw_version
+
+    @property
+    def expansion_board(self) -> ExpansionBoard:
+        return self._exp_board
+
+    @property
+    def pressure_sensor(self) -> EPressureSensor:
+        """The pressure sensor model that is fitted to the recording device"""
+        return self._pressure_sensor
+
+    @property
+    def pressure_calibration(self) -> PressureCalibration | None:
+        """The calibration of the pressure sensor
+
+        :return: The calibration, or None if the device did not store any
+            calibration parameters
+        """
+        return self._pressure_calib
 
     @property
     def sample_rate(self) -> int:

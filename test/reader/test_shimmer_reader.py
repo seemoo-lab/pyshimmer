@@ -23,6 +23,7 @@ import numpy as np
 import pandas as pd
 
 from pyshimmer.dev.channels import ESensorGroup, EChannelType
+from pyshimmer.dev.pressure import EPressureSensor
 from pyshimmer.dev.exg import ExGRegister, get_exg_ch
 from pyshimmer.dev.revisions import RevisionRegistry
 from pyshimmer.reader.binary_reader import ShimmerBinaryReader
@@ -478,3 +479,71 @@ class Shimmer3RReaderTest(TestCase):
 
         self.assertEqual(reader.channels, [EChannelType.VBATT])
         np.testing.assert_equal(reader[EChannelType.VBATT], np.array([1, 2]))
+
+    def test_pressure_compensation(self):
+        channels = [EChannelType.TEMPERATURE, EChannelType.PRESSURE]
+        raw_pressure = int.from_bytes(b"\x00\x0d\x64", "little")
+        raw_temperature = int.from_bytes(b"\x00\xba\x7f", "little")
+
+        # Calibration block of the BMP390 test vector of the Shimmer Java API
+        pressure_calib = bytes(
+            [
+                0xE7,
+                0x6B,
+                0xF0,
+                0x4A,
+                0xF9,
+                0xAB,
+                0x1C,
+                0x9B,
+                0x15,
+                0x06,
+                0x01,
+                0xD2,
+                0x49,
+                0x18,
+                0x5F,
+                0x03,
+                0xFA,
+                0x3A,
+                0x0F,
+                0x07,
+                0xF5,
+            ]
+        )
+
+        content = build_shimmer3r_file(
+            channels=channels,
+            samples=[[0, raw_temperature, raw_pressure]],
+            sensors=[ESensorGroup.PRESSURE],
+            pressure_calib=pressure_calib,
+        )
+
+        bin_reader = ShimmerBinaryReader(io.BytesIO(content))
+        self.assertEqual(bin_reader.pressure_sensor, EPressureSensor.BMP390)
+
+        reader = ShimmerReader(bin_reader=bin_reader)
+        reader.load_file_data()
+
+        # The compensated values are a pressure in kPa and a temperature in degrees
+        # Celsius rather than the raw ADC readings
+        self.assertAlmostEqual(reader[EChannelType.PRESSURE][0], 100.911825, places=5)
+        self.assertAlmostEqual(reader[EChannelType.TEMPERATURE][0], 23.170170, places=5)
+
+    def test_pressure_without_calibration_stays_raw(self):
+        channels = [EChannelType.TEMPERATURE, EChannelType.PRESSURE]
+        samples = [[0, 34027, 5545536]]
+
+        # The header contains no calibration parameters for the pressure sensor
+        content = build_shimmer3r_file(
+            channels=channels, samples=samples, sensors=[ESensorGroup.PRESSURE]
+        )
+
+        bin_reader = ShimmerBinaryReader(io.BytesIO(content))
+        self.assertIsNone(bin_reader.pressure_calibration)
+
+        reader = ShimmerReader(bin_reader=bin_reader)
+        reader.load_file_data()
+
+        self.assertEqual(reader[EChannelType.TEMPERATURE][0], 34027)
+        self.assertEqual(reader[EChannelType.PRESSURE][0], 5545536)

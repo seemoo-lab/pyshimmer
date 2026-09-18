@@ -101,6 +101,9 @@ def build_shimmer3r_file(
     exg_reg1: bytes = b"\x00" * 10,
     exg_reg2: bytes = b"\x00" * 10,
     triaxcal: dict[ESensorGroup, bytes] = None,
+    pressure_calib: bytes = None,
+    exp_board: tuple[int, int, int] = (0, 0, 0),
+    firmware: tuple[int, int, int, int] = (3, 1, 1, 14),
 ) -> bytes:
     """Assemble a synthetic Shimmer3R binary file
 
@@ -121,6 +124,9 @@ def build_shimmer3r_file(
     :param exg_reg1: The content of the first ExG register bank
     :param exg_reg2: The content of the second ExG register bank
     :param triaxcal: Calibration blocks to place in the header, by sensor
+    :param pressure_calib: The calibration block of the pressure sensor
+    :param exp_board: The expansion board id, revision, and special revision
+    :param firmware: The firmware id, major, minor, and internal version
     :return: The binary content of the file
     """
     revision = RevisionRegistry.get_revision(HardwareVersion.SHIMMER3R)
@@ -137,10 +143,19 @@ def build_shimmer3r_file(
     header[0x10:0x12] = struct.pack("<H", trial_config)
 
     header[0x1E:0x20] = struct.pack(">H", HardwareVersion.SHIMMER3R.value)
+
+    fw_id, fw_major, fw_minor, fw_internal = firmware
+    header[0x22:0x24] = struct.pack(">H", fw_id)
+    header[0x24:0x28] = struct.pack(">HBB", fw_major, fw_minor, fw_internal)
+
+    header[0xD6:0xD9] = bytes(exp_board)
     header[0x2C:0x34] = struct.pack(">Q", rtc_diff)
 
     header[0x38:0x42] = exg_reg1
     header[0x42:0x4C] = exg_reg2
+
+    if pressure_calib is not None:
+        header[0xA0 : 0xA0 + len(pressure_calib)] = pressure_calib
 
     for sensor, block in (triaxcal or {}).items():
         block_offset = revision.get_triaxcal_spec(sensor).offset

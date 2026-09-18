@@ -20,7 +20,15 @@ import itertools
 import numpy as np
 import pytest
 
-from pyshimmer import Shimmer3Revision, EChannelType
+from pyshimmer import (
+    EExpansionBoard,
+    ExpansionBoard,
+    EPressureSensor,
+    FirmwareType,
+    FirmwareVersion,
+    Shimmer3Revision,
+    EChannelType,
+)
 from pyshimmer.dev.channels import ESensorGroup
 
 
@@ -248,3 +256,44 @@ class TestShimmer3Revision:
         # The Shimmer3 does not record calibration data for the MPU9150 sensors
         with pytest.raises(ValueError):
             revision.get_triaxcal_spec(ESensorGroup.ACCEL_HG)
+
+    def test_pressure_sensor_bmp180(self, revision: Shimmer3Revision):
+        # Older expansion boards carry the BMP180
+        for board in [
+            ExpansionBoard(EExpansionBoard.SHIMMER3, 5, 0),
+            ExpansionBoard(EExpansionBoard.GSR_UNIFIED, 2, 0),
+            ExpansionBoard(EExpansionBoard.EXG_UNIFIED, 1, 0),
+            ExpansionBoard(EExpansionBoard.LOG_FILE, 255, 255),
+        ]:
+            sensor = revision.get_pressure_sensor(
+                board, FirmwareType.LogAndStream, FirmwareVersion(0, 15, 4)
+            )
+            assert sensor == EPressureSensor.BMP180, board
+
+    def test_pressure_sensor_bmp280(self, revision: Shimmer3Revision):
+        # Boards with the newer IMU set carry the BMP280
+        for board in [
+            ExpansionBoard(EExpansionBoard.SHIMMER3, 6, 0),
+            ExpansionBoard(EExpansionBoard.GSR_UNIFIED, 3, 0),
+            ExpansionBoard(EExpansionBoard.GSR_UNIFIED, 4, 2),
+            ExpansionBoard(EExpansionBoard.BR_AMP_UNIFIED, 3, 0),
+            # Any board attached to a new IMU base board
+            ExpansionBoard(EExpansionBoard.LOG_FILE, 0, 171),
+        ]:
+            sensor = revision.get_pressure_sensor(
+                board, FirmwareType.LogAndStream, FirmwareVersion(0, 15, 4)
+            )
+            assert sensor == EPressureSensor.BMP280, board
+
+    def test_pressure_calib_blocks(self, revision: Shimmer3Revision):
+        # The BMP280 stores two additional bytes apart from the main block
+        assert revision.get_pressure_calib_blocks(EPressureSensor.BMP180) == [
+            (0xA0, 22)
+        ]
+        assert revision.get_pressure_calib_blocks(EPressureSensor.BMP280) == [
+            (0xA0, 22),
+            (0xDE, 2),
+        ]
+
+        with pytest.raises(ValueError):
+            revision.get_pressure_calib_blocks(EPressureSensor.BMP390)

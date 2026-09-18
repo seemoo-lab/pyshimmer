@@ -16,7 +16,7 @@
 
 from .bluetooth.bt_api import ShimmerBluetooth
 from .bluetooth.bt_commands import DataPacket
-from .dev.base import DEFAULT_BAUDRATE
+from .dev.base import DEFAULT_BAUDRATE, EExpansionBoard, ExpansionBoard
 from .dev.calibration import TriaxCalibSpec
 from .dev.channels import (
     ChannelDataType,
@@ -26,6 +26,14 @@ from .dev.channels import (
 )
 from .dev.exg import ExGMux, ExGRLDLead, ERLDRef, ExGRegister
 from .dev.fw_version import FirmwareType, FirmwareVersion
+from .dev.pressure import (
+    BMP180Calibration,
+    BMP280Calibration,
+    BMP390Calibration,
+    BMP581Calibration,
+    EPressureSensor,
+    PressureCalibration,
+)
 from .dev.revisions import (
     HardwareRevision,
     Shimmer3Revision,
@@ -34,6 +42,6 @@ from .dev.revisions import (
     Shimmer3RRevision,
 )
 from .reader.binary_reader import ShimmerBinaryReader
-from .reader.shimmer_reader import ShimmerReader
+from .reader.shimmer_reader import PressureProcessor, ShimmerReader
 from .uart.dock_api import ShimmerDock
 from .util import fmt_hex
