@@ -17,6 +17,8 @@ The project uses semantic versioning.
   channels whose value is left-aligned within a larger word.
 - The `TriaxCalibSpec` class, which describes the location and scaling of a
   triaxial calibration block within a data file.
+- An example that reads a binary file and prints its metadata and channel
+  statistics, see `examples/reader_example.py`.
 
 ### Changed
 - Binary files recorded by a Shimmer3R store the set and order of their data
