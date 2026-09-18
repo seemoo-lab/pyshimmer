@@ -346,6 +346,20 @@ automatically interpolates the data to the common timestamp information of the m
 **Note**: Synchronized recordings are currently only supported for the Shimmer3. Reading a synchronized Shimmer3R
 recording raises a :code:`NotImplementedError`.
 
+The reader adds derived channels for sensors whose raw channel does not directly correspond to a physical quantity.
+The galvanic skin response, for instance, is recorded as a single channel that encodes the active range of the
+measurement circuit alongside the ADC reading:
+
+.. code-block:: python
+
+    reader.load_file_data()
+
+    print(reader.channels)            # channels recorded in the file
+    print(reader.derived_channels)    # channels calculated during post processing
+
+    resistance = reader[EChannelType.GSR_RESISTANCE]   # kOhm
+    conductance = reader[EChannelType.GSR_CONDUCTANCE]  # microsiemens
+
 **Note**: The barometric pressure and temperature channels are reported in kPa and degrees Celsius. This requires the
 calibration parameters of the pressure sensor, which the device stores in the file header. If a device did not store
 them, both channels are returned as raw ADC counts instead. Check

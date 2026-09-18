@@ -58,3 +58,8 @@ TRIAXCAL_FMT = ">" + 6 * "h" + 9 * "b"
 
 EXG_ADC_OFFSET = 0.0
 EXG_ADC_REF_VOLT = 2.42  # Volts
+
+# Properties of the microcontroller ADC to which the analog channels are connected
+ADC_OFFSET = 0.0
+ADC_REF_VOLT = 3.0  # Volts
+ADC_GAIN = 1.0

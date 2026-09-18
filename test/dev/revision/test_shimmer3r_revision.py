@@ -49,7 +49,12 @@ class TestShimmer3RRevision:
         assert revision.is_sd_sync_supported is False
 
     def test_all_channels_have_a_data_type(self, revision: Shimmer3RRevision):
+        # Derived channels are calculated rather than read from the data stream, so
+        # they do not possess a binary data type
         for ch in EChannelType:
+            if ch.is_derived:
+                continue
+
             assert revision.get_channel_dtype(ch) is not None
 
     def test_high_g_accel_data_type(self, revision: Shimmer3RRevision):

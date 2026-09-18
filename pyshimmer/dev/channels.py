@@ -276,6 +276,15 @@ class EChannelType(Enum):
 
     TIMESTAMP = (0x100, False)
 
+    # Derived channels. These are not recorded by the device but calculated from
+    # the recorded channels, so they do not have an id known to the Shimmer.
+    # The active range of the GSR circuit
+    GSR_RANGE = (0x101, False)
+    # Skin resistance in kOhm
+    GSR_RESISTANCE = (0x102, False)
+    # Skin conductance in microsiemens
+    GSR_CONDUCTANCE = (0x103, False)
+
     def __new__(cls, channel_id: int, is_public: bool):
         # Strips the is_public argument from the tuple and only assigns the
         # channel ID as enum value
@@ -293,6 +302,15 @@ class EChannelType(Enum):
         it is only used internally by the API and unknown the Shimmer.
         """
         return self._channel_id
+
+    @property
+    def is_derived(self) -> bool:
+        """
+        Returns True if the channel is not recorded by the Shimmer but calculated
+        from the recorded channels. Derived channels do not appear in a data stream
+        and therefore do not possess a binary data type.
+        """
+        return self in DERIVED_CHANNEL_TYPES
 
     @property
     def is_public(self) -> bool:
@@ -314,6 +332,17 @@ class EChannelType(Enum):
             )
 
         return ch_type
+
+
+# Channels that are calculated from the recorded channels instead of being read
+# from a data stream
+DERIVED_CHANNEL_TYPES = frozenset(
+    {
+        EChannelType.GSR_RANGE,
+        EChannelType.GSR_RESISTANCE,
+        EChannelType.GSR_CONDUCTANCE,
+    }
+)
 
 
 @unique

@@ -22,12 +22,17 @@ import numpy as np
 
 from pyshimmer.dev.channels import EChannelType
 from pyshimmer.dev.exg import is_exg_ch, get_exg_ch, ExGRegister
+from pyshimmer.dev.gsr import calibrate_gsr
 from pyshimmer.dev.revisions import HardwareRevision, HardwareVersion
 from pyshimmer.reader.binary_reader import ShimmerBinaryReader
 from pyshimmer.reader.reader_const import (
+    ADC_GAIN,
+    ADC_OFFSET,
+    ADC_REF_VOLT,
     EXG_ADC_REF_VOLT,
     EXG_ADC_OFFSET,
 )
+from pyshimmer.util import calibrate_u12_adc_value
 
 
 def fit_linear_1d(xp, fp, x):
@@ -103,8 +108,38 @@ class PPGProcessor(SingleChannelProcessor):
     def process_channel(
         self, ch_type: EChannelType, y: np.ndarray, reader: ShimmerBinaryReader
     ) -> np.ndarray:
-        # Convert from mV to V
-        return y / 1000.0
+        # The channel is connected to a 12bit ADC of the microcontroller, so the raw
+        # readings are ADC counts which must be scaled to a voltage
+        return calibrate_u12_adc_value(
+            y, offset=ADC_OFFSET, vRefP=ADC_REF_VOLT, gain=ADC_GAIN
+        )
+
+
+class GSRProcessor(ChannelPostProcessor):
+    """Converts the galvanic skin response channel
+
+    The raw channel encodes the active range of the GSR circuit alongside the ADC
+    reading. This processor leaves the raw channel untouched and adds the active
+    range, the skin resistance in kOhm, and the skin conductance in microsiemens as
+    derived channels.
+    """
+
+    def process(
+        self, channels: dict[EChannelType, np.ndarray], reader: ShimmerBinaryReader
+    ) -> dict[EChannelType, np.ndarray]:
+        if EChannelType.GSR_RAW not in channels:
+            return channels
+
+        gsr_range, resistance, conductance = calibrate_gsr(
+            channels[EChannelType.GSR_RAW]
+        )
+
+        result = channels.copy()
+        result[EChannelType.GSR_RANGE] = gsr_range
+        result[EChannelType.GSR_RESISTANCE] = resistance
+        result[EChannelType.GSR_CONDUCTANCE] = conductance
+
+        return result
 
 
 class PressureProcessor(ChannelPostProcessor):
@@ -202,6 +237,7 @@ class ShimmerReader:
                 PPGProcessor(),
                 TriAxCalProcessor(),
                 PressureProcessor(),
+                GSRProcessor(),
             ]
 
     @staticmethod
@@ -277,6 +313,18 @@ class ShimmerReader:
     def channels(self) -> list[EChannelType]:
         # We return all but the first channel which are the timestamps
         return self._bin_reader.enabled_channels[1:]
+
+    @property
+    def derived_channels(self) -> list[EChannelType]:
+        """Channels that the post processors calculated from the recorded channels
+
+        These channels are not present in the data file. They are only available if
+        post processing is enabled.
+
+        :return: A list of the available derived channels
+        """
+        recorded = set(self._bin_reader.enabled_channels)
+        return [c for c in self._ch_samples if c not in recorded]
 
     @property
     def sample_rate(self) -> float:

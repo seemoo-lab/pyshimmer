@@ -154,8 +154,10 @@ class ShimmerReaderTest(TestCase):
             EChannelType.INTERNAL_ADC_A1,
         ]
 
+        # The reference export holds the uncalibrated ADC counts of the PPG channel,
+        # so we compare against the unprocessed data
         with open(raw_file, "rb") as f:
-            reader = ShimmerReader(f)
+            reader = ShimmerReader(f, post_process=False)
             reader.load_file_data()
 
         self.assertEqual(exp_channels, reader.channels)
@@ -166,7 +168,7 @@ class ShimmerReaderTest(TestCase):
         expected_ppg = r[:, 1]
 
         actual_ts = reader.timestamp * 1000  # needs to be in ms
-        actual_ppg = reader[EChannelType.INTERNAL_ADC_A1] * 1000.0  # needs to be in mV
+        actual_ppg = reader[EChannelType.INTERNAL_ADC_A1]
 
         np.testing.assert_almost_equal(actual_ts.flatten(), expected_ts.flatten())
         np.testing.assert_almost_equal(actual_ppg, expected_ppg)
@@ -177,8 +179,10 @@ class ShimmerReaderTest(TestCase):
         exp_sr = 512.0
         exp_channels = [EChannelType.INTERNAL_ADC_A1]
 
+        # The reference export holds the uncalibrated ADC counts of the PPG channel,
+        # so we compare against the unprocessed data
         with open(bin_path, "rb") as f:
-            reader = ShimmerReader(f, sync=True)
+            reader = ShimmerReader(f, sync=True, post_process=False)
             reader.load_file_data()
 
         csv_data = np.loadtxt(csv_path, delimiter="\t", skiprows=3, usecols=(0, 1))
@@ -186,7 +190,7 @@ class ShimmerReaderTest(TestCase):
         expected_ppg = csv_data[:, 1]
 
         actual_ts = reader.timestamp * 1000
-        actual_ppg = reader[EChannelType.INTERNAL_ADC_A1] * 1000.0  # needs to be in mV
+        actual_ppg = reader[EChannelType.INTERNAL_ADC_A1]
 
         self.assertEqual(exp_channels, reader.channels)
         self.assertEqual(exp_sr, reader.sample_rate)
@@ -383,7 +387,8 @@ class SignalPostProcessorTest(TestCase):
             if ch != EChannelType.INTERNAL_ADC_A1:
                 np.testing.assert_equal(y, ch_data[ch])
             else:
-                np.testing.assert_equal(y, ppg_data / 1000.0)
+                # The raw values are ADC counts of a 12bit ADC with a 3V reference
+                np.testing.assert_equal(y, ppg_data * (3.0 / 4095))
 
     # noinspection PyMethodMayBeStatic
     def test_triaxcal_processor(self):
@@ -547,3 +552,46 @@ class Shimmer3RReaderTest(TestCase):
 
         self.assertEqual(reader[EChannelType.TEMPERATURE][0], 34027)
         self.assertEqual(reader[EChannelType.PRESSURE][0], 5545536)
+
+    def test_gsr_derived_channels(self):
+        content = build_shimmer3r_file(
+            channels=[EChannelType.GSR_RAW],
+            samples=[[0, 697], [64, 17188]],
+            sensors=[ESensorGroup.GSR],
+        )
+
+        reader = ShimmerReader(io.BytesIO(content))
+        reader.load_file_data()
+
+        # The raw channel is kept and the converted values are added
+        self.assertEqual(reader.channels, [EChannelType.GSR_RAW])
+        self.assertEqual(
+            reader.derived_channels,
+            [
+                EChannelType.GSR_RANGE,
+                EChannelType.GSR_RESISTANCE,
+                EChannelType.GSR_CONDUCTANCE,
+            ],
+        )
+
+        np.testing.assert_equal(reader[EChannelType.GSR_RAW], np.array([697, 17188]))
+        np.testing.assert_equal(reader[EChannelType.GSR_RANGE], np.array([0, 1]))
+        np.testing.assert_allclose(
+            reader[EChannelType.GSR_RESISTANCE],
+            np.array([1892.1724137931103, 1612.1604938271603]),
+            rtol=0,
+            atol=1e-9,
+        )
+
+    def test_no_derived_channels_without_post_processing(self):
+        content = build_shimmer3r_file(
+            channels=[EChannelType.GSR_RAW],
+            samples=[[0, 697]],
+            sensors=[ESensorGroup.GSR],
+        )
+
+        reader = ShimmerReader(io.BytesIO(content), post_process=False)
+        reader.load_file_data()
+
+        self.assertEqual(reader.derived_channels, [])
+        np.testing.assert_equal(reader[EChannelType.GSR_RAW], np.array([697]))

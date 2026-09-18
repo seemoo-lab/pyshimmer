@@ -25,6 +25,7 @@ from .dev.channels import (
     PackedChannelDataType,
 )
 from .dev.exg import ExGMux, ExGRLDLead, ERLDRef, ExGRegister
+from .dev.gsr import calibrate_gsr, split_gsr_raw
 from .dev.fw_version import FirmwareType, FirmwareVersion
 from .dev.pressure import (
     BMP180Calibration,
@@ -42,6 +43,10 @@ from .dev.revisions import (
     Shimmer3RRevision,
 )
 from .reader.binary_reader import ShimmerBinaryReader
-from .reader.shimmer_reader import PressureProcessor, ShimmerReader
+from .reader.shimmer_reader import (
+    GSRProcessor,
+    PressureProcessor,
+    ShimmerReader,
+)
 from .uart.dock_api import ShimmerDock
 from .util import fmt_hex

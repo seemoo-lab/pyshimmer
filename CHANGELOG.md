@@ -27,6 +27,10 @@ The project uses semantic versioning.
 - The reader now parses the firmware version and the expansion board details
   from the file header and exposes them as `ShimmerBinaryReader.firmware_type`,
   `firmware_version`, and `expansion_board`.
+- Conversion of the galvanic skin response channel. The raw channel encodes the
+  active range of the GSR circuit alongside the ADC reading. The reader keeps it
+  and adds the range, the skin resistance in kOhm, and the skin conductance in
+  microsiemens as derived channels, see `ShimmerReader.derived_channels`.
 
 ### Changed
 - Binary files recorded by a Shimmer3R store the set and order of their data
@@ -51,6 +55,12 @@ The project uses semantic versioning.
 - Introduce new hardware revision classes to encapsulate all hardware-specific
   code. As a consequence, all global functions in `pyshimmer.dev.base` and
   `pyshimmer.dev.channels` were removed.
+
+### Fixed
+- The PPG channel was scaled by dividing the raw reading by 1000, which treated
+  the ADC counts as if they were millivolts. The channel is connected to a 12bit
+  ADC with a 3V reference, so the readings are now scaled accordingly. Values
+  reported for this channel change by a factor of about 0.73.
 
 ## 1.0.0 - 2025-10-25
 

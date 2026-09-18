@@ -101,7 +101,12 @@ class TestShimmer3Revision:
         assert second.signed is True
 
     def test_channel_dtype_assignment(self, revision: Shimmer3Revision):
+        # Derived channels are calculated rather than read from the data stream, so
+        # they do not possess a binary data type
         for channel in EChannelType:
+            if channel.is_derived:
+                continue
+
             r = revision.get_channel_dtypes([channel])
             assert len(r) > 0
 
