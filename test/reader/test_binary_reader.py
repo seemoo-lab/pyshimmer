@@ -15,13 +15,22 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from __future__ import annotations
 
+import io
 from unittest import TestCase
 
 import numpy as np
 
-from pyshimmer import EChannelType, ExGRegister, RevisionRegistry, ESensorGroup
+from pyshimmer import (
+    EChannelType,
+    ExGRegister,
+    HardwareVersion,
+    RevisionRegistry,
+    ESensorGroup,
+)
 from pyshimmer.reader.shimmer_reader import ShimmerBinaryReader
 from .reader_test_util import (
+    build_shimmer3r_file,
+    encode_triaxcal_block,
     get_binary_sample_fpath,
     get_synced_bin_vs_consensys_pair_fpath,
     get_ecg_sample,
@@ -166,3 +175,225 @@ class ShimmerReaderTest(TestCase):
                 np.testing.assert_almost_equal(offset, exp_offset, decimal=10)
                 np.testing.assert_almost_equal(gain, exp_gain, decimal=10)
                 np.testing.assert_almost_equal(alignment, exp_alignment, decimal=10)
+
+
+class Shimmer3RBinaryReaderTest(TestCase):
+    """Tests for the Shimmer3R binary file format
+
+    The binary files used here are synthesized from the header layout documented by
+    the Java reference implementation. They verify that this API implements that
+    layout, but they cannot confirm the layout itself. Regression tests against a file
+    recorded by an actual Shimmer3R are still needed.
+    """
+
+    @staticmethod
+    def _open(content: bytes, **kwargs) -> ShimmerBinaryReader:
+        return ShimmerBinaryReader(io.BytesIO(content), **kwargs)
+
+    def test_hardware_version_detection(self):
+        content = build_shimmer3r_file(channels=[EChannelType.VBATT], samples=[])
+        reader = self._open(content)
+
+        self.assertEqual(
+            reader.hardware_revision.hardware_version, HardwareVersion.SHIMMER3R
+        )
+        self.assertIs(reader.hardware_revision, RevisionRegistry.REV_SHIMMER3R)
+
+    def test_unknown_hardware_version_is_rejected(self):
+        content = bytearray(
+            build_shimmer3r_file(channels=[EChannelType.VBATT], samples=[])
+        )
+        content[0x1E:0x20] = b"\x00\x63"
+
+        with self.assertRaises(ValueError):
+            self._open(bytes(content))
+
+    def test_explicit_hardware_version_overrides_header(self):
+        content = bytearray(
+            build_shimmer3r_file(channels=[EChannelType.VBATT], samples=[])
+        )
+        content[0x1E:0x20] = b"\x00\x63"
+
+        reader = self._open(bytes(content), hw_version=HardwareVersion.SHIMMER3R)
+        self.assertEqual(
+            reader.hardware_revision.hardware_version, HardwareVersion.SHIMMER3R
+        )
+
+    def test_channels_are_read_from_header(self):
+        # Deliberately ordered differently from the sensor order of the revision to
+        # show that the header list takes precedence
+        channels = [
+            EChannelType.GYRO_X,
+            EChannelType.ACCEL_LN_X,
+            EChannelType.VBATT,
+        ]
+        content = build_shimmer3r_file(
+            channels=channels,
+            samples=[],
+            sensors=[
+                ESensorGroup.ACCEL_LN,
+                ESensorGroup.GYRO,
+                ESensorGroup.BATTERY,
+            ],
+        )
+        reader = self._open(content)
+
+        self.assertEqual(reader.enabled_channels, [EChannelType.TIMESTAMP] + channels)
+        self.assertEqual(
+            reader.enabled_sensors,
+            [ESensorGroup.ACCEL_LN, ESensorGroup.BATTERY, ESensorGroup.GYRO],
+        )
+
+    def test_data_starts_after_the_384_byte_header(self):
+        channels = [EChannelType.VBATT]
+        samples = [[100 * i, i] for i in range(1, 5)]
+
+        content = build_shimmer3r_file(
+            channels=channels, samples=samples, sample_rate=100, start_ts=4242
+        )
+
+        # Three byte timestamp plus a two byte battery channel per sample
+        self.assertEqual(len(content), 0x180 + 4 * 5)
+        self.assertEqual(RevisionRegistry.REV_SHIMMER3R.sd_header_len, 0x180)
+
+        reader = self._open(content)
+        self.assertEqual(reader.sample_rate, 100)
+        self.assertEqual(reader.start_timestamp, 4242)
+        self.assertEqual(reader.has_sync, False)
+
+        data, sync = reader.read_data()
+        np.testing.assert_equal(
+            data[EChannelType.TIMESTAMP], np.array([100, 200, 300, 400])
+        )
+        np.testing.assert_equal(data[EChannelType.VBATT], np.array([1, 2, 3, 4]))
+        self.assertEqual(sync, ((), ()))
+
+    def test_high_g_accel_and_alt_mag_channels(self):
+        channels = [
+            EChannelType.ACCEL_HG_X,
+            EChannelType.ACCEL_HG_Y,
+            EChannelType.ACCEL_HG_Z,
+            EChannelType.MAG_WR_X,
+        ]
+        samples = [
+            [0, 2047, -2048, 0, -32768],
+            [64, -1, 1, 42, 32767],
+        ]
+
+        content = build_shimmer3r_file(
+            channels=channels,
+            samples=samples,
+            sensors=[ESensorGroup.ACCEL_HG, ESensorGroup.MAG_WR],
+        )
+        reader = self._open(content)
+
+        # Three high-g channels at two bytes each, one alt mag channel at two bytes,
+        # plus the three byte timestamp
+        self.assertEqual(
+            sum(
+                dt.size
+                for dt in reader.hardware_revision.get_channel_dtypes(
+                    reader.enabled_channels
+                )
+            ),
+            11,
+        )
+
+        data, _ = reader.read_data()
+        np.testing.assert_equal(data[EChannelType.ACCEL_HG_X], np.array([2047, -1]))
+        np.testing.assert_equal(data[EChannelType.ACCEL_HG_Y], np.array([-2048, 1]))
+        np.testing.assert_equal(data[EChannelType.ACCEL_HG_Z], np.array([0, 42]))
+        np.testing.assert_equal(data[EChannelType.MAG_WR_X], np.array([-32768, 32767]))
+
+    def test_high_g_accel_is_left_aligned_in_the_word(self):
+        # A 12 bit value of 1 is transmitted as 0x0010 in big-endian byte order
+        content = build_shimmer3r_file(
+            channels=[EChannelType.ACCEL_HG_X], samples=[[0, 1]]
+        )
+        self.assertEqual(content[0x183:0x185], b"\x00\x10")
+
+    def test_alt_triaxcal_params_beyond_the_shimmer3_header(self):
+        exp_params = {
+            ESensorGroup.ACCEL_HG: (
+                np.array([1, 2, 3]),
+                np.diag([100, 200, 300]),
+                np.array([[0.0, 1.0, 0.0], [-1.0, 0.0, 0.0], [0.0, 0.0, -1.0]]),
+            ),
+            ESensorGroup.MAG_WR: (
+                np.array([-1, -2, -3]),
+                np.diag([1711, 1711, 1711]),
+                np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]),
+            ),
+        }
+
+        triaxcal = {}
+        for sensor, (offset, gain, alignment) in exp_params.items():
+            triaxcal[sensor] = encode_triaxcal_block(
+                offset=offset,
+                gain=np.diag(gain),
+                alignment=(alignment * 100).flatten().astype(int),
+            )
+
+        content = build_shimmer3r_file(
+            channels=[EChannelType.VBATT], samples=[], triaxcal=triaxcal
+        )
+        reader = self._open(content)
+
+        for sensor, (exp_offset, exp_gain, exp_alignment) in exp_params.items():
+            offset, gain, alignment = reader.get_triaxcal_params(sensor)
+            np.testing.assert_almost_equal(offset, exp_offset, decimal=10)
+            np.testing.assert_almost_equal(gain, exp_gain, decimal=10)
+            np.testing.assert_almost_equal(alignment, exp_alignment, decimal=10)
+
+    def test_invalid_channel_count_is_rejected(self):
+        content = bytearray(
+            build_shimmer3r_file(channels=[EChannelType.VBATT], samples=[])
+        )
+
+        # A channel list that does not fit into the header
+        content[0x13A] = 0xFF
+        with self.assertRaises(ValueError):
+            self._open(bytes(content))
+
+        # An empty channel list
+        content[0x13A] = 0x00
+        with self.assertRaises(ValueError):
+            self._open(bytes(content))
+
+    def test_unknown_channel_id_is_rejected(self):
+        content = bytearray(
+            build_shimmer3r_file(channels=[EChannelType.VBATT], samples=[])
+        )
+        content[0x13B] = 0x7F
+
+        with self.assertRaises(ValueError):
+            self._open(bytes(content))
+
+    def test_synchronized_files_are_rejected(self):
+        content = build_shimmer3r_file(
+            channels=[EChannelType.VBATT], samples=[], sync=True
+        )
+
+        with self.assertRaises(NotImplementedError):
+            self._open(content)
+
+    def test_global_clock(self):
+        content = build_shimmer3r_file(
+            channels=[EChannelType.VBATT], samples=[], rtc_diff=0x1234
+        )
+        reader = self._open(content)
+
+        self.assertEqual(reader.has_global_clock, True)
+        self.assertEqual(reader.global_clock_diff, 0x1234)
+
+    def test_exg_registers(self):
+        reg1 = b"\x03\xa8\x10\x49\x40\x23\x00\x00\x02\x03"
+        reg2 = b"\x03\xa0\x10\xc1\xc1\x00\x00\x00\x02\x01"
+
+        content = build_shimmer3r_file(
+            channels=[EChannelType.VBATT], samples=[], exg_reg1=reg1, exg_reg2=reg2
+        )
+        reader = self._open(content)
+
+        self.assertEqual(reader.exg_reg1.binary, reg1)
+        self.assertEqual(reader.exg_reg2.binary, reg2)

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from .hw_version import HardwareVersion
 from .revision import BaseRevision
+from ..calibration import TriaxCalibSpec
 from ..channels import EChannelType, ChannelDataType, ESensorGroup
 
 
@@ -26,6 +27,21 @@ class Shimmer3Revision(BaseRevision):
     DEV_CLOCK_RATE: float = 32768.0
     ENABLED_SENSORS_LEN = 0x03
     SENSOR_DTYPE = ChannelDataType(size=ENABLED_SENSORS_LEN, signed=False, le=True)
+
+    # Length of the configuration header of a binary data file
+    SD_HEADER_LEN = 0x100
+
+    # The set and order of channels is derived from the enabled sensors
+    SD_CHANNEL_LIST_OFFSET = None
+
+    TRIAXCAL_SPECS: dict[ESensorGroup, TriaxCalibSpec] = {
+        ESensorGroup.ACCEL_LN: TriaxCalibSpec(offset=0x8B, alignment_scaling=100.0),
+        ESensorGroup.ACCEL_WR: TriaxCalibSpec(offset=0x4C, alignment_scaling=100.0),
+        ESensorGroup.GYRO: TriaxCalibSpec(
+            offset=0x61, gain_scaling=100.0, alignment_scaling=100.0
+        ),
+        ESensorGroup.MAG_REG: TriaxCalibSpec(offset=0x76, alignment_scaling=100.0),
+    }
 
     CH_DTYPE_ASSIGNMENT: dict[EChannelType, ChannelDataType] = {
         EChannelType.ACCEL_LN_X: ChannelDataType(2, signed=True, le=True),
@@ -200,4 +216,8 @@ class Shimmer3Revision(BaseRevision):
             self.SENSOR_CHANNEL_ASSIGNMENT,
             self.SENSOR_BIT_ASSIGNMENT,
             self.SENSOR_ORDER,
+            self.SD_HEADER_LEN,
+            self.TRIAXCAL_SPECS,
+            sd_channel_list_offset=self.SD_CHANNEL_LIST_OFFSET,
+            is_sd_sync_supported=True,
         )

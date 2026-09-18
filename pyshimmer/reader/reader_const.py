@@ -15,8 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from __future__ import annotations
 
-from pyshimmer.dev.channels import ESensorGroup
-
 SR_OFFSET = 0x00
 
 ENABLED_SENSORS_OFFSET = 0x03
@@ -28,7 +26,11 @@ START_TS_LEN = 0x5
 
 TRIAL_CONFIG_OFFSET = 0x10
 
-DATA_LOG_OFFSET = 0x100
+# The hardware version is stored as big-endian 16bit value at this offset. It is
+# located in the part of the header that is common to all hardware revisions and can
+# therefore be read before the layout of the remaining header is known.
+HW_VERSION_OFFSET = 0x1E
+
 BLOCK_LEN = 0x200
 
 TRIAL_CONFIG_SYNC = 0x04 << 8 * 0
@@ -37,41 +39,10 @@ TRIAL_CONFIG_MASTER = 0x02 << 8 * 0
 EXG_REG_OFFSET = 0x38
 EXG_REG_LEN = 0x0A
 
-# The file offsets at which the calibration parameters of the respective sensor can be
-# found
-TRIAXCAL_FILE_OFFSET = {
-    ESensorGroup.ACCEL_LN: 0x8B,
-    ESensorGroup.ACCEL_WR: 0x4C,
-    ESensorGroup.GYRO: 0x61,
-    ESensorGroup.MAG_REG: 0x76,
-}
-
-# Scaling value by which the calibration offset will be scaled upon deserialization
-TRIAXCAL_OFFSET_SCALING = {
-    ESensorGroup.ACCEL_LN: 1.0,
-    ESensorGroup.ACCEL_WR: 1.0,
-    ESensorGroup.GYRO: 1.0,
-    ESensorGroup.MAG_REG: 1.0,
-}
-
-# Scaling value by which the calibration gain will be scaled upon deserialization
-TRIAXCAL_GAIN_SCALING = {
-    ESensorGroup.ACCEL_LN: 1.0,
-    ESensorGroup.ACCEL_WR: 1.0,
-    ESensorGroup.GYRO: 1.0 / 100.0,
-    ESensorGroup.MAG_REG: 1.0,
-}
-
-# Scaling value by which the calibration alignment matrix will be scaled upon
-# deserialization
-TRIAXCAL_ALIGNMENT_SCALING = {
-    ESensorGroup.ACCEL_LN: 1.0 / 100.0,
-    ESensorGroup.ACCEL_WR: 1.0 / 100.0,
-    ESensorGroup.GYRO: 1.0 / 100.0,
-    ESensorGroup.MAG_REG: 1.0 / 100.0,
-}
-
-TRIAXCAL_SENSORS = list(TRIAXCAL_FILE_OFFSET.keys())
+# Binary format of a triaxial calibration block: three offset and three gain values as
+# signed big-endian 16bit integers, followed by the nine alignment matrix entries as
+# signed bytes
+TRIAXCAL_FMT = ">" + 6 * "h" + 9 * "b"
 
 EXG_ADC_OFFSET = 0.0
 EXG_ADC_REF_VOLT = 2.42  # Volts

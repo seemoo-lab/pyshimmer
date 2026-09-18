@@ -22,6 +22,7 @@ import pytest
 from pyshimmer.dev.channels import (
     ChannelDataType,
     EChannelType,
+    PackedChannelDataType,
 )
 
 
@@ -132,3 +133,71 @@ class ChannelDataTypeTest(TestCase):
 
         test_both_endianess(0x12345, 3, b"\x45\x23\x01", signed=False)
         test_both_endianess(-0x12345, 3, b"\xbb\xdc\xfe", signed=True)
+
+
+class PackedChannelDataTypeTest(TestCase):
+
+    def test_properties(self):
+        dt = PackedChannelDataType(2, bits=12, signed=True, le=False)
+
+        assert dt.size == 2
+        assert dt.bits == 12
+        assert dt.signed
+        assert dt.big_endian
+
+    def test_invalid_bit_count(self):
+        with pytest.raises(ValueError):
+            PackedChannelDataType(2, bits=17)
+
+        with pytest.raises(ValueError):
+            PackedChannelDataType(2, bits=0)
+
+    def test_decoding_signed_big_endian(self):
+        # The significant bits are left-aligned in the word, i.e. the value is
+        # obtained by shifting the 16bit word right by four bits
+        dt = PackedChannelDataType(2, bits=12, signed=True, le=False)
+
+        assert dt.decode(b"\x00\x00") == 0
+        assert dt.decode(b"\x00\x10") == 1
+        assert dt.decode(b"\x7f\xf0") == 2047
+        assert dt.decode(b"\x80\x00") == -2048
+        assert dt.decode(b"\xff\xf0") == -1
+
+        # The four least significant bits of the word are unused
+        assert dt.decode(b"\x00\x1f") == 1
+
+    def test_decoding_unsigned_little_endian(self):
+        dt = PackedChannelDataType(2, bits=12, signed=False, le=True)
+
+        assert dt.decode(b"\x10\x00") == 1
+        assert dt.decode(b"\xf0\xff") == 4095
+
+    def test_decoding_checks_length(self):
+        dt = PackedChannelDataType(2, bits=12)
+
+        with pytest.raises(ValueError):
+            dt.decode(b"\x00")
+
+    def test_encoding(self):
+        dt = PackedChannelDataType(2, bits=12, signed=True, le=False)
+
+        assert dt.encode(0) == b"\x00\x00"
+        assert dt.encode(1) == b"\x00\x10"
+        assert dt.encode(2047) == b"\x7f\xf0"
+        assert dt.encode(-2048) == b"\x80\x00"
+        assert dt.encode(-1) == b"\xff\xf0"
+
+    def test_encoding_out_of_range(self):
+        dt = PackedChannelDataType(2, bits=12, signed=True, le=False)
+
+        with pytest.raises(ValueError):
+            dt.encode(2048)
+
+        with pytest.raises(ValueError):
+            dt.encode(-2049)
+
+    def test_encode_decode_roundtrip(self):
+        dt = PackedChannelDataType(2, bits=12, signed=True, le=False)
+
+        for val in range(-2048, 2048):
+            assert dt.decode(dt.encode(val)) == val

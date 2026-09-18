@@ -78,6 +78,71 @@ class ChannelDataType:
         )
 
 
+class PackedChannelDataType(ChannelDataType):
+
+    def __init__(self, size: int, bits: int, signed: bool = True, le: bool = True):
+        """Data type of a channel whose value is left-aligned in a larger word
+
+        Some channels transmit fewer significant bits than the number of bytes they
+        occupy in the data stream. The high-g accelerometer of the Shimmer3R, for
+        instance, transmits a 12 bit signed value in two bytes with the four least
+        significant bits of the word left unused.
+
+        :param size: Length of the data type in Bytes
+        :param bits: Number of significant bits, left-aligned within the data type
+        :param signed: True if the significant bits encode a signed integer
+        :param le: True if the word is encoded little endian, False if the word is
+            encoded big endian
+        """
+        super().__init__(size, signed=signed, le=le)
+
+        if not 0 < bits <= 8 * size:
+            raise ValueError(
+                f"Number of significant bits must be in range [1, {8 * size}]: {bits}"
+            )
+
+        self._bits = bits
+        self._shift = 8 * size - bits
+
+    @property
+    def bits(self) -> int:
+        """Number of significant bits of the data type"""
+        return self._bits
+
+    def decode(self, val_bin: bytes) -> int:
+        if len(val_bin) != self.size:
+            raise ValueError(
+                f"Binary value does not match required size: "
+                f"{len(val_bin)} != {self.size}"
+            )
+
+        word = int.from_bytes(val_bin, byteorder=self.byte_order, signed=False)
+        val = word >> self._shift
+
+        if self.signed and val >= 1 << (self._bits - 1):
+            val -= 1 << self._bits
+
+        return val
+
+    def encode(self, val: int) -> bytes:
+        if self.signed:
+            val_min, val_max = -(1 << (self._bits - 1)), (1 << (self._bits - 1)) - 1
+        else:
+            val_min, val_max = 0, (1 << self._bits) - 1
+
+        if not val_min <= val <= val_max:
+            raise ValueError(
+                f"Value does not fit into {self._bits} bits: "
+                f"{val} not in [{val_min}, {val_max}]"
+            )
+
+        if val < 0:
+            val += 1 << self._bits
+
+        word = val << self._shift
+        return word.to_bytes(length=self.size, byteorder=self.byte_order, signed=False)
+
+
 # @unique causes issues with PyCharm code indexing
 # Temporarily remove before renaming items
 # https://stackoverflow.com/questions/12680080/python-enums-with-attributes

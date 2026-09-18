@@ -5,7 +5,33 @@ The project uses semantic versioning.
 
 ## Next Release
 
+### Added
+- Support for reading binary files recorded by a Shimmer3R. The reader now
+  determines the hardware revision from the file header and adapts the header
+  length, the channel layout, and the calibration parameter offsets accordingly.
+  The hardware revision can be provided explicitly via the new `hw_version`
+  parameter of `ShimmerBinaryReader` and `ShimmerReader` for files whose header
+  does not carry a usable version field.
+- Data types for the Shimmer3R high-g accelerometer and alternative
+  magnetometer channels, along with the new `PackedChannelDataType` class for
+  channels whose value is left-aligned within a larger word.
+- The `TriaxCalibSpec` class, which describes the location and scaling of a
+  triaxial calibration block within a data file.
+
 ### Changed
+- Binary files recorded by a Shimmer3R store the set and order of their data
+  channels in the file header. The reader now uses that list instead of
+  deriving the channels from the enabled sensors.
+- The hardware revision classes now describe the layout of a binary data file.
+  As a consequence, the calibration offset constants were removed from
+  `pyshimmer.reader.reader_const` and replaced by `HardwareRevision`
+  properties.
+- Reading a synchronized Shimmer3R recording now raises `NotImplementedError`
+  instead of returning incorrectly parsed data. Synchronized Shimmer3
+  recordings are unaffected.
+- The sensor order of the Shimmer3R was corrected. It previously used the order
+  of the Shimmer3, which contradicts the channel ids assigned by the Shimmer3R
+  firmware.
 - Format code base with black
 - Wrap long lines to 90 characters
 - Replace types from typing with built-in ones

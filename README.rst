@@ -330,8 +330,21 @@ Using the Reader API
             print(f'ECG Chip Sampling Rate: {exg_reg.data_rate} Hz')
             print(f'ECG Chip Gain: {exg_reg.ch1_gain}')
 
+The Reader API supports binary files recorded by the Shimmer3 and the Shimmer3R. The hardware revision of the
+recording device is determined from the file header, so no configuration is required. For the rare case of a file
+whose header does not carry a usable hardware version, the revision can be specified explicitly:
+
+.. code-block:: python
+
+    from pyshimmer import HardwareVersion, ShimmerReader
+
+    reader = ShimmerReader(f, hw_version=HardwareVersion.SHIMMER3)
+
 If the data was recorded using the :code:`SDLog` firmware and features synchronization information, the API
 automatically interpolates the data to the common timestamp information of the master.
+
+**Note**: Synchronized recordings are currently only supported for the Shimmer3. Reading a synchronized Shimmer3R
+recording raises a :code:`NotImplementedError`.
 
 **Note**: Please be aware that although you have configured a sampling frequency f for your measurements, it can happen that observations are missing.
 Usually the observed time difference is a multiple of the sampling period 1 / f.

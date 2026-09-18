@@ -22,12 +22,11 @@ import numpy as np
 
 from pyshimmer.dev.channels import EChannelType
 from pyshimmer.dev.exg import is_exg_ch, get_exg_ch, ExGRegister
-from pyshimmer.dev.revisions import HardwareRevision
+from pyshimmer.dev.revisions import HardwareRevision, HardwareVersion
 from pyshimmer.reader.binary_reader import ShimmerBinaryReader
 from pyshimmer.reader.reader_const import (
     EXG_ADC_REF_VOLT,
     EXG_ADC_OFFSET,
-    TRIAXCAL_SENSORS,
 )
 
 
@@ -114,10 +113,17 @@ class TriAxCalProcessor(ChannelPostProcessor):
         self, channels: dict[EChannelType, np.ndarray], reader: ShimmerBinaryReader
     ) -> dict[EChannelType, np.ndarray]:
         result = channels.copy()
+        revision = reader.hardware_revision
 
-        active_sensors = [s for s in reader.enabled_sensors if s in TRIAXCAL_SENSORS]
-        for sensor in active_sensors:
-            sensor_channels = reader.hardware_revision.get_enabled_channels([sensor])
+        for sensor in revision.triaxcal_sensors:
+            if sensor not in reader.enabled_sensors:
+                continue
+
+            sensor_channels = revision.get_enabled_channels([sensor])
+            if not all(c in channels for c in sensor_channels):
+                # The sensor is enabled but its channels were not recorded
+                continue
+
             channel_data = np.stack([channels[c] for c in sensor_channels])
             o, g, a = reader.get_triaxcal_params(sensor)
 
@@ -139,9 +145,10 @@ class ShimmerReader:
         sync: bool = True,
         post_process: bool = True,
         processors: list[ChannelPostProcessor] = None,
+        hw_version: HardwareVersion = None,
     ):
         if fp is not None:
-            self._bin_reader = ShimmerBinaryReader(fp)
+            self._bin_reader = ShimmerBinaryReader(fp, hw_version=hw_version)
         elif bin_reader is not None:
             self._bin_reader = bin_reader
         else:

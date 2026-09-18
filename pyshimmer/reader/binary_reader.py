@@ -37,28 +37,35 @@ from .reader_const import (
     TRIAL_CONFIG_MASTER,
     TRIAL_CONFIG_SYNC,
     BLOCK_LEN,
-    DATA_LOG_OFFSET,
+    HW_VERSION_OFFSET,
     EXG_REG_OFFSET,
     EXG_REG_LEN,
-    TRIAXCAL_FILE_OFFSET,
-    TRIAXCAL_OFFSET_SCALING,
-    TRIAXCAL_GAIN_SCALING,
-    TRIAXCAL_ALIGNMENT_SCALING,
+    TRIAXCAL_FMT,
 )
 
 
 class ShimmerBinaryReader(FileIOBase):
 
-    def __init__(self, fp: BinaryIO):
+    def __init__(self, fp: BinaryIO, hw_version: HardwareVersion = None):
+        """Read the contents of a binary file recorded by a Shimmer device
+
+        :param fp: The binary file to read
+        :param hw_version: The hardware version of the device that recorded the file.
+            If None, the version is read from the file header. Provide it explicitly
+            only for files whose header does not carry a usable version field.
+        """
         super().__init__(fp)
 
-        self._revision = RevisionRegistry.get_revision(HardwareVersion.SHIMMER3)
         self._sensors = []
         self._channels = []
         self._sr = 0
         self._rtc_diff = 0
         self._start_ts = 0
         self._trial_config = 0
+
+        if hw_version is None:
+            hw_version = self._read_hardware_version()
+        self._revision = RevisionRegistry.get_revision(hw_version)
 
         self._read_header()
 
@@ -70,14 +77,32 @@ class ShimmerBinaryReader(FileIOBase):
     def _read_header(self) -> None:
         self._sr = self._read_sample_rate()
         self._sensors = self._read_enabled_sensors()
-        self._channels = self.get_data_channels(self._sensors)
+        self._channels = self._read_data_channels()
         self._channel_dtypes = self._revision.get_channel_dtypes(self._channels)
         self._rtc_diff = self._read_rtc_clock_diff()
         self._start_ts = self._read_start_time()
         self._trial_config = self._read_trial_config()
         self._exg_regs = self._read_exg_regs()
 
+        if self.has_sync and not self._revision.is_sd_sync_supported:
+            raise NotImplementedError(
+                f"Reading synchronized binary files is not supported for "
+                f"hardware version {self._revision.hardware_version.name}"
+            )
+
         self._samples_per_block, self._block_size = self._calculate_block_size()
+
+    def _read_hardware_version(self) -> HardwareVersion:
+        self._seek(HW_VERSION_OFFSET)
+        version_int = self._read_packed(">H")
+
+        version = HardwareVersion.from_int(version_int)
+        if version == HardwareVersion.UNKNOWN:
+            raise ValueError(
+                f"File header specifies unknown hardware version {version_int}"
+            )
+
+        return version
 
     def _read_sample_rate(self) -> int:
         self._seek(SR_OFFSET)
@@ -89,6 +114,28 @@ class ShimmerBinaryReader(FileIOBase):
         enabled_sensors = self._revision.deserialize_sensorlist(sensor_bitfield)
 
         return enabled_sensors
+
+    def _read_data_channels(self) -> list[EChannelType]:
+        list_offset = self._revision.sd_channel_list_offset
+        if list_offset is None:
+            # The revision does not record the channels explicitly. We derive them
+            # from the set of enabled sensors instead.
+            return self.get_data_channels(self._sensors)
+
+        self._seek(list_offset)
+        num_channels = self._read_packed("B")
+
+        max_channels = self._revision.sd_header_len - (list_offset + 1)
+        if not 0 < num_channels <= max_channels:
+            raise ValueError(
+                f"File header specifies invalid number of channels: "
+                f"{num_channels} not in [1, {max_channels}]"
+            )
+
+        channel_ids = self._read(num_channels)
+
+        channels = [EChannelType.enum_for_id(ch_id) for ch_id in channel_ids]
+        return [EChannelType.TIMESTAMP] + channels
 
     def _read_rtc_clock_diff(self) -> int:
         self._seek(RTC_CLOCK_DIFF_OFFSET)
@@ -167,7 +214,7 @@ class ShimmerBinaryReader(FileIOBase):
         samples = []
         sample_ctr = 0
 
-        self._seek(DATA_LOG_OFFSET)
+        self._seek(self._revision.sd_header_len)
         while True:
             block_samples, sync_offset = self._read_data_block()
 
@@ -193,11 +240,9 @@ class ShimmerBinaryReader(FileIOBase):
     def _read_triaxcal_params(
         self, offset: int
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        fmt = ">" + 6 * "h" + 9 * "b"
-
         self._seek(offset)
-        calib_param_bytes = self._read(struct.calcsize(fmt))
-        params_raw = struct.unpack(fmt, calib_param_bytes)
+        calib_param_bytes = self._read(struct.calcsize(TRIAXCAL_FMT))
+        params_raw = struct.unpack(TRIAXCAL_FMT, calib_param_bytes)
 
         offset = np.array(params_raw[:3])
         gain = np.diag(params_raw[3:6])
@@ -229,13 +274,14 @@ class ShimmerBinaryReader(FileIOBase):
     def get_triaxcal_params(
         self, sensor: ESensorGroup
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        offset = TRIAXCAL_FILE_OFFSET[sensor]
-        sc_offset = TRIAXCAL_OFFSET_SCALING[sensor]
-        sc_gain = TRIAXCAL_GAIN_SCALING[sensor]
-        sc_alignment = TRIAXCAL_ALIGNMENT_SCALING[sensor]
+        spec = self._revision.get_triaxcal_spec(sensor)
 
-        offset, gain, alignment = self._read_triaxcal_params(offset)
-        return offset * sc_offset, gain * sc_gain, alignment * sc_alignment
+        offset, gain, alignment = self._read_triaxcal_params(spec.offset)
+        return (
+            offset / spec.offset_scaling,
+            gain / spec.gain_scaling,
+            alignment / spec.alignment_scaling,
+        )
 
     @property
     def hardware_revision(self) -> HardwareRevision:

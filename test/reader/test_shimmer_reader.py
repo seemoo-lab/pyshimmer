@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from __future__ import annotations
 
+import io
 from unittest import TestCase
 from unittest.mock import Mock, PropertyMock
 
@@ -32,6 +33,8 @@ from pyshimmer.reader.shimmer_reader import (
     TriAxCalProcessor,
 )
 from .reader_test_util import (
+    build_shimmer3r_file,
+    encode_triaxcal_block,
     get_bin_vs_consensys_pair_fpath,
     get_synced_bin_vs_consensys_pair_fpath,
     get_ecg_sample,
@@ -406,3 +409,72 @@ class SignalPostProcessorTest(TestCase):
         exp_arr = np.matmul(k, data_arr - o[..., None])
 
         np.testing.assert_almost_equal(actual_arr, exp_arr)
+
+
+class Shimmer3RReaderTest(TestCase):
+    """End-to-end tests of the public reader API for the Shimmer3R format
+
+    The binary files are synthesized from the documented header layout, see
+    Shimmer3RBinaryReaderTest in test_binary_reader.py.
+    """
+
+    def test_read_and_calibrate_high_g_accel(self):
+        channels = [
+            EChannelType.ACCEL_HG_X,
+            EChannelType.ACCEL_HG_Y,
+            EChannelType.ACCEL_HG_Z,
+        ]
+        samples = [
+            [0, 100, 200, 300],
+            [64, 110, 210, 310],
+        ]
+
+        # An identity alignment matrix and a gain of 10 reduce the calibration to
+        # subtracting the offset and dividing by the gain
+        triaxcal = {
+            ESensorGroup.ACCEL_HG: encode_triaxcal_block(
+                offset=[10, 20, 30],
+                gain=[10, 10, 10],
+                alignment=[100, 0, 0, 0, 100, 0, 0, 0, 100],
+            )
+        }
+
+        content = build_shimmer3r_file(
+            channels=channels,
+            samples=samples,
+            sensors=[ESensorGroup.ACCEL_HG],
+            sample_rate=512,
+            triaxcal=triaxcal,
+        )
+
+        reader = ShimmerReader(io.BytesIO(content))
+        reader.load_file_data()
+
+        self.assertEqual(reader.channels, channels)
+        self.assertEqual(reader.sample_rate, 64.0)
+
+        np.testing.assert_almost_equal(reader.timestamp, np.array([0.0, 64 / 32768]))
+        np.testing.assert_almost_equal(
+            reader[EChannelType.ACCEL_HG_X], np.array([9.0, 10.0])
+        )
+        np.testing.assert_almost_equal(
+            reader[EChannelType.ACCEL_HG_Y], np.array([18.0, 19.0])
+        )
+        np.testing.assert_almost_equal(
+            reader[EChannelType.ACCEL_HG_Z], np.array([27.0, 28.0])
+        )
+
+    def test_calibration_skips_sensors_without_recorded_channels(self):
+        # The gyroscope is marked as enabled in the sensor bitfield, but the header
+        # channel list does not contain its channels
+        content = build_shimmer3r_file(
+            channels=[EChannelType.VBATT],
+            samples=[[0, 1], [64, 2]],
+            sensors=[ESensorGroup.BATTERY, ESensorGroup.GYRO],
+        )
+
+        reader = ShimmerReader(io.BytesIO(content))
+        reader.load_file_data()
+
+        self.assertEqual(reader.channels, [EChannelType.VBATT])
+        np.testing.assert_equal(reader[EChannelType.VBATT], np.array([1, 2]))

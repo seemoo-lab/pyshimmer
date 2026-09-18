@@ -17,7 +17,13 @@
 from .bluetooth.bt_api import ShimmerBluetooth
 from .bluetooth.bt_commands import DataPacket
 from .dev.base import DEFAULT_BAUDRATE
-from .dev.channels import ChannelDataType, EChannelType, ESensorGroup
+from .dev.calibration import TriaxCalibSpec
+from .dev.channels import (
+    ChannelDataType,
+    EChannelType,
+    ESensorGroup,
+    PackedChannelDataType,
+)
 from .dev.exg import ExGMux, ExGRLDLead, ERLDRef, ExGRegister
 from .dev.fw_version import FirmwareType, FirmwareVersion
 from .dev.revisions import (
