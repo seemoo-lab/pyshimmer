@@ -17,7 +17,10 @@ from __future__ import annotations
 
 from serial import Serial
 
-from pyshimmer.bluetooth.bt_const import ACK_COMMAND_PROCESSED
+from pyshimmer.bluetooth.bt_const import (
+    ACK_COMMAND_PROCESSED,
+    NACK_COMMAND_PROCESSED,
+)
 from pyshimmer.serial_base import SerialBase
 from pyshimmer.util import fmt_hex, resp_code_to_bytes
 
@@ -85,6 +88,16 @@ class BluetoothSerial(SerialBase):
         r = self.read_byte()
         if r != ACK_COMMAND_PROCESSED:
             raise ValueError("Byte received is no acknowledgment")
+
+    def read_nack(self) -> None:
+        """Read and assert that the next byte in the stream is a refusal
+
+        :raises ValueError: If the byte is not a NACK
+
+        """
+        r = self.read_byte()
+        if r != NACK_COMMAND_PROCESSED:
+            raise ValueError("Byte received is no NACK")
 
     def read_response(
         self, rcode: int | bytes | tuple[int, ...], arg_format: str = None
