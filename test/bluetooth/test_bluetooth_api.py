@@ -344,7 +344,9 @@ class TestBluetoothRequestHandler:
         cmd = GetDeviceNameCommand(revision)
         _ = sot.queue_command(cmd)
 
-        mock_creator.write_to_master(b"\xff\xfe")
+        # Another command's response code. Not a byte the handler dispatches on by
+        # itself, such as 0xFE for a NACK, or the mismatch is never reached
+        mock_creator.write_to_master(b"\xff\x7d")
         sot.process_single_input_event()
 
         with pytest.raises(ValueError):
