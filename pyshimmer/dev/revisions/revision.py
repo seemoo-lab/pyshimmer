@@ -23,7 +23,13 @@ from typing import overload
 
 import numpy as np
 
-from pyshimmer.util import bit_is_set, flatten_list, unwrap
+from pyshimmer.util import (
+    bit_is_set,
+    find_invalid_timestamps,
+    flatten_list,
+    reorder_window_ticks,
+    unwrap,
+)
 from ..channels import EChannelType, ChannelDataType, ESensorGroup
 from .hw_version import HardwareVersion
 
@@ -187,8 +193,30 @@ class HardwareRevision(ABC):
         """
         pass
 
+    def find_invalid_timestamps(
+        self, timestamps: np.ndarray, period_ticks: float | None = None
+    ) -> np.ndarray:
+        """Find records whose timestamp field is invalid
+
+        A timestamp of exactly zero can mark a record the firmware never stamped
+        rather than a counter origin. Such a record has usable sensor data but no
+        usable time, and must not be read as an overflow.
+
+        Concrete rather than abstract, and defaulting to "nothing is invalid", so
+        that a subclass written against an earlier version keeps working unchanged.
+
+        :param timestamps: A 1D array of raw device timestamps
+        :param period_ticks: Device ticks between consecutive samples, if known. A
+            zero close enough to the origin to be a reordered packet is not invalid,
+            and that distinction needs the sample period.
+        :return: A boolean array of the same length, True where the record is invalid
+        """
+        return np.zeros(len(timestamps), dtype=bool)
+
     @abstractmethod
-    def unwrap_device_timestamps(self, timestamps: np.ndarray) -> np.ndarray:
+    def unwrap_device_timestamps(
+        self, timestamps: np.ndarray, period_ticks: float | None = None
+    ) -> np.ndarray:
         """Unwrap the device timestamps
 
         The timestamps recorded by the Shimmer devices have a size limitation.
@@ -196,7 +224,16 @@ class HardwareRevision(ABC):
         at zero. This function detects these wrap-arounds in the dataset and
         undoes them.
 
+        Records flagged by :meth:`find_invalid_timestamps` are not treated as
+        overflows; their own timestamps remain meaningless and the caller should
+        discard them. Neither are reordered packets, which is what the sample
+        period is for - without it a swapped pair reads as an overflow and costs a
+        whole modulo.
+
         :param timestamps: A 1D array of timestamps which need to be unwrapped
+        :param period_ticks: Device ticks between consecutive samples, if known.
+            Optional, so that an existing caller keeps working; passing it is
+            strictly better.
         :return: An unwrapped version of the 1D input array with the same length
         """
         pass
@@ -302,8 +339,27 @@ class BaseRevision(HardwareRevision):
         sensors_sorted = sorted(sensors, key=sort_key_fn)
         return sensors_sorted
 
-    def unwrap_device_timestamps(self, timestamps: np.ndarray) -> np.ndarray:
+    def _timestamp_modulo(self) -> int:
         ts_dtype = self.get_channel_dtype(EChannelType.TIMESTAMP)
-        uint_max = 2 ** (8 * ts_dtype.size)
+        return 2 ** (8 * ts_dtype.size)
 
-        return unwrap(timestamps, uint_max)
+    def find_invalid_timestamps(
+        self, timestamps: np.ndarray, period_ticks: float | None = None
+    ) -> np.ndarray:
+        uint_max = self._timestamp_modulo()
+        window = reorder_window_ticks(period_ticks, uint_max)
+
+        return find_invalid_timestamps(timestamps, uint_max, reorder_window=window)
+
+    def unwrap_device_timestamps(
+        self, timestamps: np.ndarray, period_ticks: float | None = None
+    ) -> np.ndarray:
+        uint_max = self._timestamp_modulo()
+        window = reorder_window_ticks(period_ticks, uint_max)
+
+        return unwrap(
+            timestamps,
+            uint_max,
+            invalid=self.find_invalid_timestamps(timestamps, period_ticks),
+            reorder_window=window,
+        )

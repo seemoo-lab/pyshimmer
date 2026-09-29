@@ -202,7 +202,12 @@ class ShimmerReader:
         samples, sync_offsets = self._bin_reader.read_data()
         ts_raw = samples.pop(EChannelType.TIMESTAMP)
 
-        ts_unwrapped = self.hardware_revision.unwrap_device_timestamps(ts_raw)
+        # The header divider is the tick count between samples directly, which is
+        # what sizes the reorder window. Without it a swapped pair of records reads
+        # as an overflow and costs a whole modulo.
+        ts_unwrapped = self.hardware_revision.unwrap_device_timestamps(
+            ts_raw, period_ticks=self._bin_reader.sample_rate
+        )
         ts_sane = self._apply_clock_offsets(ts_unwrapped)
 
         if self._sync and self._bin_reader.has_sync:

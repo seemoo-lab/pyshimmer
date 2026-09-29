@@ -105,6 +105,44 @@ class ShimmerReaderTest(TestCase):
         np.testing.assert_equal(reader[EChannelType.VBATT], vbatt)
         np.testing.assert_equal(reader.timestamp, reader[EChannelType.TIMESTAMP])
 
+    def test_timestamp_unwrapping_uses_the_sample_rate_for_reordering(self):
+        """A swapped pair of records must not be read as a counter overflow.
+
+        Telling the two apart needs the sample period, which only the reader knows -
+        it is the divider out of the file header. This is the test that the reader
+        actually passes it down; without it the reorder branch is disabled and the
+        recording gains 512 seconds from one out-of-order record.
+        """
+        sr = 65
+        n = 200
+        ts_dev = np.arange(0, n * sr, sr)
+
+        # Deliver two adjacent records the wrong way round.
+        ts_dev_wire = ts_dev.copy()
+        ts_dev_wire[100], ts_dev_wire[101] = ts_dev[101], ts_dev[100]
+
+        m_br = Mock(spec=ShimmerBinaryReader)
+        type(m_br).has_sync = PropertyMock(return_value=False)
+        type(m_br).enabled_sensors = PropertyMock(return_value=[])
+        type(m_br).sample_rate = PropertyMock(return_value=sr)
+        type(m_br).has_global_clock = PropertyMock(return_value=False)
+        type(m_br).start_timestamp = PropertyMock(return_value=0)
+        type(m_br).hardware_revision = RevisionRegistry.REV_SHIMMER3
+
+        samples = {EChannelType.TIMESTAMP: ts_dev_wire}
+        m_br.read_data.return_value = (samples, [])
+
+        reader = ShimmerReader(bin_reader=m_br)
+        reader.load_file_data()
+
+        # Each record lands at the time it was actually taken, so the series is not
+        # monotonic - and, the point of this, no modulo was added anywhere.
+        expected = TEST_REVISION.ticks2sec(ts_dev_wire)
+        np.testing.assert_almost_equal(reader.timestamp, expected)
+
+        span = reader.timestamp[-1] - reader.timestamp[0]
+        self.assertAlmostEqual(span, TEST_REVISION.ticks2sec((n - 1) * sr))
+
     def test_timestamp_synchronization(self):
         sr = 5
         ts = np.array([0, 5, 10, 15, 20, 25, 30, 35, 40, 45])
