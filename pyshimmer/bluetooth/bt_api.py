@@ -57,6 +57,7 @@ from pyshimmer.bluetooth.bt_const import (
     DATA_PACKET,
     FULL_STATUS_RESPONSE,
     INSTREAM_CMD_RESPONSE,
+    NACK_COMMAND_PROCESSED,
 )
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
 from pyshimmer.dev.channels import (
@@ -75,6 +76,21 @@ from pyshimmer.serial_base import ReadAbort
 from pyshimmer.util import fmt_hex, PeekQueue
 
 
+class CommandRefused(Exception):
+    """
+    Raised when the Shimmer answers a command with a NACK instead of an
+    acknowledgment: it understood the request and declined it.
+
+    A refusal is a normal part of the protocol and does not mean the connection
+    is gone. The firmware refuses every command except the SD sync command and an
+    acknowledgment while SD sync is enabled, any set command while the device is
+    sensing, a sync mode mismatch, an out-of-range InfoMem or calibration write,
+    and a handful of commands it accepts but has never implemented.
+    """
+
+    pass
+
+
 class RequestCompletion:
     """
     Returned by the Bluetooth API upon sending a request. Signals the completion of a
@@ -83,15 +99,36 @@ class RequestCompletion:
 
     def __init__(self):
         self.__event = Event()
+        self.__refused = False
 
     def set_completed(self) -> None:
+        self.__event.set()
+
+    def set_refused(self) -> None:
+        """Mark the request as refused by the device
+
+        The request is finished either way, so :meth:`has_completed` returns True,
+        but :meth:`wait` raises instead of returning.
+
+        """
+        self.__refused = True
         self.__event.set()
 
     def has_completed(self) -> bool:
         return self.__event.is_set()
 
+    def was_refused(self) -> bool:
+        return self.__refused
+
     def wait(self) -> None:
+        """Block until the device has answered the request
+
+        :raises CommandRefused: If the device refused the command
+
+        """
         self.__event.wait()
+        if self.__refused:
+            raise CommandRefused("The Shimmer refused the command")
 
 
 class RequestResponse:
@@ -103,6 +140,7 @@ class RequestResponse:
     def __init__(self):
         self.__event = Event()
         self.__r = None
+        self.__refused = False
 
     def has_result(self) -> bool:
         return self.__event.is_set()
@@ -114,8 +152,23 @@ class RequestResponse:
         self.__r = r
         self.__event.set()
 
+    def set_refused(self) -> None:
+        """Mark the request as refused, so that no result will ever arrive"""
+        self.__refused = True
+        self.__event.set()
+
+    def was_refused(self) -> bool:
+        return self.__refused
+
     def wait(self) -> any:
+        """Block until the device has answered the request
+
+        :raises CommandRefused: If the device refused the command
+
+        """
         self.__event.wait()
+        if self.__refused:
+            raise CommandRefused("The Shimmer refused the command")
         return self.get_result()
 
 
@@ -218,6 +271,18 @@ class BluetoothRequestHandler:
 
         compl_obj.set_completed()
 
+    def _process_nack(self):
+        self._serial.read_nack()
+        compl_obj, cmd_resp_pair = self._ack_queue.get_nowait()
+
+        if None not in cmd_resp_pair:
+            # A response was expected, but a refused command never produces one,
+            # so the entry is not moved on to the response queue
+            _, return_obj = cmd_resp_pair
+            return_obj.set_refused()
+
+        compl_obj.set_refused()
+
     def _process_data_packet(self):
         packet = DataPacket(self._rev, self._stream_types)
         packet.receive(self._serial)
@@ -284,6 +349,8 @@ class BluetoothRequestHandler:
 
         if peek == ACK_COMMAND_PROCESSED:
             self._process_ack()
+        elif peek == NACK_COMMAND_PROCESSED:
+            self._process_nack()
         elif peek == DATA_PACKET:
             self._process_data_packet()
         elif peek == INSTREAM_CMD_RESPONSE:

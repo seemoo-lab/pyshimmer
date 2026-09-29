@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from .bluetooth.bt_api import ShimmerBluetooth
+from .bluetooth.bt_api import ShimmerBluetooth, CommandRefused
 from .bluetooth.bt_commands import DataPacket
 from .dev.base import DEFAULT_BAUDRATE
 from .dev.channels import ChannelDataType, EChannelType, ESensorGroup

@@ -22,7 +22,11 @@ from typing import BinaryIO
 import pytest
 
 from pyshimmer import EChannelType, ChannelDataType
-from pyshimmer.bluetooth.bt_api import BluetoothRequestHandler, ShimmerBluetooth
+from pyshimmer.bluetooth.bt_api import (
+    BluetoothRequestHandler,
+    CommandRefused,
+    ShimmerBluetooth,
+)
 from pyshimmer.bluetooth.bt_commands import (
     GetDeviceNameCommand,
     SetDeviceNameCommand,
@@ -189,6 +193,65 @@ class TestBluetoothRequestHandler:
             False,
         ]
 
+    def test_enqueue_command_refused(
+        self,
+        mock_creator: PTYSerialMockCreator,
+        revision: HardwareRevision,
+        sot: BluetoothRequestHandler,
+    ):
+        cmd = GetDeviceNameCommand(revision)
+        compl, resp = sot.queue_command(cmd)
+
+        r = mock_creator.read_from_master(1)
+        assert r == b"\x7b"
+
+        # The device refuses the command instead of acknowledging it
+        mock_creator.write_to_master(b"\xfe")
+        sot.process_single_input_event()
+
+        # The request is finished, but it did not succeed, and no response for it
+        # will ever arrive
+        assert compl.has_completed() is True
+        assert compl.was_refused() is True
+        assert resp.has_result() is True
+        assert resp.was_refused() is True
+        assert resp.get_result() is None
+
+        with pytest.raises(CommandRefused):
+            compl.wait()
+        with pytest.raises(CommandRefused):
+            resp.wait()
+
+    def test_enqueue_refused_then_next_command_still_runs(
+        self,
+        mock_creator: PTYSerialMockCreator,
+        revision: HardwareRevision,
+        sot: BluetoothRequestHandler,
+    ):
+        cmd1 = GetDeviceNameCommand(revision)
+        cmd2 = GetDeviceNameCommand(revision)
+
+        compl1, resp1 = sot.queue_command(cmd1)
+        compl2, resp2 = sot.queue_command(cmd2)
+
+        r = mock_creator.read_from_master(2)
+        assert r == b"\x7b\x7b"
+
+        # The first is refused, the second acknowledged and answered
+        mock_creator.write_to_master(b"\xfe")
+        mock_creator.write_to_master(b"\xff\x7a\x05\x53\x5f\x50\x50\x47")
+
+        sot.process_single_input_event()
+        assert compl1.was_refused() is True
+
+        sot.process_single_input_event()
+        assert compl2.has_completed() is True
+        assert compl2.was_refused() is False
+
+        sot.process_single_input_event()
+        assert resp2.has_result() is True
+        assert resp2.get_result() == "S_PPG"
+
     def test_queue_command_no_resp(
         self,
         mock_creator: PTYSerialMockCreator,
@@ -281,7 +344,9 @@ class TestBluetoothRequestHandler:
         cmd = GetDeviceNameCommand(revision)
         _ = sot.queue_command(cmd)
 
-        mock_creator.write_to_master(b"\xff\xfe")
+        # Another command's response code. Not a byte the handler dispatches on by
+        # itself, such as 0xFE for a NACK, or the mismatch is never reached
+        mock_creator.write_to_master(b"\xff\x7d")
         sot.process_single_input_event()
 
         with pytest.raises(ValueError):
