@@ -37,6 +37,21 @@ TRIAL_CONFIG_MASTER = 0x02 << 8 * 0
 EXG_REG_OFFSET = 0x38
 EXG_REG_LEN = 0x0A
 
+CONFIG_SETUP_BYTE3_OFFSET = 0x0B
+# Bits 4-5 of configuration setup byte 3 hold the pressure oversampling setting
+PRESSURE_OVERSAMPLING_SHIFT = 4
+PRESSURE_OVERSAMPLING_MASK = 0x03
+
+EXP_BOARD_OFFSET = 0xD6
+EXP_BOARD_LEN = 0x03
+
+# The first 22 bytes of the pressure calibration coefficients. The BMP280 has two more
+# coefficient bytes, which are stored separately.
+PRESSURE_CALIB_OFFSET = 0xA0
+PRESSURE_CALIB_LEN = 0x16
+PRESSURE_CALIB_EXTRA_OFFSET = 0xDE
+PRESSURE_CALIB_EXTRA_LEN = 0x02
+
 # The file offsets at which the calibration parameters of the respective sensor can be
 # found
 TRIAXCAL_FILE_OFFSET = {

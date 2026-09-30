@@ -29,6 +29,7 @@ from pyshimmer.dev.channels import (
 )
 from pyshimmer.dev.exg import ExGRegister
 from pyshimmer.dev.fw_version import FirmwareType
+from pyshimmer.dev.pressure import EPressureSensor, PressureCalibration
 from pyshimmer.dev.revisions import HardwareRevision, HardwareVersion
 from pyshimmer.util import (
     bit_is_set,
@@ -454,6 +455,122 @@ class GetAllCalibrationCommand(ResponseCommand):
         ser.read_response(ALL_CALIBRATION_RESPONSE)
         reg_data = ser.read(self._rlen)
         return AllCalibration(reg_data)
+
+
+class GetPressureCalibrationCommand(ResponseCommand):
+
+    def __init__(self, rev: HardwareRevision):
+        """Retrieve the type of the pressure sensor and its calibration coefficients
+
+        The response has a variable length: a length byte, followed by the sensor id
+        and the calibration coefficients of the sensor. The number of coefficient
+        bytes depends on the sensor:
+
+            EPressureSensor.BMP180 (id 0): 22 bytes
+            EPressureSensor.BMP280 (id 1): 24 bytes
+            EPressureSensor.BMP390 (id 2): 21 bytes
+            EPressureSensor.BMP581 (id 3):  0 bytes
+
+        Older firmware versions do not support the command. For these, use
+        :class:`GetBMP180CalibrationCommand` or :class:`GetBMP280CalibrationCommand`.
+
+        :param rev: The hardware revision of the Shimmer device this command
+            will be sent to
+        """
+        super().__init__(rev, PRESSURE_CALIBRATION_RESPONSE)
+
+    def send(self, ser: BluetoothSerial) -> None:
+        ser.write_command(GET_PRESSURE_CALIBRATION_COMMAND)
+
+    def receive(self, ser: BluetoothSerial) -> PressureCalibration:
+        # Reading the full variable-length payload before validating it keeps the
+        # stream aligned even if the response is rejected
+        payload = ser.read_response(PRESSURE_CALIBRATION_RESPONSE, arg_format="varlen")
+        if len(payload) < 1:
+            raise ValueError("Pressure calibration response contains no sensor id")
+
+        sensor = EPressureSensor.from_sensor_id(payload[0])
+        coeff_bin = payload[1:]
+
+        if len(coeff_bin) != sensor.coefficient_size:
+            raise ValueError(
+                f"Pressure calibration response for the {sensor.name} contains "
+                f"{len(coeff_bin):d} coefficient bytes, expected "
+                f"{sensor.coefficient_size:d}"
+            )
+
+        return PressureCalibration(sensor, coeff_bin)
+
+
+class GetLegacyPressureCalibrationCommand(ResponseCommand):
+
+    def __init__(
+        self,
+        rev: HardwareRevision,
+        req_code: int,
+        resp_code: int,
+        sensor: EPressureSensor,
+    ):
+        """Retrieve the calibration coefficients of a specific pressure sensor
+
+        The response contains a fixed number of coefficient bytes without a length
+        byte. The Shimmer3 answers the command even if the requested sensor is not
+        fitted, but fills the coefficients with the value 0x01, see
+        :attr:`PressureCalibration.is_blank`.
+
+        :param rev: The hardware revision of the Shimmer device this command
+            will be sent to
+        :param req_code: The command code of the request
+        :param resp_code: The response code
+        :param sensor: The sensor whose coefficients are requested
+        """
+        super().__init__(rev, resp_code)
+        self._req_code = req_code
+        self._sensor = sensor
+
+    def send(self, ser: BluetoothSerial) -> None:
+        ser.write_command(self._req_code)
+
+    def receive(self, ser: BluetoothSerial) -> PressureCalibration:
+        ser.read_response(self._rcode)
+        coeff_bin = ser.read(self._sensor.coefficient_size)
+        return PressureCalibration(self._sensor, coeff_bin)
+
+
+class GetBMP180CalibrationCommand(GetLegacyPressureCalibrationCommand):
+
+    def __init__(self, rev: HardwareRevision):
+        """Retrieve the calibration coefficients of the BMP180 (22 bytes)
+
+        Only supported by the Shimmer3.
+
+        :param rev: The hardware revision of the Shimmer device this command
+            will be sent to
+        """
+        super().__init__(
+            rev,
+            GET_BMP180_CALIBRATION_COMMAND,
+            BMP180_CALIBRATION_RESPONSE,
+            EPressureSensor.BMP180,
+        )
+
+
+class GetBMP280CalibrationCommand(GetLegacyPressureCalibrationCommand):
+
+    def __init__(self, rev: HardwareRevision):
+        """Retrieve the calibration coefficients of the BMP280 (24 bytes)
+
+        Only supported by the Shimmer3.
+
+        :param rev: The hardware revision of the Shimmer device this command
+            will be sent to
+        """
+        super().__init__(
+            rev,
+            GET_BMP280_CALIBRATION_COMMAND,
+            BMP280_CALIBRATION_RESPONSE,
+            EPressureSensor.BMP280,
+        )
 
 
 class InquiryCommand(ResponseCommand):
