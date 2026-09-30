@@ -25,6 +25,11 @@ from pyshimmer.dev.channels import (
     EChannelType,
 )
 from pyshimmer.dev.exg import ExGRegister
+from pyshimmer.dev.pressure import (
+    EPressureSensor,
+    PressureCalibration,
+    get_shimmer3_pressure_sensor,
+)
 from pyshimmer.dev.revisions import RevisionRegistry, HardwareVersion, HardwareRevision
 from pyshimmer.util import FileIOBase, unpack, bit_is_set
 from .reader_const import (
@@ -44,6 +49,15 @@ from .reader_const import (
     TRIAXCAL_OFFSET_SCALING,
     TRIAXCAL_GAIN_SCALING,
     TRIAXCAL_ALIGNMENT_SCALING,
+    CONFIG_SETUP_BYTE3_OFFSET,
+    PRESSURE_OVERSAMPLING_SHIFT,
+    PRESSURE_OVERSAMPLING_MASK,
+    EXP_BOARD_OFFSET,
+    EXP_BOARD_LEN,
+    PRESSURE_CALIB_OFFSET,
+    PRESSURE_CALIB_LEN,
+    PRESSURE_CALIB_EXTRA_OFFSET,
+    PRESSURE_CALIB_EXTRA_LEN,
 )
 
 
@@ -76,6 +90,9 @@ class ShimmerBinaryReader(FileIOBase):
         self._start_ts = self._read_start_time()
         self._trial_config = self._read_trial_config()
         self._exg_regs = self._read_exg_regs()
+        self._exp_board = self._read_expansion_board()
+        self._pressure_oversampling = self._read_pressure_oversampling()
+        self._pressure_calib = self._read_pressure_calibration()
 
         self._samples_per_block, self._block_size = self._calculate_block_size()
 
@@ -190,6 +207,30 @@ class ShimmerBinaryReader(FileIOBase):
         reg2 = self._read(EXG_REG_LEN)
         return reg1, reg2
 
+    def _read_expansion_board(self) -> tuple[int, int, int]:
+        self._seek(EXP_BOARD_OFFSET)
+        board_id, board_rev, board_rev_special = self._read(EXP_BOARD_LEN)
+        return board_id, board_rev, board_rev_special
+
+    def _read_pressure_oversampling(self) -> int:
+        self._seek(CONFIG_SETUP_BYTE3_OFFSET)
+        config_byte = self._read_packed("B")
+        return (config_byte >> PRESSURE_OVERSAMPLING_SHIFT) & PRESSURE_OVERSAMPLING_MASK
+
+    def _read_pressure_calibration(self) -> PressureCalibration:
+        sensor = get_shimmer3_pressure_sensor(*self._exp_board)
+
+        self._seek(PRESSURE_CALIB_OFFSET)
+        coeff_bin = self._read(PRESSURE_CALIB_LEN)
+
+        if sensor == EPressureSensor.BMP280:
+            # The BMP280 coefficients do not fit into the space that was originally
+            # reserved for the BMP180, the remaining bytes are stored separately
+            self._seek(PRESSURE_CALIB_EXTRA_OFFSET)
+            coeff_bin += self._read(PRESSURE_CALIB_EXTRA_LEN)
+
+        return PressureCalibration(sensor, coeff_bin)
+
     def _read_triaxcal_params(
         self, offset: int
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -240,6 +281,24 @@ class ShimmerBinaryReader(FileIOBase):
     @property
     def hardware_revision(self) -> HardwareRevision:
         return self._revision
+
+    @property
+    def expansion_board(self) -> tuple[int, int, int]:
+        """The ID, revision and special revision of the expansion board"""
+        return self._exp_board
+
+    @property
+    def pressure_calibration(self) -> PressureCalibration:
+        """The pressure sensor of the device and its calibration coefficients
+
+        The sensor is determined from the expansion board of the device.
+        """
+        return self._pressure_calib
+
+    @property
+    def pressure_oversampling(self) -> int:
+        """The configured oversampling setting of the pressure sensor"""
+        return self._pressure_oversampling
 
     @property
     def sample_rate(self) -> int:

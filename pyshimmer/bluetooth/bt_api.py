@@ -51,6 +51,9 @@ from pyshimmer.bluetooth.bt_commands import (
     SetStatusAckCommand,
     AllCalibration,
     GetAllCalibrationCommand,
+    GetPressureCalibrationCommand,
+    GetBMP180CalibrationCommand,
+    GetBMP280CalibrationCommand,
 )
 from pyshimmer.bluetooth.bt_const import (
     ACK_COMMAND_PROCESSED,
@@ -71,6 +74,7 @@ from pyshimmer.dev.fw_version import (
     FirmwareVersion,
     FirmwareCapabilities,
 )
+from pyshimmer.dev.pressure import PressureCalibration
 from pyshimmer.dev.revisions import HardwareVersion, HardwareRevision, RevisionRegistry
 from pyshimmer.serial_base import ReadAbort
 from pyshimmer.util import fmt_hex, PeekQueue
@@ -717,6 +721,44 @@ class ShimmerBluetooth:
             easily processable manner
         """
         return self._process_and_wait(GetAllCalibrationCommand(self._revision))
+
+    def get_pressure_calibration(self) -> PressureCalibration:
+        """Retrieve the type of the pressure sensor and its calibration coefficients
+
+        The result converts the raw values of the pressure and temperature channels
+        to Pa and degrees Celsius, see :meth:`PressureCalibration.compensate`.
+
+        The command is supported by the Shimmer3R and by recent Shimmer3 firmware
+        versions. On a Shimmer3 whose firmware does not support it, use
+        :meth:`get_bmp180_calibration` or :meth:`get_bmp280_calibration` instead.
+
+        :raises CommandRefused: If the firmware refuses the command
+        :return: A PressureCalibration object that holds the sensor type and its
+            coefficients
+        """
+        return self._process_and_wait(GetPressureCalibrationCommand(self._revision))
+
+    def get_bmp180_calibration(self) -> PressureCalibration:
+        """Retrieve the calibration coefficients of a BMP180 pressure sensor
+
+        Only supported by the Shimmer3. If the device carries a BMP280 instead, the
+        coefficients returned are blank, see :attr:`PressureCalibration.is_blank`.
+
+        :raises CommandRefused: If the firmware refuses the command
+        :return: A PressureCalibration object for the BMP180
+        """
+        return self._process_and_wait(GetBMP180CalibrationCommand(self._revision))
+
+    def get_bmp280_calibration(self) -> PressureCalibration:
+        """Retrieve the calibration coefficients of a BMP280 pressure sensor
+
+        Only supported by the Shimmer3. If the device carries a BMP180 instead, the
+        coefficients returned are blank, see :attr:`PressureCalibration.is_blank`.
+
+        :raises CommandRefused: If the firmware refuses the command
+        :return: A PressureCalibration object for the BMP280
+        """
+        return self._process_and_wait(GetBMP280CalibrationCommand(self._revision))
 
     def set_exg_register(self, chip_id: int, offset: int, data: bytes) -> None:
         """Configure part of the memory of the ExG registers
