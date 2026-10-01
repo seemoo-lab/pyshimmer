@@ -360,8 +360,11 @@ measurement circuit alongside the ADC reading:
     resistance = reader[EChannelType.GSR_RESISTANCE]   # kOhm
     conductance = reader[EChannelType.GSR_CONDUCTANCE]  # microsiemens
 
-**Note**: A GSR reading below the reference voltage of the amplifier means that the electrodes are open. It is reported
-as a resistance of about 4.5 GOhm, a conductance close to zero, whichever range it was taken on.
+**Note**: The GSR channels are converted according to the range setting that the device stored in the file header,
+see :code:`ShimmerBinaryReader.gsr_range`. If the device was configured for a fixed range, the resistance is limited to
+the bounds of that range. A GSR reading below the reference voltage of the amplifier means that the electrodes are
+open. In auto range, it is reported as a resistance of about 4.5 GOhm, a conductance close to zero, whichever range it
+was taken on.
 
 **Note**: The triaxial sensors are calibrated with the parameters that the device stores in the file header. If a
 device did not store any for a sensor, the channels of that sensor are returned uncalibrated. Check

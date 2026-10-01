@@ -39,9 +39,10 @@ The project uses semantic versioning.
   and adds the range, the skin resistance in kOhm, and the skin conductance in
   microsiemens as derived channels, see `ShimmerReader.derived_channels`. A
   reading below the reference voltage of the amplifier means that the electrodes
-  are open, and reads as about 4.5 GOhm on every range. `calibrate_gsr` takes the
-  configured range as an optional argument. The reader does not read it from the
-  file header yet and assumes auto range.
+  are open, and reads as about 4.5 GOhm on every range. The conversion follows
+  the range setting that the device stored in the file header, see
+  `ShimmerBinaryReader.gsr_range`. On a fixed range, the resistance is clamped to
+  the limits of that range.
 
 ### Changed
 - Binary files recorded by a Shimmer3R store the set and order of their data

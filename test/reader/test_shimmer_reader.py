@@ -619,6 +619,29 @@ class Shimmer3RReaderTest(TestCase):
             atol=1e-9,
         )
 
+    def test_gsr_fixed_range_from_header(self):
+        # The second reading carries the range bits of range 1, but the device was
+        # configured for a fixed range of 0
+        content = build_shimmer3r_file(
+            channels=[EChannelType.GSR_RAW],
+            samples=[[0, 2054], [64, (1 << 14) | 804]],
+            sensors=[ESensorGroup.GSR],
+            gsr_range=0,
+        )
+
+        reader = ShimmerReader(io.BytesIO(content))
+        reader.load_file_data()
+
+        # Both readings are converted on the configured range, and the second one
+        # lies above its upper limit of 63 kOhm
+        np.testing.assert_equal(reader[EChannelType.GSR_RANGE], np.array([0, 0]))
+        np.testing.assert_allclose(
+            reader[EChannelType.GSR_RESISTANCE],
+            np.array([20.004739336492873, 63.0]),
+            rtol=0,
+            atol=1e-9,
+        )
+
     def test_no_derived_channels_without_post_processing(self):
         content = build_shimmer3r_file(
             channels=[EChannelType.GSR_RAW],

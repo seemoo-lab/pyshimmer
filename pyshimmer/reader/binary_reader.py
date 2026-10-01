@@ -54,6 +54,7 @@ from .reader_const import (
     EXP_BOARD_OFFSET,
     EXP_BOARD_LEN,
     PRESSURE_RESOLUTION_OFFSET,
+    GSR_RANGE_OFFSET,
     EXG_REG_OFFSET,
     EXG_REG_LEN,
     TRIAXCAL_FMT,
@@ -106,6 +107,7 @@ class ShimmerBinaryReader(FileIOBase):
             self._exp_board, self._fw_type, self._fw_version
         )
         self._pressure_calib = self._read_pressure_calib()
+        self._gsr_range = self._read_gsr_range()
 
         if self.has_sync and not self._revision.is_sd_sync_supported:
             raise NotImplementedError(
@@ -145,6 +147,10 @@ class ShimmerBinaryReader(FileIOBase):
     def _read_pressure_resolution(self) -> int:
         self._seek(PRESSURE_RESOLUTION_OFFSET)
         return (self._read_packed("B") >> 4) & 0x03
+
+    def _read_gsr_range(self) -> int:
+        self._seek(GSR_RANGE_OFFSET)
+        return (self._read_packed("B") >> 1) & 0x07
 
     def _read_pressure_calib(self) -> PressureCalibration | None:
         """Read the calibration parameters of the pressure sensor
@@ -397,6 +403,15 @@ class ShimmerBinaryReader(FileIOBase):
             calibration parameters
         """
         return self._pressure_calib
+
+    @property
+    def gsr_range(self) -> int:
+        """The range setting of the GSR circuit
+
+        :return: 0 to 3 if the device measured on a fixed range, or GSR_RANGE_AUTO if
+            it selected the range for each sample itself
+        """
+        return self._gsr_range
 
     @property
     def sample_rate(self) -> int:

@@ -121,7 +121,8 @@ class GSRProcessor(ChannelPostProcessor):
     The raw channel encodes the active range of the GSR circuit alongside the ADC
     reading. This processor leaves the raw channel untouched and adds the active
     range, the skin resistance in kOhm, and the skin conductance in microsiemens as
-    derived channels.
+    derived channels. The conversion follows the range setting that the device stored
+    in the file header.
     """
 
     def process(
@@ -131,7 +132,7 @@ class GSRProcessor(ChannelPostProcessor):
             return channels
 
         gsr_range, resistance, conductance = calibrate_gsr(
-            channels[EChannelType.GSR_RAW]
+            channels[EChannelType.GSR_RAW], range_setting=reader.gsr_range
         )
 
         result = channels.copy()

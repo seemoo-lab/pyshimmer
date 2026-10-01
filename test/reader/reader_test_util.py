@@ -25,6 +25,7 @@ import pandas as pd
 
 from pyshimmer.dev.channels import EChannelType, ESensorGroup
 from pyshimmer.dev.fw_version import FirmwareType
+from pyshimmer.dev.gsr import GSR_RANGE_AUTO
 from pyshimmer.dev.pressure import EPressureSensor
 from pyshimmer.dev.revisions import RevisionRegistry, HardwareVersion
 
@@ -110,6 +111,7 @@ def build_shimmer3r_file(
     pressure_calib: bytes = None,
     exp_board: tuple[int, int, int] = (0, 0, 0),
     firmware: tuple[int, int, int, int] = (3, 1, 1, 14),
+    gsr_range: int = GSR_RANGE_AUTO,
 ) -> bytes:
     """Assemble a synthetic Shimmer3R binary file
 
@@ -133,6 +135,7 @@ def build_shimmer3r_file(
     :param pressure_calib: The calibration block of the pressure sensor
     :param exp_board: The expansion board id, revision, and special revision
     :param firmware: The firmware id, major, minor, and internal version
+    :param gsr_range: The range setting of the GSR circuit
     :return: The binary content of the file
     """
     revision = RevisionRegistry.get_revision(HardwareVersion.SHIMMER3R)
@@ -144,6 +147,8 @@ def build_shimmer3r_file(
     header[0x03 : 0x03 + revision.sensorlist_size] = revision.serialize_sensorlist(
         sensors
     )
+
+    header[0x0B] = gsr_range << 1
 
     trial_config = 0x04 * sync | 0x02 * master
     header[0x10:0x12] = struct.pack("<H", trial_config)
@@ -205,6 +210,7 @@ class ConsensysFixture:
     :param fw_version: The expected firmware version as (major, minor, rel)
     :param exp_board: The expected expansion board as (id, rev, rev_special)
     :param pressure_sensor: The expected pressure sensor of the recording device
+    :param gsr_range: The expected range setting of the GSR circuit
     :param num_samples: The expected number of samples in the recording
     :param sample_rate: The expected sample rate in Hz
     :param channels: The expected data channels in the order of the file
@@ -221,6 +227,7 @@ class ConsensysFixture:
     fw_version: tuple[int, int, int]
     exp_board: tuple[int, int, int]
     pressure_sensor: EPressureSensor
+    gsr_range: int
     num_samples: int
     sample_rate: float
     channels: tuple[EChannelType, ...]
@@ -267,6 +274,7 @@ FIXTURE_SHIMMER3R_BMP390_GSR = ConsensysFixture(
     fw_version=(1, 1, 14),
     exp_board=(48, 8, 1),
     pressure_sensor=EPressureSensor.BMP390,
+    gsr_range=GSR_RANGE_AUTO,
     num_samples=2923,
     sample_rate=51.2,
     # The file header lists pressure before temperature, which matches neither the
@@ -309,6 +317,7 @@ FIXTURE_SHIMMER3R_EXG_24BIT = ConsensysFixture(
     fw_version=(1, 1, 15),
     exp_board=(47, 8, 1),
     pressure_sensor=EPressureSensor.BMP390,
+    gsr_range=GSR_RANGE_AUTO,
     num_samples=2533,
     sample_rate=51.2,
     channels=(
@@ -349,6 +358,7 @@ FIXTURE_SHIMMER3_GSR_PPG = ConsensysFixture(
     exp_board=(48, 4, 2),
     # The board revision is new enough for the second generation of IMU sensors
     pressure_sensor=EPressureSensor.BMP280,
+    gsr_range=GSR_RANGE_AUTO,
     num_samples=4527,
     sample_rate=51.2,
     channels=(

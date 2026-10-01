@@ -27,6 +27,7 @@ from pyshimmer import (
     RevisionRegistry,
     ESensorGroup,
 )
+from pyshimmer.dev.gsr import GSR_RANGE_AUTO
 from pyshimmer.reader.shimmer_reader import ShimmerBinaryReader
 from .reader_test_util import (
     build_shimmer3r_file,
@@ -364,6 +365,16 @@ class Shimmer3RBinaryReaderTest(TestCase):
         self.assertFalse(reader.has_triaxcal_params(ESensorGroup.MAG_WR))
         # No block was written for the gyroscope, so its block consists of zeros
         self.assertFalse(reader.has_triaxcal_params(ESensorGroup.GYRO))
+
+    def test_gsr_range(self):
+        for gsr_range in (0, 1, 2, 3, GSR_RANGE_AUTO):
+            with self.subTest(gsr_range=gsr_range):
+                content = build_shimmer3r_file(
+                    channels=[EChannelType.VBATT], samples=[], gsr_range=gsr_range
+                )
+                reader = self._open(content)
+
+                self.assertEqual(reader.gsr_range, gsr_range)
 
     def test_invalid_channel_count_is_rejected(self):
         content = bytearray(

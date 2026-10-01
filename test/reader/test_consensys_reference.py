@@ -86,6 +86,8 @@ class TestConsensysReference:
         # expansion board, and the firmware version
         assert bin_reader.pressure_sensor == case.pressure_sensor
 
+        assert bin_reader.gsr_range == case.gsr_range
+
     def test_channel_layout(
         self, case: ConsensysFixture, bin_reader: ShimmerBinaryReader
     ):

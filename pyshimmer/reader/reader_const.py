@@ -43,6 +43,10 @@ EXP_BOARD_LEN = 0x03
 # The oversampling setting of the pressure sensor, stored in bits 4 and 5
 PRESSURE_RESOLUTION_OFFSET = 0x0B
 
+# The range setting of the GSR circuit, stored in bits 1 to 3 of the same byte: 0 to 3
+# for a fixed range, 4 for auto range
+GSR_RANGE_OFFSET = 0x0B
+
 BLOCK_LEN = 0x200
 
 TRIAL_CONFIG_SYNC = 0x04 << 8 * 0
