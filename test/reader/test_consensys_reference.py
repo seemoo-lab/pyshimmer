@@ -79,12 +79,11 @@ class TestConsensysReference:
         fw = bin_reader.firmware_version
         assert (fw.major, fw.minor, fw.rel) == case.fw_version
 
-        board = bin_reader.expansion_board
-        assert (board.board_id, board.rev, board.rev_special) == case.exp_board
+        assert bin_reader.expansion_board == case.exp_board
 
         # The pressure sensor model follows from the hardware revision, the
         # expansion board, and the firmware version
-        assert bin_reader.pressure_sensor == case.pressure_sensor
+        assert bin_reader.pressure_calibration.sensor == case.pressure_sensor
 
         assert bin_reader.gsr_range == case.gsr_range
 

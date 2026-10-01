@@ -302,7 +302,8 @@ FIXTURE_SHIMMER3R_BMP390_GSR = ConsensysFixture(
         "GSR_Skin_Resistance_CAL": (EChannelType.GSR_RESISTANCE, 1.0),
         # The reference export reports the PPG channel in mV, we report it in V
         "PPG_A1_CAL": (EChannelType.INTERNAL_ADC_A1, 1000.0),
-        "BMP390_Pressure_CAL": (EChannelType.PRESSURE, 1.0),
+        # The reference export reports the pressure in kPa, we report it in Pa
+        "BMP390_Pressure_CAL": (EChannelType.PRESSURE, 1e-3),
         "BMP390_Temperature_CAL": (EChannelType.TEMPERATURE, 1.0),
     },
 )

@@ -36,17 +36,6 @@ HW_VERSION_OFFSET = 0x1E
 FW_TYPE_OFFSET = 0x22
 FW_VERSION_OFFSET = 0x24
 
-# The expansion board id, revision, and special revision
-EXP_BOARD_OFFSET = 0xD6
-EXP_BOARD_LEN = 0x03
-
-# The oversampling setting of the pressure sensor, stored in bits 4 and 5
-PRESSURE_RESOLUTION_OFFSET = 0x0B
-
-# The range setting of the GSR circuit, stored in bits 1 to 3 of the same byte: 0 to 3
-# for a fixed range, 4 for auto range
-GSR_RANGE_OFFSET = 0x0B
-
 BLOCK_LEN = 0x200
 
 TRIAL_CONFIG_SYNC = 0x04 << 8 * 0
@@ -59,6 +48,25 @@ EXG_REG_LEN = 0x0A
 # signed big-endian 16bit integers, followed by the nine alignment matrix entries as
 # signed bytes
 TRIAXCAL_FMT = ">" + 6 * "h" + 9 * "b"
+
+CONFIG_SETUP_BYTE3_OFFSET = 0x0B
+# Bits 4-5 of configuration setup byte 3 hold the pressure oversampling setting
+PRESSURE_OVERSAMPLING_SHIFT = 4
+PRESSURE_OVERSAMPLING_MASK = 0x03
+# Bits 1-3 of configuration setup byte 3 hold the range setting of the GSR circuit:
+# 0 to 3 for a fixed range, 4 for auto range
+GSR_RANGE_SHIFT = 1
+GSR_RANGE_MASK = 0x07
+
+EXP_BOARD_OFFSET = 0xD6
+EXP_BOARD_LEN = 0x03
+
+# The first 22 bytes of the pressure calibration coefficients. The BMP280 has two more
+# coefficient bytes, which are stored separately.
+PRESSURE_CALIB_OFFSET = 0xA0
+PRESSURE_CALIB_LEN = 0x16
+PRESSURE_CALIB_EXTRA_OFFSET = 0xDE
+PRESSURE_CALIB_EXTRA_LEN = 0x02
 
 EXG_ADC_OFFSET = 0.0
 EXG_ADC_REF_VOLT = 2.42  # Volts

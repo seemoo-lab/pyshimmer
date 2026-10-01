@@ -228,11 +228,11 @@ class EChannelType(Enum):
     # Chips: MPU9150
     MAG_WR_Z = (0x19, True)
 
-    # Temperature
-    # Chips: BMPX80
+    # Temperature of the pressure sensor, see pyshimmer.dev.pressure
+    # Chips: BMP180, BMP280 (Shimmer3), BMP390, BMP581 (Shimmer3R)
     TEMPERATURE = (0x1A, True)
-    # Pressure
-    # Chips: BMPX80
+    # Pressure, see pyshimmer.dev.pressure
+    # Chips: BMP180, BMP280 (Shimmer3), BMP390, BMP581 (Shimmer3R)
     PRESSURE = (0x1B, True)
 
     # Galvanic Skin Response Raw Data
@@ -388,7 +388,8 @@ class ESensorGroup(Enum):
     # Temperature sensor on the MPU9150 chip, not yet available as channel in the
     # LogAndStream firmware
     TEMP = auto()
-    # Pressure sensor on the BMPX80 chip
+    # Pressure and temperature sensor: BMP180 or BMP280 on the Shimmer3, BMP390 or
+    # BMP581 on the Shimmer3R
     PRESSURE = auto()
     # 24 bit channels of the first ADS1292R chip, conflicts with the corresponding
     # 16 bit channel

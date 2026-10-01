@@ -66,8 +66,3 @@ class EExpansionBoard(IntEnum):
     # Written into the file header by firmware that does not record the expansion
     # board details
     LOG_FILE = 255
-
-
-# A special revision of this value marks any expansion board that is attached to a
-# device with the newer set of IMU sensors
-EXP_BOARD_NEW_IMU_SPECIAL_REV = 171

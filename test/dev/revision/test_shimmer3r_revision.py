@@ -208,13 +208,3 @@ class TestShimmer3RRevision:
             )
             == EPressureSensor.BMP390
         )
-
-    def test_pressure_calib_blocks(self, revision: Shimmer3RRevision):
-        assert revision.get_pressure_calib_blocks(EPressureSensor.BMP390) == [
-            (0xA0, 21)
-        ]
-        # The BMP581 compensates on the chip and stores no parameters
-        assert revision.get_pressure_calib_blocks(EPressureSensor.BMP581) == []
-
-        with pytest.raises(ValueError):
-            revision.get_pressure_calib_blocks(EPressureSensor.BMP280)

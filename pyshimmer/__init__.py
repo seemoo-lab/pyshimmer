@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from .bluetooth.bt_api import ShimmerBluetooth
+from .bluetooth.bt_api import ShimmerBluetooth, CommandRefused
 from .bluetooth.bt_commands import DataPacket
 from .dev.base import DEFAULT_BAUDRATE, EExpansionBoard, ExpansionBoard
 from .dev.calibration import TriaxCalibSpec
@@ -27,14 +27,7 @@ from .dev.channels import (
 from .dev.exg import ExGMux, ExGRLDLead, ERLDRef, ExGRegister
 from .dev.gsr import calibrate_gsr, split_gsr_raw
 from .dev.fw_version import FirmwareType, FirmwareVersion
-from .dev.pressure import (
-    BMP180Calibration,
-    BMP280Calibration,
-    BMP390Calibration,
-    BMP581Calibration,
-    EPressureSensor,
-    PressureCalibration,
-)
+from .dev.pressure import EPressureSensor, PressureCalibration
 from .dev.revisions import (
     HardwareRevision,
     Shimmer3Revision,

@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from __future__ import annotations
 
+import warnings
 from abc import ABC, abstractmethod
 from typing import BinaryIO
 
@@ -23,6 +24,7 @@ import numpy as np
 from pyshimmer.dev.channels import EChannelType
 from pyshimmer.dev.exg import is_exg_ch, get_exg_ch, ExGRegister
 from pyshimmer.dev.gsr import calibrate_gsr
+from pyshimmer.dev.pressure import PressureCalibration
 from pyshimmer.dev.revisions import HardwareRevision, HardwareVersion
 from pyshimmer.reader.binary_reader import ShimmerBinaryReader
 from pyshimmer.reader.reader_const import (
@@ -143,39 +145,6 @@ class GSRProcessor(ChannelPostProcessor):
         return result
 
 
-class PressureProcessor(ChannelPostProcessor):
-    """Compensates the barometric pressure and temperature channels
-
-    The pressure sensors report two uncompensated ADC readings which must be combined
-    with the calibration parameters of the device to obtain a pressure in kPa and a
-    temperature in degrees Celsius. If the device did not store any calibration
-    parameters, both channels are left untouched.
-    """
-
-    def process(
-        self, channels: dict[EChannelType, np.ndarray], reader: ShimmerBinaryReader
-    ) -> dict[EChannelType, np.ndarray]:
-        pressure_channels = [EChannelType.PRESSURE, EChannelType.TEMPERATURE]
-        if not all(c in channels for c in pressure_channels):
-            return channels
-
-        calib = reader.pressure_calibration
-        if calib is None:
-            # The device did not store calibration parameters, so the raw readings
-            # cannot be converted into physical units
-            return channels
-
-        pressure, temperature = calib.calibrate(
-            channels[EChannelType.PRESSURE], channels[EChannelType.TEMPERATURE]
-        )
-
-        result = channels.copy()
-        result[EChannelType.PRESSURE] = pressure
-        result[EChannelType.TEMPERATURE] = temperature
-
-        return result
-
-
 class TriAxCalProcessor(ChannelPostProcessor):
 
     def process(
@@ -207,6 +176,40 @@ class TriAxCalProcessor(ChannelPostProcessor):
             for i, ch in enumerate(sensor_channels):
                 result[ch] = r[i]
 
+        return result
+
+
+class PressureProcessor(ChannelPostProcessor):
+    """Convert the pressure and temperature channels to Pa and degrees Celsius
+
+    The calibration coefficients are taken from the file header. If the header holds
+    no coefficients, the channels are left unchanged and a warning is issued.
+    """
+
+    def process(
+        self, channels: dict[EChannelType, np.ndarray], reader: ShimmerBinaryReader
+    ) -> dict[EChannelType, np.ndarray]:
+        pressure_channels = (EChannelType.PRESSURE, EChannelType.TEMPERATURE)
+        if not all(ch in channels for ch in pressure_channels):
+            return channels
+
+        calib = reader.pressure_calibration
+        if calib.is_blank:
+            warnings.warn(
+                "The file header contains no pressure calibration coefficients, "
+                "the pressure and temperature channels remain uncalibrated"
+            )
+            return channels
+
+        pressure, temperature = calib.compensate(
+            channels[EChannelType.PRESSURE],
+            channels[EChannelType.TEMPERATURE],
+            reader.pressure_oversampling,
+        )
+
+        result = channels.copy()
+        result[EChannelType.PRESSURE] = pressure
+        result[EChannelType.TEMPERATURE] = temperature
         return result
 
 
@@ -310,6 +313,10 @@ class ShimmerReader:
     @property
     def hardware_revision(self) -> HardwareRevision:
         return self._bin_reader.hardware_revision
+
+    @property
+    def pressure_calibration(self) -> PressureCalibration:
+        return self._bin_reader.pressure_calibration
 
     @property
     def timestamp(self) -> np.ndarray:

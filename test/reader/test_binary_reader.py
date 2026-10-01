@@ -22,15 +22,14 @@ from unittest import TestCase
 import numpy as np
 
 from pyshimmer import (
-    BMP180Calibration,
     EChannelType,
-    EPressureSensor,
     ExGRegister,
     HardwareVersion,
     RevisionRegistry,
     ESensorGroup,
 )
 from pyshimmer.dev.gsr import GSR_RANGE_AUTO
+from pyshimmer.dev.pressure import Bmp280Coefficients, EPressureSensor
 from pyshimmer.reader.shimmer_reader import ShimmerBinaryReader
 from .reader_test_util import (
     build_shimmer3r_file,
@@ -144,6 +143,50 @@ class ShimmerReaderTest(TestCase):
             correct_diff = np.sum(ts_diff == exp_dr)
             self.assertTrue(correct_diff / len(ts_diff) > 0.98)
 
+    def test_pressure_calibration(self):
+        fpath = get_binary_sample_fpath()
+        with open(fpath, "rb") as f:
+            reader = ShimmerBinaryReader(f)
+
+            # A GSR+ board of revision 3 carries a BMP280
+            self.assertEqual(reader.expansion_board, (48, 3, 0))
+            self.assertEqual(reader.pressure_oversampling, 0)
+
+            calib = reader.pressure_calibration
+            self.assertEqual(calib.sensor, EPressureSensor.BMP280)
+            self.assertEqual(
+                calib.binary,
+                bytes.fromhex("036ddd653200cb92e4d6d00b1d1f64fff9ff8c3cf8c67017"),
+            )
+            self.assertFalse(calib.is_blank)
+            self.assertEqual(
+                calib.coefficients,
+                Bmp280Coefficients(
+                    dig_t1=27907,
+                    dig_t2=26077,
+                    dig_t3=50,
+                    dig_p1=37579,
+                    dig_p2=-10524,
+                    dig_p3=3024,
+                    dig_p4=7965,
+                    dig_p5=-156,
+                    dig_p6=-7,
+                    dig_p7=15500,
+                    dig_p8=-14600,
+                    dig_p9=6000,
+                ),
+            )
+
+    def test_pressure_calibration_blank(self):
+        fpath, _ = get_synced_bin_vs_consensys_pair_fpath()
+        with open(fpath, "rb") as f:
+            reader = ShimmerBinaryReader(f)
+
+            # The file was recorded by a firmware that does not store the pressure
+            # calibration coefficients
+            self.assertEqual(reader.pressure_calibration.sensor, EPressureSensor.BMP280)
+            self.assertTrue(reader.pressure_calibration.is_blank)
+
     def test_ecg_registers(self):
         fpath, _, _ = get_ecg_sample()
         with open(fpath, "rb") as f:
@@ -211,18 +254,21 @@ class ShimmerReaderTest(TestCase):
         reader = ShimmerBinaryReader(io.BytesIO(bytes(content)))
         calib = reader.pressure_calibration
 
-        self.assertEqual(reader.pressure_sensor, EPressureSensor.BMP180)
-        self.assertIsInstance(calib, BMP180Calibration)
-        self.assertEqual(calib.oversampling, 2)
+        self.assertEqual(calib.sensor, EPressureSensor.BMP180)
+        self.assertFalse(calib.is_blank)
+        self.assertEqual(reader.pressure_oversampling, 2)
+
+        coeff = calib.coefficients
         self.assertEqual(
-            (calib.ac1, calib.ac4, calib.b1, calib.md), (408, 32741, 6190, 2868)
+            (coeff.ac1, coeff.ac4, coeff.b1, coeff.md), (408, 32741, 6190, 2868)
         )
 
-        pressure, temperature = calib.calibrate(
-            np.array([23843 << 8]), np.array([27898])
+        # The pressure register of the worked example holds 23843 in its upper bits
+        pressure, temperature = calib.compensate(
+            23843 << 8, 27898, reader.pressure_oversampling
         )
-        self.assertAlmostEqual(pressure[0], 69.964, delta=0.05)
-        self.assertAlmostEqual(temperature[0], 15.0, delta=0.1)
+        self.assertAlmostEqual(pressure, 69964, delta=50)
+        self.assertAlmostEqual(temperature, 15.0, delta=0.1)
 
 
 class Shimmer3RBinaryReaderTest(TestCase):

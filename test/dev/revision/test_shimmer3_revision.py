@@ -289,16 +289,3 @@ class TestShimmer3Revision:
                 board, FirmwareType.LogAndStream, FirmwareVersion(0, 15, 4)
             )
             assert sensor == EPressureSensor.BMP280, board
-
-    def test_pressure_calib_blocks(self, revision: Shimmer3Revision):
-        # The BMP280 stores two additional bytes apart from the main block
-        assert revision.get_pressure_calib_blocks(EPressureSensor.BMP180) == [
-            (0xA0, 22)
-        ]
-        assert revision.get_pressure_calib_blocks(EPressureSensor.BMP280) == [
-            (0xA0, 22),
-            (0xDE, 2),
-        ]
-
-        with pytest.raises(ValueError):
-            revision.get_pressure_calib_blocks(EPressureSensor.BMP390)

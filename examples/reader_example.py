@@ -47,12 +47,12 @@ def main(args=None):
         print(f"Synchronized trial: {bin_reader.has_sync}")
 
         if ESensorGroup.PRESSURE in bin_reader.enabled_sensors:
-            # The pressure channels are only reported in kPa and degrees Celsius if
-            # the device stored the calibration parameters of its pressure sensor
-            has_calib = bin_reader.pressure_calibration is not None
+            # The pressure channels are only reported in Pa and degrees Celsius if
+            # the device stored the calibration coefficients of its pressure sensor
+            calib = bin_reader.pressure_calibration
             print(
-                f"Pressure sensor: {bin_reader.pressure_sensor.name}, "
-                f"calibrated: {has_calib}"
+                f"Pressure sensor: {calib.sensor.name}, "
+                f"calibrated: {not calib.is_blank}"
             )
         print()
 

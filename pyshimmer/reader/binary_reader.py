@@ -28,14 +28,7 @@ from pyshimmer.dev.channels import (
 )
 from pyshimmer.dev.exg import ExGRegister
 from pyshimmer.dev.fw_version import FirmwareType, FirmwareVersion
-from pyshimmer.dev.pressure import (
-    BMP180Calibration,
-    BMP280Calibration,
-    BMP390Calibration,
-    BMP581Calibration,
-    EPressureSensor,
-    PressureCalibration,
-)
+from pyshimmer.dev.pressure import EPressureSensor, PressureCalibration
 from pyshimmer.dev.revisions import RevisionRegistry, HardwareVersion, HardwareRevision
 from pyshimmer.util import FileIOBase, unpack, bit_is_set
 from .reader_const import (
@@ -51,13 +44,20 @@ from .reader_const import (
     HW_VERSION_OFFSET,
     FW_TYPE_OFFSET,
     FW_VERSION_OFFSET,
-    EXP_BOARD_OFFSET,
-    EXP_BOARD_LEN,
-    PRESSURE_RESOLUTION_OFFSET,
-    GSR_RANGE_OFFSET,
     EXG_REG_OFFSET,
     EXG_REG_LEN,
     TRIAXCAL_FMT,
+    CONFIG_SETUP_BYTE3_OFFSET,
+    PRESSURE_OVERSAMPLING_SHIFT,
+    PRESSURE_OVERSAMPLING_MASK,
+    GSR_RANGE_SHIFT,
+    GSR_RANGE_MASK,
+    EXP_BOARD_OFFSET,
+    EXP_BOARD_LEN,
+    PRESSURE_CALIB_OFFSET,
+    PRESSURE_CALIB_LEN,
+    PRESSURE_CALIB_EXTRA_OFFSET,
+    PRESSURE_CALIB_EXTRA_LEN,
 )
 
 
@@ -103,10 +103,8 @@ class ShimmerBinaryReader(FileIOBase):
         self._exg_regs = self._read_exg_regs()
         self._fw_type, self._fw_version = self._read_firmware_version()
         self._exp_board = self._read_expansion_board()
-        self._pressure_sensor = self._revision.get_pressure_sensor(
-            self._exp_board, self._fw_type, self._fw_version
-        )
-        self._pressure_calib = self._read_pressure_calib()
+        self._pressure_oversampling = self._read_pressure_oversampling()
+        self._pressure_calib = self._read_pressure_calibration()
         self._gsr_range = self._read_gsr_range()
 
         if self.has_sync and not self._revision.is_sd_sync_supported:
@@ -138,46 +136,10 @@ class ShimmerBinaryReader(FileIOBase):
 
         return fw_type, FirmwareVersion(major=major, minor=minor, rel=rel)
 
-    def _read_expansion_board(self) -> ExpansionBoard:
-        self._seek(EXP_BOARD_OFFSET)
-        board_id, rev, rev_special = self._read(EXP_BOARD_LEN)
-
-        return ExpansionBoard(board_id=board_id, rev=rev, rev_special=rev_special)
-
-    def _read_pressure_resolution(self) -> int:
-        self._seek(PRESSURE_RESOLUTION_OFFSET)
-        return (self._read_packed("B") >> 4) & 0x03
-
     def _read_gsr_range(self) -> int:
-        self._seek(GSR_RANGE_OFFSET)
-        return (self._read_packed("B") >> 1) & 0x07
-
-    def _read_pressure_calib(self) -> PressureCalibration | None:
-        """Read the calibration parameters of the pressure sensor
-
-        :return: The calibration of the pressure sensor, or None if the device did
-            not store any parameters
-        """
-        if self._pressure_sensor == EPressureSensor.BMP581:
-            # The BMP581 compensates its readings on the chip
-            return BMP581Calibration()
-
-        blocks = self._revision.get_pressure_calib_blocks(self._pressure_sensor)
-
-        block = b""
-        for offset, length in blocks:
-            self._seek(offset)
-            block += self._read(length)
-
-        if not has_calib_params(block):
-            return None
-
-        if self._pressure_sensor == EPressureSensor.BMP180:
-            return BMP180Calibration(block, self._read_pressure_resolution())
-        if self._pressure_sensor == EPressureSensor.BMP280:
-            return BMP280Calibration(block)
-
-        return BMP390Calibration(block)
+        self._seek(CONFIG_SETUP_BYTE3_OFFSET)
+        config_byte = self._read_packed("B")
+        return (config_byte >> GSR_RANGE_SHIFT) & GSR_RANGE_MASK
 
     def _read_sample_rate(self) -> int:
         self._seek(SR_OFFSET)
@@ -312,6 +274,36 @@ class ShimmerBinaryReader(FileIOBase):
         reg2 = self._read(EXG_REG_LEN)
         return reg1, reg2
 
+    def _read_expansion_board(self) -> tuple[int, int, int]:
+        self._seek(EXP_BOARD_OFFSET)
+        board_id, board_rev, board_rev_special = self._read(EXP_BOARD_LEN)
+        return board_id, board_rev, board_rev_special
+
+    def _read_pressure_oversampling(self) -> int:
+        self._seek(CONFIG_SETUP_BYTE3_OFFSET)
+        config_byte = self._read_packed("B")
+        return (config_byte >> PRESSURE_OVERSAMPLING_SHIFT) & PRESSURE_OVERSAMPLING_MASK
+
+    def _read_pressure_calibration(self) -> PressureCalibration:
+        # The sensor follows from the expansion board, and on the Shimmer3R also from
+        # the firmware version
+        sensor = self._revision.get_pressure_sensor(
+            ExpansionBoard(*self._exp_board), self._fw_type, self._fw_version
+        )
+
+        # The coefficients start at the same offset for every sensor. The BMP390
+        # uses 21 of the 22 bytes, the BMP581 needs no coefficients at all.
+        self._seek(PRESSURE_CALIB_OFFSET)
+        coeff_bin = self._read(min(sensor.coefficient_size, PRESSURE_CALIB_LEN))
+
+        if sensor == EPressureSensor.BMP280:
+            # The BMP280 coefficients do not fit into the space that was originally
+            # reserved for the BMP180, the remaining bytes are stored separately
+            self._seek(PRESSURE_CALIB_EXTRA_OFFSET)
+            coeff_bin += self._read(PRESSURE_CALIB_EXTRA_LEN)
+
+        return PressureCalibration(sensor, coeff_bin)
+
     def _read_triaxcal_params(
         self, offset: int
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -387,22 +379,23 @@ class ShimmerBinaryReader(FileIOBase):
         return self._fw_version
 
     @property
-    def expansion_board(self) -> ExpansionBoard:
+    def expansion_board(self) -> tuple[int, int, int]:
+        """The ID, revision and special revision of the expansion board"""
         return self._exp_board
 
     @property
-    def pressure_sensor(self) -> EPressureSensor:
-        """The pressure sensor model that is fitted to the recording device"""
-        return self._pressure_sensor
+    def pressure_calibration(self) -> PressureCalibration:
+        """The pressure sensor of the device and its calibration coefficients
 
-    @property
-    def pressure_calibration(self) -> PressureCalibration | None:
-        """The calibration of the pressure sensor
-
-        :return: The calibration, or None if the device did not store any
-            calibration parameters
+        The sensor is determined from the expansion board of the device, and on the
+        Shimmer3R also from its firmware version.
         """
         return self._pressure_calib
+
+    @property
+    def pressure_oversampling(self) -> int:
+        """The configured oversampling setting of the pressure sensor"""
+        return self._pressure_oversampling
 
     @property
     def gsr_range(self) -> int:

@@ -43,13 +43,6 @@ class Shimmer3RRevision(BaseRevision):
     # channel. This list determines the set and order of the recorded channels.
     SD_CHANNEL_LIST_OFFSET = 0x13A
 
-    # Location of the pressure sensor calibration parameters in a data file. The
-    # BMP581 compensates on the chip and stores no parameters.
-    PRESSURE_CALIB_BLOCKS: dict[EPressureSensor, list[tuple[int, int]]] = {
-        EPressureSensor.BMP390: [(0xA0, 21)],
-        EPressureSensor.BMP581: [],
-    }
-
     # A board at this revision or newer carries the BMP581 instead of the BMP390
     BMP581_BOARD_REV: dict[int, tuple[int, int]] = {
         EExpansionBoard.SHIMMER3: (11, 2),
@@ -261,7 +254,6 @@ class Shimmer3RRevision(BaseRevision):
             self.SENSOR_ORDER,
             self.SD_HEADER_LEN,
             self.TRIAXCAL_SPECS,
-            self.PRESSURE_CALIB_BLOCKS,
             sd_channel_list_offset=self.SD_CHANNEL_LIST_OFFSET,
             # Synchronized Shimmer3R recordings are not supported yet
             is_sd_sync_supported=False,

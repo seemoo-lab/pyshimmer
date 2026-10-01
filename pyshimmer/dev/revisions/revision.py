@@ -246,21 +246,6 @@ class HardwareRevision(ABC):
         pass
 
     @abstractmethod
-    def get_pressure_calib_blocks(
-        self, pressure_sensor: EPressureSensor
-    ) -> list[tuple[int, int]]:
-        """Return the location of the pressure calibration block in a data file
-
-        The calibration parameters of the pressure sensor are not necessarily stored
-        contiguously. This function returns the list of (offset, length) pairs which
-        must be read and concatenated to obtain the calibration block.
-
-        :param pressure_sensor: The pressure sensor model of the device
-        :return: A list of (file offset, length) pairs
-        """
-        pass
-
-    @abstractmethod
     def get_pressure_sensor(
         self,
         exp_board: ExpansionBoard,
@@ -308,7 +293,6 @@ class BaseRevision(HardwareRevision):
         sensor_order: dict[ESensorGroup, int],
         sd_header_len: int,
         triaxcal_specs: dict[ESensorGroup, TriaxCalibSpec],
-        pressure_calib_blocks: dict[EPressureSensor, list[tuple[int, int]]],
         sd_channel_list_offset: int | None = None,
         is_sd_sync_supported: bool = True,
     ):
@@ -322,7 +306,6 @@ class BaseRevision(HardwareRevision):
         self._sensor_order = sensor_order
         self._sd_header_len = sd_header_len
         self._triaxcal_specs = triaxcal_specs
-        self._pressure_calib_blocks = pressure_calib_blocks
         self._sd_channel_list_offset = sd_channel_list_offset
         self._is_sd_sync_supported = is_sd_sync_supported
 
@@ -430,18 +413,6 @@ class BaseRevision(HardwareRevision):
             )
 
         return spec
-
-    def get_pressure_calib_blocks(
-        self, pressure_sensor: EPressureSensor
-    ) -> list[tuple[int, int]]:
-        blocks = self._pressure_calib_blocks.get(pressure_sensor, None)
-        if blocks is None:
-            raise ValueError(
-                f"Pressure sensor {pressure_sensor.name} does not store calibration "
-                f"parameters for hardware version {self.hardware_version.name}"
-            )
-
-        return blocks
 
     def unwrap_device_timestamps(self, timestamps: np.ndarray) -> np.ndarray:
         ts_dtype = self.get_channel_dtype(EChannelType.TIMESTAMP)
