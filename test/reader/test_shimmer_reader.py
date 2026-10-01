@@ -23,7 +23,7 @@ import numpy as np
 import pandas as pd
 
 from pyshimmer.dev.channels import ESensorGroup, EChannelType
-from pyshimmer.dev.pressure import EPressureSensor
+from pyshimmer.dev.pressure import BMP581Calibration, EPressureSensor
 from pyshimmer.dev.exg import ExGRegister, get_exg_ch
 from pyshimmer.dev.revisions import RevisionRegistry
 from pyshimmer.reader.binary_reader import ShimmerBinaryReader
@@ -639,6 +639,40 @@ class Shimmer3RReaderTest(TestCase):
 
         self.assertEqual(reader[EChannelType.TEMPERATURE][0], 34027)
         self.assertEqual(reader[EChannelType.PRESSURE][0], 5545536)
+
+    def test_bmp581_pressure_and_temperature(self):
+        channels = [EChannelType.PRESSURE, EChannelType.TEMPERATURE]
+
+        # 100.8 kPa at 25 and at -10 degrees Celsius. The device records the
+        # negative temperature as 24bit two's complement in an unsigned channel.
+        samples = [
+            [0, 100800 * 64, 25 * 65536],
+            [64, 100800 * 64, (1 << 24) - 10 * 65536],
+        ]
+
+        # A GSR+ board from revision 8.2 onwards carries the BMP581, whose
+        # compensated output requires LogAndStream v1.01.006 or newer
+        content = build_shimmer3r_file(
+            channels=channels,
+            samples=samples,
+            sensors=[ESensorGroup.PRESSURE],
+            exp_board=(48, 8, 2),
+            firmware=(3, 1, 1, 6),
+        )
+
+        bin_reader = ShimmerBinaryReader(io.BytesIO(content))
+        self.assertEqual(bin_reader.pressure_sensor, EPressureSensor.BMP581)
+        self.assertIsInstance(bin_reader.pressure_calibration, BMP581Calibration)
+
+        reader = ShimmerReader(bin_reader=bin_reader)
+        reader.load_file_data()
+
+        np.testing.assert_allclose(
+            reader[EChannelType.PRESSURE], np.array([100.8, 100.8]), rtol=1e-12
+        )
+        np.testing.assert_allclose(
+            reader[EChannelType.TEMPERATURE], np.array([25.0, -10.0]), rtol=1e-12
+        )
 
     def test_gsr_derived_channels(self):
         content = build_shimmer3r_file(
