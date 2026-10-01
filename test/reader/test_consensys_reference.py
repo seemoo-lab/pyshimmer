@@ -28,6 +28,8 @@ import numpy as np
 import pytest
 
 from pyshimmer import ShimmerBinaryReader, ShimmerReader
+from pyshimmer.dev.channels import EChannelType
+from pyshimmer.dev.gsr import GSR_OPEN_CIRCUIT_LIMIT, calibrate_gsr, split_gsr_raw
 from .reader_test_util import CONSENSYS_FIXTURES, ConsensysFixture
 
 # Tolerance for a single channel value. Most channels agree exactly, the remainder
@@ -37,9 +39,21 @@ CHANNEL_ATOL = 1e-9
 # Tolerance for a single timestamp in milliseconds, the unit of the reference export
 TIMESTAMP_ATOL_MS = 1e-6
 
+# The GSR channels whose value differs from the reference export where the
+# electrodes read as open, see test_open_gsr_reads_open
+GSR_OPEN_CHANNELS = (EChannelType.GSR_RESISTANCE, EChannelType.GSR_CONDUCTANCE)
+
+GSR_FIXTURES = [f for f in CONSENSYS_FIXTURES if EChannelType.GSR_RAW in f.channels]
+
 
 def fixture_id(fixture: ConsensysFixture) -> str:
     return fixture.name
+
+
+def gsr_open_samples(reader: ShimmerReader) -> np.ndarray:
+    """Mask of the samples whose GSR reading lies below the amplifier reference"""
+    _, adc_value = split_gsr_raw(reader[EChannelType.GSR_RAW])
+    return adc_value < GSR_OPEN_CIRCUIT_LIMIT
 
 
 @pytest.fixture(params=CONSENSYS_FIXTURES, ids=fixture_id)
@@ -121,6 +135,10 @@ class TestConsensysReference:
             expected = reference[case.column_name(column)].to_numpy()
             actual = reader[channel] * scale
 
+            if channel in GSR_OPEN_CHANNELS:
+                keep = ~gsr_open_samples(reader)
+                expected, actual = expected[keep], actual[keep]
+
             np.testing.assert_allclose(
                 actual,
                 expected,
@@ -128,6 +146,32 @@ class TestConsensysReference:
                 atol=CHANNEL_ATOL,
                 err_msg=f"channel {channel.name} does not match column {column}",
             )
+
+    @pytest.mark.parametrize("gsr_case", GSR_FIXTURES, ids=fixture_id)
+    def test_open_gsr_reads_open(self, gsr_case: ConsensysFixture):
+        """GSR readings below the amplifier reference read as open electrodes
+
+        Both recordings start with a few readings of zero. The reference tooling
+        decodes them to a negative resistance and raises it to 8 kOhm, which
+        reports the highest conductance the device can measure, 125 uS. We decode
+        them as open instead, so they are left out of the comparison in
+        test_channel_values.
+        """
+        with open(gsr_case.bin_path, "rb") as f:
+            reader = ShimmerReader(bin_reader=ShimmerBinaryReader(f))
+            reader.load_file_data()
+
+        reference = gsr_case.read_reference()
+        is_open = gsr_open_samples(reader)
+        assert is_open.any()
+
+        ref_conductance = reference[gsr_case.column_name("GSR_Skin_Conductance_CAL")]
+        np.testing.assert_equal(ref_conductance.to_numpy()[is_open], 125.0)
+
+        _, open_resistance, _ = calibrate_gsr((3 << 14) | GSR_OPEN_CIRCUIT_LIMIT)
+        np.testing.assert_equal(
+            reader[EChannelType.GSR_RESISTANCE][is_open], open_resistance
+        )
 
     def test_every_reference_column_is_covered(self, case: ConsensysFixture):
         """The test case accounts for all channels of the reference export"""

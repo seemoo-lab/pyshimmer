@@ -30,3 +30,11 @@ expect of these and of the Shimmer3 recording above.
 | --- | --- | --- |
 | `shimmer3r_bmp390_gsr.bin` | `shimmer3r_bmp390_gsr_calibrated.csv.gz` | GSR+ expansion board (SR48-8-1), firmware v1.1.14. Wide-range accelerometer, BMP390 pressure and temperature, PPG, and GSR. The file header lists pressure before temperature, so it also covers the header-driven channel order. |
 | `shimmer3r_exg_24bit.bin` | `shimmer3r_exg_24bit_calibrated.csv.gz` | ExG expansion board (SR47-8-1), firmware v1.1.15. Wide-range accelerometer and both ExG chips in 24 bit mode. The ExG front-end runs on its internal test signal, so the values are not physiological. Roughly half the samples are negative, which covers the signed 24 bit decoding. All four channels use a gain of 1, so the gain divisor is **not** covered. |
+
+## Known differences from the reference exports
+
+Both GSR recordings, `shimmer3_gsr_ppg` and `shimmer3r_bmp390_gsr`, start with a
+few GSR readings of zero. A reading below the amplifier reference means that the
+electrodes are open. The reference tooling reports those samples as 8 kOhm and
+125 uS, while the reader reports them as open, about 4.5 GOhm. The tests leave
+them out of the column comparison and check them separately.

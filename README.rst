@@ -360,6 +360,9 @@ measurement circuit alongside the ADC reading:
     resistance = reader[EChannelType.GSR_RESISTANCE]   # kOhm
     conductance = reader[EChannelType.GSR_CONDUCTANCE]  # microsiemens
 
+**Note**: A GSR reading below the reference voltage of the amplifier means that the electrodes are open. It is reported
+as a resistance of about 4.5 GOhm, a conductance close to zero, whichever range it was taken on.
+
 **Note**: The barometric pressure and temperature channels are reported in kPa and degrees Celsius. This requires the
 calibration parameters of the pressure sensor, which the device stores in the file header. If a device did not store
 them, both channels are returned as raw ADC counts instead. Check
