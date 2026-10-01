@@ -15,11 +15,28 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from __future__ import annotations
 
+import struct
+import warnings
+from io import BytesIO
 from unittest import TestCase
 
 import numpy as np
+import pytest
 
 from pyshimmer import EChannelType, ExGRegister, RevisionRegistry, ESensorGroup
+from pyshimmer.dev.fw_version import FirmwareType, FirmwareVersion
+from pyshimmer.dev.pressure import Bmp280Coefficients, EPressureSensor
+from pyshimmer.dev.revisions import HardwareVersion
+from pyshimmer.reader.reader_const import (
+    DATA_LOG_OFFSET,
+    ENABLED_SENSORS_OFFSET,
+    EXP_BOARD_OFFSET,
+    EXP_BOARD_LEN,
+    FW_TYPE_OFFSET,
+    HW_VERSION_OFFSET,
+    PRESSURE_CALIB_OFFSET,
+    PRESSURE_SENSOR_ID_OFFSET,
+)
 from pyshimmer.reader.shimmer_reader import ShimmerBinaryReader
 from .reader_test_util import (
     get_binary_sample_fpath,
@@ -131,6 +148,66 @@ class ShimmerReaderTest(TestCase):
             correct_diff = np.sum(ts_diff == exp_dr)
             self.assertTrue(correct_diff / len(ts_diff) > 0.98)
 
+    def test_pressure_calibration(self):
+        fpath = get_binary_sample_fpath()
+        with open(fpath, "rb") as f:
+            reader = ShimmerBinaryReader(f)
+
+            # A GSR+ board of revision 3 carries a BMP280
+            self.assertEqual(reader.expansion_board, (48, 3, 0))
+            self.assertEqual(reader.pressure_oversampling, 0)
+
+            calib = reader.pressure_calibration
+            self.assertEqual(calib.sensor, EPressureSensor.BMP280)
+            self.assertEqual(
+                calib.binary,
+                bytes.fromhex("036ddd653200cb92e4d6d00b1d1f64fff9ff8c3cf8c67017"),
+            )
+            self.assertFalse(calib.is_blank)
+            self.assertEqual(
+                calib.coefficients,
+                Bmp280Coefficients(
+                    dig_t1=27907,
+                    dig_t2=26077,
+                    dig_t3=50,
+                    dig_p1=37579,
+                    dig_p2=-10524,
+                    dig_p3=3024,
+                    dig_p4=7965,
+                    dig_p5=-156,
+                    dig_p6=-7,
+                    dig_p7=15500,
+                    dig_p8=-14600,
+                    dig_p9=6000,
+                ),
+            )
+
+    def test_pressure_calibration_blank(self):
+        fpath, _ = get_synced_bin_vs_consensys_pair_fpath()
+        with open(fpath, "rb") as f:
+            reader = ShimmerBinaryReader(f)
+
+            # The file was recorded by a firmware that does not store the pressure
+            # calibration coefficients
+            self.assertEqual(reader.pressure_calibration.sensor, EPressureSensor.BMP280)
+            self.assertTrue(reader.pressure_calibration.is_blank)
+
+            # The SDLog firmware leaves a 0x00 at the offset of the pressure sensor
+            # ID, which must not be read as a BMP180
+            self.assertEqual(reader.firmware_type, FirmwareType.SDLog)
+            self.assertIsNone(reader.pressure_sensor_id)
+
+    def test_firmware_version(self):
+        fpath = get_binary_sample_fpath()
+        with open(fpath, "rb") as f:
+            reader = ShimmerBinaryReader(f)
+
+            self.assertEqual(reader.hardware_version, HardwareVersion.SHIMMER3)
+            self.assertEqual(reader.firmware_type, FirmwareType.LogAndStream)
+            self.assertEqual(reader.firmware_version, FirmwareVersion(0, 11, 0))
+            self.assertIsNone(reader.pressure_sensor_id)
+            self.assertFalse(reader.pressure_sensor_inferred)
+
     def test_ecg_registers(self):
         fpath, _, _ = get_ecg_sample()
         with open(fpath, "rb") as f:
@@ -166,3 +243,193 @@ class ShimmerReaderTest(TestCase):
                 np.testing.assert_almost_equal(offset, exp_offset, decimal=10)
                 np.testing.assert_almost_equal(gain, exp_gain, decimal=10)
                 np.testing.assert_almost_equal(alignment, exp_alignment, decimal=10)
+
+
+# Expansion boards for which the board revision implies a BMP180 or a BMP280
+BOARD_BMP180 = (31, 5, 0)
+BOARD_BMP280 = (48, 3, 0)
+
+
+def create_header(
+    sensor_id: int = 0xFF,
+    exp_board: tuple[int, int, int] = BOARD_BMP280,
+    hw_version: int = HardwareVersion.SHIMMER3,
+    fw_type: int = FirmwareType.LogAndStream,
+    fw_version: tuple[int, int, int] = (1, 1, 6),
+    pressure_enabled: bool = True,
+) -> BytesIO:
+    """Create a file header from a real one, which records the given pressure sensor"""
+    with open(get_binary_sample_fpath(), "rb") as f:
+        header = bytearray(f.read(DATA_LOG_OFFSET))
+
+    struct.pack_into(">H", header, HW_VERSION_OFFSET, hw_version)
+    struct.pack_into(">HHBB", header, FW_TYPE_OFFSET, fw_type, *fw_version)
+    header[EXP_BOARD_OFFSET : EXP_BOARD_OFFSET + EXP_BOARD_LEN] = bytes(exp_board)
+    header[PRESSURE_SENSOR_ID_OFFSET] = sensor_id
+
+    if pressure_enabled:
+        rev = RevisionRegistry.REV_SHIMMER3
+        sensor_bin = rev.serialize_sensorlist([ESensorGroup.PRESSURE])
+        header[ENABLED_SENSORS_OFFSET : ENABLED_SENSORS_OFFSET + len(sensor_bin)] = (
+            sensor_bin
+        )
+
+    return BytesIO(bytes(header))
+
+
+def read_header(fp: BytesIO) -> tuple[ShimmerBinaryReader, list[str]]:
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        reader = ShimmerBinaryReader(fp)
+
+    return reader, [str(warning.message) for warning in w]
+
+
+class TestPressureSensorId:
+
+    @pytest.mark.parametrize(
+        "sensor_id,exp_board,sensor",
+        [
+            (0x00, BOARD_BMP180, EPressureSensor.BMP180),
+            (0x01, BOARD_BMP280, EPressureSensor.BMP280),
+        ],
+    )
+    def test_matches_board(
+        self, sensor_id: int, exp_board: tuple[int, int, int], sensor: EPressureSensor
+    ):
+        reader, msgs = read_header(create_header(sensor_id, exp_board))
+
+        assert reader.pressure_sensor_id == sensor_id
+        assert reader.pressure_calibration.sensor == sensor
+        assert not reader.pressure_sensor_inferred
+        assert msgs == []
+
+    @pytest.mark.parametrize(
+        "sensor_id,exp_board,sensor",
+        [
+            (0x00, BOARD_BMP280, EPressureSensor.BMP180),
+            (0x01, BOARD_BMP180, EPressureSensor.BMP280),
+            (0x02, BOARD_BMP280, EPressureSensor.BMP390),
+            (0x03, BOARD_BMP280, EPressureSensor.BMP581),
+        ],
+    )
+    def test_overrides_board(
+        self, sensor_id: int, exp_board: tuple[int, int, int], sensor: EPressureSensor
+    ):
+        reader, msgs = read_header(create_header(sensor_id, exp_board))
+
+        assert reader.pressure_calibration.sensor == sensor
+        assert not reader.pressure_sensor_inferred
+        assert len(msgs) == 1
+        assert "expansion board" in msgs[0]
+
+    def test_coefficients(self):
+        fp = create_header(0x02)
+        header = fp.getvalue()
+        reader, _ = read_header(fp)
+
+        # The BMP390 occupies the first 21 bytes of the coefficient block
+        exp_coeff = header[PRESSURE_CALIB_OFFSET : PRESSURE_CALIB_OFFSET + 21]
+        assert reader.pressure_calibration.binary == exp_coeff
+
+        reader, _ = read_header(create_header(0x03))
+        assert reader.pressure_calibration.binary == b""
+
+    def test_inferred(self):
+        reader, msgs = read_header(create_header(0x83))
+
+        assert reader.pressure_sensor_id == 0x83
+        assert reader.pressure_calibration.sensor == EPressureSensor.BMP581
+        assert reader.pressure_sensor_inferred
+        assert any("chip ID" in m for m in msgs)
+
+    def test_inferred_matches_board(self):
+        reader, msgs = read_header(create_header(0x81))
+
+        assert reader.pressure_calibration.sensor == EPressureSensor.BMP280
+        assert reader.pressure_sensor_inferred
+        assert len(msgs) == 1
+        assert "chip ID" in msgs[0]
+
+    @pytest.mark.parametrize("sensor_id", [0x04, 0x7D, 0x7E, 0x7F, 0x84, 0xFD])
+    def test_unknown(self, sensor_id: int):
+        # The sensor must not be taken from the expansion board instead
+        reader, msgs = read_header(create_header(sensor_id))
+
+        assert reader.pressure_sensor_id == sensor_id
+        assert reader.pressure_calibration is None
+        assert not reader.pressure_sensor_inferred
+        assert len(msgs) == 1
+        assert f"0x{sensor_id:02x}" in msgs[0]
+
+    def test_no_sensor(self):
+        reader, msgs = read_header(create_header(0xFE))
+
+        assert reader.pressure_sensor_id == 0xFE
+        assert reader.pressure_calibration is None
+        assert len(msgs) == 1
+        assert "no pressure sensor" in msgs[0]
+
+    @pytest.mark.parametrize("sensor_id", [0x03, 0x04, 0x83, 0xFE])
+    def test_no_warning_without_pressure_channels(self, sensor_id: int):
+        reader, msgs = read_header(create_header(sensor_id, pressure_enabled=False))
+
+        assert reader.pressure_sensor_id == sensor_id
+        assert msgs == []
+
+    @pytest.mark.parametrize(
+        "exp_board,sensor",
+        [
+            (BOARD_BMP180, EPressureSensor.BMP180),
+            (BOARD_BMP280, EPressureSensor.BMP280),
+        ],
+    )
+    def test_unset(self, exp_board: tuple[int, int, int], sensor: EPressureSensor):
+        reader, msgs = read_header(create_header(0xFF, exp_board))
+
+        assert reader.pressure_sensor_id is None
+        assert reader.pressure_calibration.sensor == sensor
+        assert msgs == []
+
+    @pytest.mark.parametrize(
+        "hw_version,fw_type,fw_version,trusted",
+        [
+            # The Shimmer3 records the sensor since LogAndStream 1.1.6
+            (HardwareVersion.SHIMMER3, FirmwareType.LogAndStream, (1, 1, 5), False),
+            (HardwareVersion.SHIMMER3, FirmwareType.LogAndStream, (1, 1, 6), True),
+            (HardwareVersion.SHIMMER3, FirmwareType.LogAndStream, (1, 1, 18), True),
+            (HardwareVersion.SHIMMER3, FirmwareType.LogAndStream, (1, 2, 0), True),
+            (HardwareVersion.SHIMMER3, FirmwareType.LogAndStream, (0, 16, 9), False),
+            # Only the LogAndStream firmware records the sensor
+            (HardwareVersion.SHIMMER3, FirmwareType.SDLog, (1, 1, 6), False),
+            (HardwareVersion.SHIMMER3, FirmwareType.BtStream, (1, 1, 6), False),
+            # The version numbers of the Shimmer3R overlap with those of the Shimmer3,
+            # and the reader only supports the Shimmer3 anyway
+            (HardwareVersion.SHIMMER3R, FirmwareType.LogAndStream, (1, 1, 6), False),
+            (HardwareVersion.SHIMMER3R, FirmwareType.LogAndStream, (1, 1, 17), False),
+            (HardwareVersion.SHIMMER3R, FirmwareType.LogAndStream, (1, 1, 18), False),
+            (HardwareVersion.SHIMMER2R, FirmwareType.LogAndStream, (1, 1, 6), False),
+        ],
+    )
+    def test_firmware_gate(
+        self,
+        hw_version: int,
+        fw_type: int,
+        fw_version: tuple[int, int, int],
+        trusted: bool,
+    ):
+        fp = create_header(
+            0x03, hw_version=hw_version, fw_type=fw_type, fw_version=fw_version
+        )
+        reader, _ = read_header(fp)
+
+        assert reader.hardware_version == hw_version
+        assert reader.firmware_type == fw_type
+        assert reader.firmware_version == FirmwareVersion(*fw_version)
+
+        if trusted:
+            assert reader.pressure_sensor_id == 0x03
+            assert reader.pressure_calibration.sensor == EPressureSensor.BMP581
+        else:
+            assert reader.pressure_sensor_id is None
+            assert reader.pressure_calibration.sensor == EPressureSensor.BMP280

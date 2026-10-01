@@ -15,6 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from __future__ import annotations
 
+import struct
+from io import BytesIO
 from unittest import TestCase
 from unittest.mock import Mock, PropertyMock
 
@@ -23,8 +25,27 @@ import pandas as pd
 
 from pyshimmer.dev.channels import ESensorGroup, EChannelType
 from pyshimmer.dev.exg import ExGRegister, get_exg_ch
+from pyshimmer.dev.fw_version import FirmwareType
+from pyshimmer.dev.pressure import (
+    Bmp180Coefficients,
+    EPressureSensor,
+    compensate_bmp180,
+    compensate_bmp581,
+)
 from pyshimmer.dev.revisions import RevisionRegistry
 from pyshimmer.reader.binary_reader import ShimmerBinaryReader
+from pyshimmer.reader.reader_const import (
+    DATA_LOG_OFFSET,
+    ENABLED_SENSORS_OFFSET,
+    EXP_BOARD_OFFSET,
+    EXP_BOARD_LEN,
+    CONFIG_SETUP_BYTE3_OFFSET,
+    PRESSURE_CALIB_OFFSET,
+    PRESSURE_CALIB_LEN,
+    PRESSURE_CALIB_EXTRA_OFFSET,
+    FW_TYPE_OFFSET,
+    PRESSURE_SENSOR_ID_OFFSET,
+)
 from pyshimmer.reader.shimmer_reader import (
     ShimmerReader,
     SingleChannelProcessor,
@@ -32,6 +53,7 @@ from pyshimmer.reader.shimmer_reader import (
     TriAxCalProcessor,
 )
 from .reader_test_util import (
+    get_binary_sample_fpath,
     get_bin_vs_consensys_pair_fpath,
     get_synced_bin_vs_consensys_pair_fpath,
     get_ecg_sample,
@@ -314,6 +336,218 @@ class ShimmerReaderTest(TestCase):
                 rdr_channel = reader[rdr_col]
                 csv_channel = consensys_csv[csv_col]
                 np.testing.assert_almost_equal(rdr_channel, csv_channel.to_numpy())
+
+
+class PressureProcessingTest(TestCase):
+
+    # BST-BMP280-DS001 sections 3.12 and 8.1, calculation example
+    BMP280_COEFF_BIN = struct.pack(
+        "<HhhHhhhhhhhh",
+        27504,
+        26435,
+        -1000,
+        36477,
+        -10685,
+        3024,
+        2855,
+        140,
+        -7,
+        15500,
+        -14600,
+        6000,
+    )
+    BMP280_ADC_T = 519888
+    BMP280_ADC_P = 415148
+
+    # BST-BMP180-DS000 section 3.5, calculation example
+    BMP180_COEFF_BIN = struct.pack(
+        ">hhhHHHhhhhh",
+        408,
+        -72,
+        -14383,
+        32741,
+        32757,
+        23153,
+        6190,
+        4,
+        -32768,
+        -8711,
+        2868,
+    )
+    BMP180_UT = 27898
+    BMP180_UP = 23843
+
+    N_SAMPLES = 10
+
+    @staticmethod
+    def create_file(
+        exp_board: tuple[int, int, int],
+        coeff_bin: bytes,
+        oversampling: int,
+        raw_t: int,
+        raw_p: int,
+        sensor_id: int | None = None,
+    ) -> BytesIO:
+        """Create an SD log file with a pressure channel from a real file header
+
+        If a pressure sensor ID is given, the header is marked as written by a
+        firmware that records it.
+        """
+        with open(get_binary_sample_fpath(), "rb") as f:
+            header = bytearray(f.read(DATA_LOG_OFFSET))
+
+        if sensor_id is not None:
+            fw_type = FirmwareType.LogAndStream
+            struct.pack_into(">HHBB", header, FW_TYPE_OFFSET, fw_type, 1, 1, 6)
+            header[PRESSURE_SENSOR_ID_OFFSET] = sensor_id
+
+        rev = RevisionRegistry.REV_SHIMMER3
+        sensor_bin = rev.serialize_sensorlist([ESensorGroup.PRESSURE])
+        header[ENABLED_SENSORS_OFFSET : ENABLED_SENSORS_OFFSET + len(sensor_bin)] = (
+            sensor_bin
+        )
+        header[EXP_BOARD_OFFSET : EXP_BOARD_OFFSET + EXP_BOARD_LEN] = bytes(exp_board)
+        header[CONFIG_SETUP_BYTE3_OFFSET] &= ~0x30
+        header[CONFIG_SETUP_BYTE3_OFFSET] |= oversampling << 4
+        header[PRESSURE_CALIB_OFFSET : PRESSURE_CALIB_OFFSET + PRESSURE_CALIB_LEN] = (
+            coeff_bin[:PRESSURE_CALIB_LEN]
+        )
+        header[PRESSURE_CALIB_EXTRA_OFFSET : PRESSURE_CALIB_EXTRA_OFFSET + 2] = (
+            coeff_bin[PRESSURE_CALIB_LEN:] or b"\x00\x00"
+        )
+
+        channels = [EChannelType.TIMESTAMP] + rev.get_enabled_channels(
+            [ESensorGroup.PRESSURE]
+        )
+        values = {EChannelType.TEMPERATURE: raw_t, EChannelType.PRESSURE: raw_p}
+
+        data = bytearray()
+        for i in range(PressureProcessingTest.N_SAMPLES):
+            values[EChannelType.TIMESTAMP] = 1000 + i * 100
+            for ch, dtype in zip(channels, rev.get_channel_dtypes(channels)):
+                data += dtype.encode(values[ch])
+
+        return BytesIO(bytes(header) + bytes(data))
+
+    def test_bmp280(self):
+        fp = self.create_file(
+            (48, 3, 0),
+            self.BMP280_COEFF_BIN,
+            0,
+            # The Shimmer3 omits the four lowest bits of the temperature reading and
+            # appends four zero bits to the pressure reading
+            raw_t=self.BMP280_ADC_T >> 4,
+            raw_p=self.BMP280_ADC_P << 4,
+        )
+
+        reader = ShimmerReader(fp)
+        reader.load_file_data()
+        self.assertEqual(reader.pressure_calibration.sensor, EPressureSensor.BMP280)
+
+        np.testing.assert_allclose(
+            reader[EChannelType.TEMPERATURE], [25.08] * self.N_SAMPLES, atol=0.005
+        )
+        np.testing.assert_allclose(
+            reader[EChannelType.PRESSURE], [100653.27] * self.N_SAMPLES, atol=0.005
+        )
+
+    def test_bmp180(self):
+        oss = 3
+        fp = self.create_file(
+            (31, 5, 0),
+            self.BMP180_COEFF_BIN,
+            oss,
+            raw_t=self.BMP180_UT,
+            # The pressure reading is left-aligned to 24 bits
+            raw_p=self.BMP180_UP << (8 - oss),
+        )
+
+        reader = ShimmerReader(fp)
+        reader.load_file_data()
+        self.assertEqual(reader.pressure_calibration.sensor, EPressureSensor.BMP180)
+
+        exp_p, exp_t = compensate_bmp180(
+            self.BMP180_UP,
+            self.BMP180_UT,
+            Bmp180Coefficients.from_bytes(self.BMP180_COEFF_BIN),
+            oss,
+        )
+        np.testing.assert_equal(
+            reader[EChannelType.TEMPERATURE], [exp_t] * self.N_SAMPLES
+        )
+        np.testing.assert_equal(reader[EChannelType.PRESSURE], [exp_p] * self.N_SAMPLES)
+
+    def test_blank_coefficients(self):
+        fp = self.create_file((48, 3, 0), bytes(24), 0, raw_t=1234, raw_p=5678)
+
+        reader = ShimmerReader(fp)
+        with self.assertWarns(UserWarning):
+            reader.load_file_data()
+
+        np.testing.assert_equal(
+            reader[EChannelType.TEMPERATURE], [1234] * self.N_SAMPLES
+        )
+        np.testing.assert_equal(reader[EChannelType.PRESSURE], [5678] * self.N_SAMPLES)
+
+    def test_sensor_id_in_header(self):
+        # The header states a BMP581, although the board implies a BMP280
+        fp = self.create_file(
+            (48, 3, 0),
+            self.BMP280_COEFF_BIN,
+            0,
+            raw_t=1234,
+            raw_p=5678,
+            sensor_id=0x03,
+        )
+
+        with self.assertWarns(UserWarning):
+            reader = ShimmerReader(fp)
+        reader.load_file_data()
+        self.assertEqual(reader.pressure_calibration.sensor, EPressureSensor.BMP581)
+
+        exp_p, exp_t = compensate_bmp581(5678, 1234)
+        np.testing.assert_equal(
+            reader[EChannelType.TEMPERATURE], [exp_t] * self.N_SAMPLES
+        )
+        np.testing.assert_equal(reader[EChannelType.PRESSURE], [exp_p] * self.N_SAMPLES)
+
+    def test_unknown_or_no_sensor_in_header(self):
+        for sensor_id in (0x04, 0xFE):
+            with self.subTest(sensor_id=sensor_id):
+                # The coefficients are valid, but must not be applied
+                fp = self.create_file(
+                    (48, 3, 0),
+                    self.BMP280_COEFF_BIN,
+                    0,
+                    raw_t=1234,
+                    raw_p=5678,
+                    sensor_id=sensor_id,
+                )
+
+                with self.assertWarns(UserWarning):
+                    reader = ShimmerReader(fp)
+                reader.load_file_data()
+                self.assertIsNone(reader.pressure_calibration)
+
+                np.testing.assert_equal(
+                    reader[EChannelType.TEMPERATURE], [1234] * self.N_SAMPLES
+                )
+                np.testing.assert_equal(
+                    reader[EChannelType.PRESSURE], [5678] * self.N_SAMPLES
+                )
+
+    def test_no_post_processing(self):
+        fp = self.create_file(
+            (48, 3, 0), self.BMP280_COEFF_BIN, 0, raw_t=1234, raw_p=5678
+        )
+
+        reader = ShimmerReader(fp, post_process=False)
+        reader.load_file_data()
+
+        np.testing.assert_equal(
+            reader[EChannelType.TEMPERATURE], [1234] * self.N_SAMPLES
+        )
+        np.testing.assert_equal(reader[EChannelType.PRESSURE], [5678] * self.N_SAMPLES)
 
 
 class SignalPostProcessorTest(TestCase):
