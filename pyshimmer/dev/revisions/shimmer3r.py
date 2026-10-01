@@ -53,6 +53,7 @@ class Shimmer3RRevision(BaseRevision):
     # A board at this revision or newer carries the BMP581 instead of the BMP390
     BMP581_BOARD_REV: dict[int, tuple[int, int]] = {
         EExpansionBoard.SHIMMER3: (11, 2),
+        EExpansionBoard.PROTO3_DELUXE: (4, 2),
         EExpansionBoard.EXG_UNIFIED: (8, 2),
         EExpansionBoard.GSR_UNIFIED: (8, 2),
         EExpansionBoard.BR_AMP_UNIFIED: (4, 2),

@@ -153,6 +153,7 @@ class TestShimmer3RRevision:
         for board in [
             # Older boards carry the BMP390
             ExpansionBoard(EExpansionBoard.SHIMMER3, 11, 1),
+            ExpansionBoard(EExpansionBoard.PROTO3_DELUXE, 4, 1),
             ExpansionBoard(EExpansionBoard.EXG_UNIFIED, 8, 1),
             ExpansionBoard(EExpansionBoard.BR_AMP_UNIFIED, 4, 1),
             # The GSR+ board carries the BMP390 at revisions 7.0, 7.1, 8.0, and 8.1
@@ -169,6 +170,8 @@ class TestShimmer3RRevision:
 
         for board in [
             ExpansionBoard(EExpansionBoard.SHIMMER3, 11, 2),
+            ExpansionBoard(EExpansionBoard.PROTO3_DELUXE, 4, 2),
+            ExpansionBoard(EExpansionBoard.PROTO3_DELUXE, 5, 0),
             ExpansionBoard(EExpansionBoard.EXG_UNIFIED, 8, 2),
             ExpansionBoard(EExpansionBoard.BR_AMP_UNIFIED, 4, 2),
             # The GSR+ board carries the BMP581 within revision 7 from 7.2 onwards
