@@ -16,8 +16,47 @@
 from __future__ import annotations
 
 import struct
+from dataclasses import dataclass
 
 from pyshimmer.util import fmt_hex
+
+
+def _all_same(block: bytes, value: int) -> bool:
+    return all(b == value for b in block)
+
+
+def has_calib_params(block: bytes) -> bool:
+    """Check if a calibration block holds actual parameters
+
+    A block that consists entirely of zeros or of 0xFF bytes indicates that the
+    device did not store any calibration parameters.
+
+    :param block: The binary calibration block
+    :return: True if the block holds parameters, else False
+    """
+    return not (_all_same(block, 0x00) or _all_same(block, 0xFF))
+
+
+@dataclass(frozen=True)
+class TriaxCalibSpec:
+    """Describes where and how a triaxial calibration block is stored in a data file
+
+    Every triaxial sensor stores its calibration parameters as a 21 byte block which
+    consists of the three offset values and the three gain values as signed 16 bit
+    big-endian integers, followed by the nine alignment matrix entries as signed bytes.
+    The values are stored as integers and must be divided by a sensor-specific scaling
+    factor to obtain the actual parameters.
+
+    :param offset: File offset at which the 21 byte calibration block is stored
+    :param offset_scaling: Divisor for the offset vector
+    :param gain_scaling: Divisor for the gain matrix
+    :param alignment_scaling: Divisor for the alignment matrix
+    """
+
+    offset: int
+    offset_scaling: float = 1.0
+    gain_scaling: float = 1.0
+    alignment_scaling: float = 1.0
 
 
 class AllCalibration:

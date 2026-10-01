@@ -37,6 +37,7 @@ from pyshimmer.bluetooth.bt_commands import (
 )
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
 from pyshimmer.dev.fw_version import FirmwareVersion, FirmwareType
+from pyshimmer.dev.pressure import EPressureSensor
 from pyshimmer.dev.revisions import (
     HardwareVersion,
     HardwareRevision,
@@ -755,3 +756,42 @@ class TestShimmerBluetoothIntegration:
         helper.submit_req_resp_handler(1, b"\xff\x2f\x03\x00\x00\x00\x0f\x04")
         helper.submit_req_resp_handler(1, b"\xff\x25\x03")
         helper.sot.initialize()
+
+    def test_get_pressure_calibration(
+        self, helper: IntegrationTestHelper, hw_version: HardwareVersion
+    ):
+        helper.setup(run_sot_initialize=True, hw_version=hw_version)
+
+        ftr = helper.submit_req_resp_handler(1, b"\xff\xa6\x01\x03")
+        r = helper.sot.get_pressure_calibration()
+
+        assert ftr.result() == b"\xa7"
+        assert r.sensor == EPressureSensor.BMP581
+        assert r.coefficients is None
+
+    def test_get_pressure_calibration_refused(
+        self, helper: IntegrationTestHelper, hw_version: HardwareVersion
+    ):
+        helper.setup(run_sot_initialize=True, hw_version=hw_version)
+
+        helper.submit_req_resp_handler(1, b"\xfe")
+        with pytest.raises(CommandRefused):
+            helper.sot.get_pressure_calibration()
+
+        # The connection remains usable
+        ftr = helper.submit_req_resp_handler(1, b"\xff\x9f" + bytes(range(1, 25)))
+        r = helper.sot.get_bmp280_calibration()
+
+        assert ftr.result() == b"\xa0"
+        assert r.sensor == EPressureSensor.BMP280
+        assert r.binary == bytes(range(1, 25))
+
+    def test_get_bmp180_calibration(self, helper: IntegrationTestHelper):
+        helper.setup(run_sot_initialize=True)
+
+        ftr = helper.submit_req_resp_handler(1, b"\xff\x58" + bytes(range(1, 23)))
+        r = helper.sot.get_bmp180_calibration()
+
+        assert ftr.result() == b"\x59"
+        assert r.sensor == EPressureSensor.BMP180
+        assert r.binary == bytes(range(1, 23))

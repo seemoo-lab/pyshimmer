@@ -280,6 +280,21 @@ calls.
 
 The example shows how to make simple calls and how to use the Bluetooth streaming capabilities of the device.
 
+The pressure and temperature channels carry raw sensor readings. To convert them to Pa and degrees Celsius, retrieve
+the pressure calibration once and apply it to each data packet:
+
+.. code-block:: python
+
+    calib = shim_dev.get_pressure_calibration()
+
+    def handler(pkt: DataPacket) -> None:
+        pressure_pa, temperature_c = calib.compensate_channels(pkt)
+
+If the firmware of a Shimmer3 does not support :code:`get_pressure_calibration()`, use :code:`get_bmp280_calibration()`
+or, on older boards, :code:`get_bmp180_calibration()` instead. For the BMP180, also pass the configured pressure
+oversampling setting to :code:`compensate_channels()`. The Reader API calibrates the pressure and temperature channels
+of SD card recordings automatically.
+
 Using the Dock API
 ^^^^^^^^^^^^^^^^^^
 
@@ -330,8 +345,51 @@ Using the Reader API
             print(f'ECG Chip Sampling Rate: {exg_reg.data_rate} Hz')
             print(f'ECG Chip Gain: {exg_reg.ch1_gain}')
 
+The Reader API supports binary files recorded by the Shimmer3 and the Shimmer3R. The hardware revision of the
+recording device is determined from the file header, so no configuration is required. For the rare case of a file
+whose header does not carry a usable hardware version, the revision can be specified explicitly:
+
+.. code-block:: python
+
+    from pyshimmer import HardwareVersion, ShimmerReader
+
+    reader = ShimmerReader(f, hw_version=HardwareVersion.SHIMMER3)
+
 If the data was recorded using the :code:`SDLog` firmware and features synchronization information, the API
 automatically interpolates the data to the common timestamp information of the master.
+
+**Note**: Synchronized recordings are currently only supported for the Shimmer3. Reading a synchronized Shimmer3R
+recording raises a :code:`NotImplementedError`.
+
+The reader adds derived channels for sensors whose raw channel does not directly correspond to a physical quantity.
+The galvanic skin response, for instance, is recorded as a single channel that encodes the active range of the
+measurement circuit alongside the ADC reading:
+
+.. code-block:: python
+
+    reader.load_file_data()
+
+    print(reader.channels)            # channels recorded in the file
+    print(reader.derived_channels)    # channels calculated during post processing
+
+    resistance = reader[EChannelType.GSR_RESISTANCE]   # kOhm
+    conductance = reader[EChannelType.GSR_CONDUCTANCE]  # microsiemens
+
+**Note**: The GSR channels are converted according to the range setting that the device stored in the file header,
+see :code:`ShimmerBinaryReader.gsr_range`. If the device was configured for a fixed range, the resistance is limited to
+the bounds of that range. A GSR reading below the reference voltage of the amplifier means that the electrodes are
+open. In auto range, it is reported as a resistance of about 4.5 GOhm, a conductance close to zero, whichever range it
+was taken on.
+
+**Note**: The triaxial sensors are calibrated with the parameters that the device stores in the file header. If a
+device did not store any for a sensor, the channels of that sensor are returned uncalibrated. Check
+:code:`ShimmerBinaryReader.has_triaxcal_params` to tell the two cases apart.
+
+**Note**: The barometric pressure and temperature channels are reported in Pa and degrees Celsius. This requires the
+calibration coefficients of the pressure sensor, which the device stores in the file header. If a device did not store
+them, both channels are returned as raw ADC counts instead and a warning is issued. Check
+:code:`ShimmerBinaryReader.pressure_calibration.is_blank` to tell the two cases apart. Be aware that the first few
+samples of a recording are logged before the pressure sensor has settled and are not meaningful.
 
 **Note**: Please be aware that although you have configured a sampling frequency f for your measurements, it can happen that observations are missing.
 Usually the observed time difference is a multiple of the sampling period 1 / f.

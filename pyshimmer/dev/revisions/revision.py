@@ -24,7 +24,11 @@ from typing import overload
 import numpy as np
 
 from pyshimmer.util import bit_is_set, flatten_list, unwrap
+from ..base import ExpansionBoard
+from ..calibration import TriaxCalibSpec
 from ..channels import EChannelType, ChannelDataType, ESensorGroup
+from ..fw_version import FirmwareType, FirmwareVersion
+from ..pressure import EPressureSensor
 from .hw_version import HardwareVersion
 
 
@@ -187,6 +191,80 @@ class HardwareRevision(ABC):
         """
         pass
 
+    @property
+    @abstractmethod
+    def sd_header_len(self) -> int:
+        """Length of the configuration header of a binary data file in bytes
+
+        The sample data of a binary file starts immediately after the header.
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def sd_channel_list_offset(self) -> int | None:
+        """File offset of the channel list in the header of a binary data file
+
+        Some revisions record the set and order of data channels explicitly in the
+        file header. The offset returned here points at the number of channels, which
+        is followed by one channel id per channel. If the revision does not record
+        such a list, None is returned and the channels must be derived from the set of
+        enabled sensors instead.
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def is_sd_sync_supported(self) -> bool:
+        """True if this API can read synchronized binary files of this revision
+
+        Binary files that were recorded as part of a synchronized trial contain
+        additional clock offset fields. This property signals whether this API is able
+        to interpret them for this hardware revision. It does not indicate whether the
+        device itself supports synchronized recordings.
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def triaxcal_sensors(self) -> list[ESensorGroup]:
+        """Return the sensors for which calibration parameters are available
+
+        :return: A list of all sensors for which :meth:`get_triaxcal_spec` returns a
+            specification
+        """
+        pass
+
+    @abstractmethod
+    def get_triaxcal_spec(self, sensor: ESensorGroup) -> TriaxCalibSpec:
+        """Return the calibration block specification of a triaxial sensor
+
+        :param sensor: The sensor for which to return the specification
+        :raises ValueError: If the sensor does not possess a calibration block
+        :return: The specification of the calibration block
+        """
+        pass
+
+    @abstractmethod
+    def get_pressure_sensor(
+        self,
+        exp_board: ExpansionBoard,
+        fw_type: FirmwareType,
+        fw_version: FirmwareVersion,
+    ) -> EPressureSensor:
+        """Determine which pressure sensor is fitted to a device
+
+        Which of the Bosch pressure sensors a device carries depends on the hardware
+        revision and on the attached expansion board, and for some models also on the
+        firmware version.
+
+        :param exp_board: The expansion board attached to the device
+        :param fw_type: The type of firmware that recorded the data
+        :param fw_version: The version of the firmware that recorded the data
+        :return: The pressure sensor model of the device
+        """
+        pass
+
     @abstractmethod
     def unwrap_device_timestamps(self, timestamps: np.ndarray) -> np.ndarray:
         """Unwrap the device timestamps
@@ -213,6 +291,10 @@ class BaseRevision(HardwareRevision):
         sensor_channel_assignment: dict[ESensorGroup, list[EChannelType]],
         sensor_bit_assignment: dict[ESensorGroup, int],
         sensor_order: dict[ESensorGroup, int],
+        sd_header_len: int,
+        triaxcal_specs: dict[ESensorGroup, TriaxCalibSpec],
+        sd_channel_list_offset: int | None = None,
+        is_sd_sync_supported: bool = True,
     ):
         super().__init__(hw_version)
 
@@ -222,6 +304,10 @@ class BaseRevision(HardwareRevision):
         self._sensor_channel_assignment = sensor_channel_assignment
         self._sensor_bit_assignment = sensor_bit_assignment
         self._sensor_order = sensor_order
+        self._sd_header_len = sd_header_len
+        self._triaxcal_specs = triaxcal_specs
+        self._sd_channel_list_offset = sd_channel_list_offset
+        self._is_sd_sync_supported = is_sd_sync_supported
 
     def sr2dr(self, sr: float) -> int:
         dr_dec = self._dev_clock_rate / sr
@@ -301,6 +387,32 @@ class BaseRevision(HardwareRevision):
 
         sensors_sorted = sorted(sensors, key=sort_key_fn)
         return sensors_sorted
+
+    @property
+    def sd_header_len(self) -> int:
+        return self._sd_header_len
+
+    @property
+    def sd_channel_list_offset(self) -> int | None:
+        return self._sd_channel_list_offset
+
+    @property
+    def is_sd_sync_supported(self) -> bool:
+        return self._is_sd_sync_supported
+
+    @property
+    def triaxcal_sensors(self) -> list[ESensorGroup]:
+        return list(self._triaxcal_specs.keys())
+
+    def get_triaxcal_spec(self, sensor: ESensorGroup) -> TriaxCalibSpec:
+        spec = self._triaxcal_specs.get(sensor, None)
+        if spec is None:
+            raise ValueError(
+                f"Sensor {sensor.name} does not provide calibration parameters "
+                f"for hardware version {self.hardware_version.name}"
+            )
+
+        return spec
 
     def unwrap_device_timestamps(self, timestamps: np.ndarray) -> np.ndarray:
         ts_dtype = self.get_channel_dtype(EChannelType.TIMESTAMP)

@@ -78,6 +78,71 @@ class ChannelDataType:
         )
 
 
+class PackedChannelDataType(ChannelDataType):
+
+    def __init__(self, size: int, bits: int, signed: bool = True, le: bool = True):
+        """Data type of a channel whose value is left-aligned in a larger word
+
+        Some channels transmit fewer significant bits than the number of bytes they
+        occupy in the data stream. The high-g accelerometer of the Shimmer3R, for
+        instance, transmits a 12 bit signed value in two bytes with the four least
+        significant bits of the word left unused.
+
+        :param size: Length of the data type in Bytes
+        :param bits: Number of significant bits, left-aligned within the data type
+        :param signed: True if the significant bits encode a signed integer
+        :param le: True if the word is encoded little endian, False if the word is
+            encoded big endian
+        """
+        super().__init__(size, signed=signed, le=le)
+
+        if not 0 < bits <= 8 * size:
+            raise ValueError(
+                f"Number of significant bits must be in range [1, {8 * size}]: {bits}"
+            )
+
+        self._bits = bits
+        self._shift = 8 * size - bits
+
+    @property
+    def bits(self) -> int:
+        """Number of significant bits of the data type"""
+        return self._bits
+
+    def decode(self, val_bin: bytes) -> int:
+        if len(val_bin) != self.size:
+            raise ValueError(
+                f"Binary value does not match required size: "
+                f"{len(val_bin)} != {self.size}"
+            )
+
+        word = int.from_bytes(val_bin, byteorder=self.byte_order, signed=False)
+        val = word >> self._shift
+
+        if self.signed and val >= 1 << (self._bits - 1):
+            val -= 1 << self._bits
+
+        return val
+
+    def encode(self, val: int) -> bytes:
+        if self.signed:
+            val_min, val_max = -(1 << (self._bits - 1)), (1 << (self._bits - 1)) - 1
+        else:
+            val_min, val_max = 0, (1 << self._bits) - 1
+
+        if not val_min <= val <= val_max:
+            raise ValueError(
+                f"Value does not fit into {self._bits} bits: "
+                f"{val} not in [{val_min}, {val_max}]"
+            )
+
+        if val < 0:
+            val += 1 << self._bits
+
+        word = val << self._shift
+        return word.to_bytes(length=self.size, byteorder=self.byte_order, signed=False)
+
+
 # @unique causes issues with PyCharm code indexing
 # Temporarily remove before renaming items
 # https://stackoverflow.com/questions/12680080/python-enums-with-attributes
@@ -163,11 +228,11 @@ class EChannelType(Enum):
     # Chips: MPU9150
     MAG_WR_Z = (0x19, True)
 
-    # Temperature
-    # Chips: BMPX80
+    # Temperature of the pressure sensor, see pyshimmer.dev.pressure
+    # Chips: BMP180, BMP280 (Shimmer3), BMP390, BMP581 (Shimmer3R)
     TEMPERATURE = (0x1A, True)
-    # Pressure
-    # Chips: BMPX80
+    # Pressure, see pyshimmer.dev.pressure
+    # Chips: BMP180, BMP280 (Shimmer3), BMP390, BMP581 (Shimmer3R)
     PRESSURE = (0x1B, True)
 
     # Galvanic Skin Response Raw Data
@@ -211,6 +276,15 @@ class EChannelType(Enum):
 
     TIMESTAMP = (0x100, False)
 
+    # Derived channels. These are not recorded by the device but calculated from
+    # the recorded channels, so they do not have an id known to the Shimmer.
+    # The active range of the GSR circuit
+    GSR_RANGE = (0x101, False)
+    # Skin resistance in kOhm
+    GSR_RESISTANCE = (0x102, False)
+    # Skin conductance in microsiemens
+    GSR_CONDUCTANCE = (0x103, False)
+
     def __new__(cls, channel_id: int, is_public: bool):
         # Strips the is_public argument from the tuple and only assigns the
         # channel ID as enum value
@@ -228,6 +302,15 @@ class EChannelType(Enum):
         it is only used internally by the API and unknown the Shimmer.
         """
         return self._channel_id
+
+    @property
+    def is_derived(self) -> bool:
+        """
+        Returns True if the channel is not recorded by the Shimmer but calculated
+        from the recorded channels. Derived channels do not appear in a data stream
+        and therefore do not possess a binary data type.
+        """
+        return self in DERIVED_CHANNEL_TYPES
 
     @property
     def is_public(self) -> bool:
@@ -249,6 +332,17 @@ class EChannelType(Enum):
             )
 
         return ch_type
+
+
+# Channels that are calculated from the recorded channels instead of being read
+# from a data stream
+DERIVED_CHANNEL_TYPES = frozenset(
+    {
+        EChannelType.GSR_RANGE,
+        EChannelType.GSR_RESISTANCE,
+        EChannelType.GSR_CONDUCTANCE,
+    }
+)
 
 
 @unique
@@ -294,7 +388,8 @@ class ESensorGroup(Enum):
     # Temperature sensor on the MPU9150 chip, not yet available as channel in the
     # LogAndStream firmware
     TEMP = auto()
-    # Pressure sensor on the BMPX80 chip
+    # Pressure and temperature sensor: BMP180 or BMP280 on the Shimmer3, BMP390 or
+    # BMP581 on the Shimmer3R
     PRESSURE = auto()
     # 24 bit channels of the first ADS1292R chip, conflicts with the corresponding
     # 16 bit channel

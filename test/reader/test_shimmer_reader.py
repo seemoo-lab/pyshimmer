@@ -15,6 +15,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from __future__ import annotations
 
+import io
+import struct
+from io import BytesIO
 from unittest import TestCase
 from unittest.mock import Mock, PropertyMock
 
@@ -23,8 +26,22 @@ import pandas as pd
 
 from pyshimmer.dev.channels import ESensorGroup, EChannelType
 from pyshimmer.dev.exg import ExGRegister, get_exg_ch
+from pyshimmer.dev.pressure import (
+    Bmp180Coefficients,
+    EPressureSensor,
+    compensate_bmp180,
+)
 from pyshimmer.dev.revisions import RevisionRegistry
 from pyshimmer.reader.binary_reader import ShimmerBinaryReader
+from pyshimmer.reader.reader_const import (
+    ENABLED_SENSORS_OFFSET,
+    EXP_BOARD_OFFSET,
+    EXP_BOARD_LEN,
+    CONFIG_SETUP_BYTE3_OFFSET,
+    PRESSURE_CALIB_OFFSET,
+    PRESSURE_CALIB_LEN,
+    PRESSURE_CALIB_EXTRA_OFFSET,
+)
 from pyshimmer.reader.shimmer_reader import (
     ShimmerReader,
     SingleChannelProcessor,
@@ -32,6 +49,9 @@ from pyshimmer.reader.shimmer_reader import (
     TriAxCalProcessor,
 )
 from .reader_test_util import (
+    build_shimmer3r_file,
+    encode_triaxcal_block,
+    get_binary_sample_fpath,
     get_bin_vs_consensys_pair_fpath,
     get_synced_bin_vs_consensys_pair_fpath,
     get_ecg_sample,
@@ -39,6 +59,9 @@ from .reader_test_util import (
 )
 
 TEST_REVISION = RevisionRegistry.REV_SHIMMER3
+
+# The sample data of a Shimmer3 file starts after its configuration header
+DATA_LOG_OFFSET = TEST_REVISION.sd_header_len
 
 
 class ShimmerReaderTest(TestCase):
@@ -150,8 +173,10 @@ class ShimmerReaderTest(TestCase):
             EChannelType.INTERNAL_ADC_A1,
         ]
 
+        # The reference export holds the uncalibrated ADC counts of the PPG channel,
+        # so we compare against the unprocessed data
         with open(raw_file, "rb") as f:
-            reader = ShimmerReader(f)
+            reader = ShimmerReader(f, post_process=False)
             reader.load_file_data()
 
         self.assertEqual(exp_channels, reader.channels)
@@ -162,7 +187,7 @@ class ShimmerReaderTest(TestCase):
         expected_ppg = r[:, 1]
 
         actual_ts = reader.timestamp * 1000  # needs to be in ms
-        actual_ppg = reader[EChannelType.INTERNAL_ADC_A1] * 1000.0  # needs to be in mV
+        actual_ppg = reader[EChannelType.INTERNAL_ADC_A1]
 
         np.testing.assert_almost_equal(actual_ts.flatten(), expected_ts.flatten())
         np.testing.assert_almost_equal(actual_ppg, expected_ppg)
@@ -173,8 +198,10 @@ class ShimmerReaderTest(TestCase):
         exp_sr = 512.0
         exp_channels = [EChannelType.INTERNAL_ADC_A1]
 
+        # The reference export holds the uncalibrated ADC counts of the PPG channel,
+        # so we compare against the unprocessed data
         with open(bin_path, "rb") as f:
-            reader = ShimmerReader(f, sync=True)
+            reader = ShimmerReader(f, sync=True, post_process=False)
             reader.load_file_data()
 
         csv_data = np.loadtxt(csv_path, delimiter="\t", skiprows=3, usecols=(0, 1))
@@ -182,7 +209,7 @@ class ShimmerReaderTest(TestCase):
         expected_ppg = csv_data[:, 1]
 
         actual_ts = reader.timestamp * 1000
-        actual_ppg = reader[EChannelType.INTERNAL_ADC_A1] * 1000.0  # needs to be in mV
+        actual_ppg = reader[EChannelType.INTERNAL_ADC_A1]
 
         self.assertEqual(exp_channels, reader.channels)
         self.assertEqual(exp_sr, reader.sample_rate)
@@ -316,6 +343,161 @@ class ShimmerReaderTest(TestCase):
                 np.testing.assert_almost_equal(rdr_channel, csv_channel.to_numpy())
 
 
+class PressureProcessingTest(TestCase):
+
+    # BST-BMP280-DS001 sections 3.12 and 8.1, calculation example
+    BMP280_COEFF_BIN = struct.pack(
+        "<HhhHhhhhhhhh",
+        27504,
+        26435,
+        -1000,
+        36477,
+        -10685,
+        3024,
+        2855,
+        140,
+        -7,
+        15500,
+        -14600,
+        6000,
+    )
+    BMP280_ADC_T = 519888
+    BMP280_ADC_P = 415148
+
+    # BST-BMP180-DS000 section 3.5, calculation example
+    BMP180_COEFF_BIN = struct.pack(
+        ">hhhHHHhhhhh",
+        408,
+        -72,
+        -14383,
+        32741,
+        32757,
+        23153,
+        6190,
+        4,
+        -32768,
+        -8711,
+        2868,
+    )
+    BMP180_UT = 27898
+    BMP180_UP = 23843
+
+    N_SAMPLES = 10
+
+    @staticmethod
+    def create_file(
+        exp_board: tuple[int, int, int],
+        coeff_bin: bytes,
+        oversampling: int,
+        raw_t: int,
+        raw_p: int,
+    ) -> BytesIO:
+        """Create an SD log file with a pressure channel from a real file header"""
+        with open(get_binary_sample_fpath(), "rb") as f:
+            header = bytearray(f.read(DATA_LOG_OFFSET))
+
+        rev = RevisionRegistry.REV_SHIMMER3
+        sensor_bin = rev.serialize_sensorlist([ESensorGroup.PRESSURE])
+        header[ENABLED_SENSORS_OFFSET : ENABLED_SENSORS_OFFSET + len(sensor_bin)] = (
+            sensor_bin
+        )
+        header[EXP_BOARD_OFFSET : EXP_BOARD_OFFSET + EXP_BOARD_LEN] = bytes(exp_board)
+        header[CONFIG_SETUP_BYTE3_OFFSET] &= ~0x30
+        header[CONFIG_SETUP_BYTE3_OFFSET] |= oversampling << 4
+        header[PRESSURE_CALIB_OFFSET : PRESSURE_CALIB_OFFSET + PRESSURE_CALIB_LEN] = (
+            coeff_bin[:PRESSURE_CALIB_LEN]
+        )
+        header[PRESSURE_CALIB_EXTRA_OFFSET : PRESSURE_CALIB_EXTRA_OFFSET + 2] = (
+            coeff_bin[PRESSURE_CALIB_LEN:] or b"\x00\x00"
+        )
+
+        channels = [EChannelType.TIMESTAMP] + rev.get_enabled_channels(
+            [ESensorGroup.PRESSURE]
+        )
+        values = {EChannelType.TEMPERATURE: raw_t, EChannelType.PRESSURE: raw_p}
+
+        data = bytearray()
+        for i in range(PressureProcessingTest.N_SAMPLES):
+            values[EChannelType.TIMESTAMP] = 1000 + i * 100
+            for ch, dtype in zip(channels, rev.get_channel_dtypes(channels)):
+                data += dtype.encode(values[ch])
+
+        return BytesIO(bytes(header) + bytes(data))
+
+    def test_bmp280(self):
+        fp = self.create_file(
+            (48, 3, 0),
+            self.BMP280_COEFF_BIN,
+            0,
+            # The Shimmer3 omits the four lowest bits of the temperature reading and
+            # appends four zero bits to the pressure reading
+            raw_t=self.BMP280_ADC_T >> 4,
+            raw_p=self.BMP280_ADC_P << 4,
+        )
+
+        reader = ShimmerReader(fp)
+        reader.load_file_data()
+        self.assertEqual(reader.pressure_calibration.sensor, EPressureSensor.BMP280)
+
+        np.testing.assert_allclose(
+            reader[EChannelType.TEMPERATURE], [25.08] * self.N_SAMPLES, atol=0.005
+        )
+        np.testing.assert_allclose(
+            reader[EChannelType.PRESSURE], [100653.27] * self.N_SAMPLES, atol=0.005
+        )
+
+    def test_bmp180(self):
+        oss = 3
+        fp = self.create_file(
+            (31, 5, 0),
+            self.BMP180_COEFF_BIN,
+            oss,
+            raw_t=self.BMP180_UT,
+            # The pressure reading is left-aligned to 24 bits
+            raw_p=self.BMP180_UP << (8 - oss),
+        )
+
+        reader = ShimmerReader(fp)
+        reader.load_file_data()
+        self.assertEqual(reader.pressure_calibration.sensor, EPressureSensor.BMP180)
+
+        exp_p, exp_t = compensate_bmp180(
+            self.BMP180_UP,
+            self.BMP180_UT,
+            Bmp180Coefficients.from_bytes(self.BMP180_COEFF_BIN),
+            oss,
+        )
+        np.testing.assert_equal(
+            reader[EChannelType.TEMPERATURE], [exp_t] * self.N_SAMPLES
+        )
+        np.testing.assert_equal(reader[EChannelType.PRESSURE], [exp_p] * self.N_SAMPLES)
+
+    def test_blank_coefficients(self):
+        fp = self.create_file((48, 3, 0), bytes(24), 0, raw_t=1234, raw_p=5678)
+
+        reader = ShimmerReader(fp)
+        with self.assertWarns(UserWarning):
+            reader.load_file_data()
+
+        np.testing.assert_equal(
+            reader[EChannelType.TEMPERATURE], [1234] * self.N_SAMPLES
+        )
+        np.testing.assert_equal(reader[EChannelType.PRESSURE], [5678] * self.N_SAMPLES)
+
+    def test_no_post_processing(self):
+        fp = self.create_file(
+            (48, 3, 0), self.BMP280_COEFF_BIN, 0, raw_t=1234, raw_p=5678
+        )
+
+        reader = ShimmerReader(fp, post_process=False)
+        reader.load_file_data()
+
+        np.testing.assert_equal(
+            reader[EChannelType.TEMPERATURE], [1234] * self.N_SAMPLES
+        )
+        np.testing.assert_equal(reader[EChannelType.PRESSURE], [5678] * self.N_SAMPLES)
+
+
 class SignalPostProcessorTest(TestCase):
 
     # noinspection PyTypeChecker
@@ -379,7 +561,8 @@ class SignalPostProcessorTest(TestCase):
             if ch != EChannelType.INTERNAL_ADC_A1:
                 np.testing.assert_equal(y, ch_data[ch])
             else:
-                np.testing.assert_equal(y, ppg_data / 1000.0)
+                # The raw values are ADC counts of a 12bit ADC with a 3V reference
+                np.testing.assert_equal(y, ppg_data * (3.0 / 4095))
 
     # noinspection PyMethodMayBeStatic
     def test_triaxcal_processor(self):
@@ -392,6 +575,7 @@ class SignalPostProcessorTest(TestCase):
         data_dict = {c: data_arr[i] for i, c in enumerate(ch_types)}
 
         mock_reader = Mock(spec=ShimmerBinaryReader)
+        mock_reader.has_triaxcal_params.return_value = True
         mock_reader.get_triaxcal_params.side_effect = lambda x: params[x]
         type(mock_reader).enabled_sensors = PropertyMock(
             return_value=list(params.keys())
@@ -406,3 +590,326 @@ class SignalPostProcessorTest(TestCase):
         exp_arr = np.matmul(k, data_arr - o[..., None])
 
         np.testing.assert_almost_equal(actual_arr, exp_arr)
+
+
+class Shimmer3RReaderTest(TestCase):
+    """End-to-end tests of the public reader API for the Shimmer3R format
+
+    The binary files are synthesized from the documented header layout, see
+    Shimmer3RBinaryReaderTest in test_binary_reader.py.
+    """
+
+    def test_read_and_calibrate_high_g_accel(self):
+        channels = [
+            EChannelType.ACCEL_HG_X,
+            EChannelType.ACCEL_HG_Y,
+            EChannelType.ACCEL_HG_Z,
+        ]
+        samples = [
+            [0, 100, 200, 300],
+            [64, 110, 210, 310],
+        ]
+
+        # An identity alignment matrix and a gain of 10 reduce the calibration to
+        # subtracting the offset and dividing by the gain
+        triaxcal = {
+            ESensorGroup.ACCEL_HG: encode_triaxcal_block(
+                offset=[10, 20, 30],
+                gain=[10, 10, 10],
+                alignment=[100, 0, 0, 0, 100, 0, 0, 0, 100],
+            )
+        }
+
+        content = build_shimmer3r_file(
+            channels=channels,
+            samples=samples,
+            sensors=[ESensorGroup.ACCEL_HG],
+            sample_rate=512,
+            triaxcal=triaxcal,
+        )
+
+        reader = ShimmerReader(io.BytesIO(content))
+        reader.load_file_data()
+
+        self.assertEqual(reader.channels, channels)
+        self.assertEqual(reader.sample_rate, 64.0)
+
+        np.testing.assert_almost_equal(reader.timestamp, np.array([0.0, 64 / 32768]))
+        np.testing.assert_almost_equal(
+            reader[EChannelType.ACCEL_HG_X], np.array([9.0, 10.0])
+        )
+        np.testing.assert_almost_equal(
+            reader[EChannelType.ACCEL_HG_Y], np.array([18.0, 19.0])
+        )
+        np.testing.assert_almost_equal(
+            reader[EChannelType.ACCEL_HG_Z], np.array([27.0, 28.0])
+        )
+
+    def test_calibration_skips_sensors_without_calibration_params(self):
+        channels = [
+            EChannelType.ACCEL_HG_X,
+            EChannelType.ACCEL_HG_Y,
+            EChannelType.ACCEL_HG_Z,
+        ]
+        samples = [
+            [0, 100, 200, 300],
+            [64, 110, 210, 310],
+        ]
+
+        # A device without calibration parameters for a sensor stores a block of
+        # zeros or of 0xFF bytes, which would yield a singular calibration matrix
+        for blank_block in (b"\x00" * 21, b"\xff" * 21):
+            with self.subTest(blank_block=blank_block[:1]):
+                content = build_shimmer3r_file(
+                    channels=channels,
+                    samples=samples,
+                    sensors=[ESensorGroup.ACCEL_HG],
+                    triaxcal={ESensorGroup.ACCEL_HG: blank_block},
+                )
+
+                reader = ShimmerReader(io.BytesIO(content))
+                reader.load_file_data()
+
+                np.testing.assert_equal(
+                    reader[EChannelType.ACCEL_HG_X], np.array([100, 110])
+                )
+                np.testing.assert_equal(
+                    reader[EChannelType.ACCEL_HG_Y], np.array([200, 210])
+                )
+                np.testing.assert_equal(
+                    reader[EChannelType.ACCEL_HG_Z], np.array([300, 310])
+                )
+
+    def test_blank_calibration_leaves_other_sensors_calibrated(self):
+        channels = [
+            EChannelType.ACCEL_HG_X,
+            EChannelType.ACCEL_HG_Y,
+            EChannelType.ACCEL_HG_Z,
+            EChannelType.MAG_WR_X,
+            EChannelType.MAG_WR_Y,
+            EChannelType.MAG_WR_Z,
+        ]
+        samples = [
+            [0, 100, 200, 300, 99, 198, 297],
+            [64, 110, 210, 310, 109, 208, 307],
+        ]
+
+        # The high-g accelerometer is calibrated before the alternative magnetometer,
+        # so its blank block is skipped first. An identity alignment matrix and a
+        # gain of 10 reduce the magnetometer calibration to subtracting the offset
+        # and dividing by the gain.
+        triaxcal = {
+            ESensorGroup.ACCEL_HG: b"\x00" * 21,
+            ESensorGroup.MAG_WR: encode_triaxcal_block(
+                offset=[-1, -2, -3],
+                gain=[10, 10, 10],
+                alignment=[100, 0, 0, 0, 100, 0, 0, 0, 100],
+            ),
+        }
+
+        content = build_shimmer3r_file(
+            channels=channels,
+            samples=samples,
+            sensors=[ESensorGroup.ACCEL_HG, ESensorGroup.MAG_WR],
+            triaxcal=triaxcal,
+        )
+
+        reader = ShimmerReader(io.BytesIO(content))
+        reader.load_file_data()
+
+        np.testing.assert_equal(reader[EChannelType.ACCEL_HG_X], np.array([100, 110]))
+        np.testing.assert_equal(reader[EChannelType.ACCEL_HG_Y], np.array([200, 210]))
+        np.testing.assert_equal(reader[EChannelType.ACCEL_HG_Z], np.array([300, 310]))
+
+        np.testing.assert_almost_equal(
+            reader[EChannelType.MAG_WR_X], np.array([10.0, 11.0])
+        )
+        np.testing.assert_almost_equal(
+            reader[EChannelType.MAG_WR_Y], np.array([20.0, 21.0])
+        )
+        np.testing.assert_almost_equal(
+            reader[EChannelType.MAG_WR_Z], np.array([30.0, 31.0])
+        )
+
+    def test_calibration_skips_sensors_without_recorded_channels(self):
+        # The gyroscope is marked as enabled in the sensor bitfield, but the header
+        # channel list does not contain its channels
+        content = build_shimmer3r_file(
+            channels=[EChannelType.VBATT],
+            samples=[[0, 1], [64, 2]],
+            sensors=[ESensorGroup.BATTERY, ESensorGroup.GYRO],
+        )
+
+        reader = ShimmerReader(io.BytesIO(content))
+        reader.load_file_data()
+
+        self.assertEqual(reader.channels, [EChannelType.VBATT])
+        np.testing.assert_equal(reader[EChannelType.VBATT], np.array([1, 2]))
+
+    def test_pressure_compensation(self):
+        channels = [EChannelType.TEMPERATURE, EChannelType.PRESSURE]
+        raw_pressure = int.from_bytes(b"\x00\x0d\x64", "little")
+        raw_temperature = int.from_bytes(b"\x00\xba\x7f", "little")
+
+        # Calibration block of the BMP390 test vector of the Shimmer Java API
+        pressure_calib = bytes(
+            [
+                0xE7,
+                0x6B,
+                0xF0,
+                0x4A,
+                0xF9,
+                0xAB,
+                0x1C,
+                0x9B,
+                0x15,
+                0x06,
+                0x01,
+                0xD2,
+                0x49,
+                0x18,
+                0x5F,
+                0x03,
+                0xFA,
+                0x3A,
+                0x0F,
+                0x07,
+                0xF5,
+            ]
+        )
+
+        content = build_shimmer3r_file(
+            channels=channels,
+            samples=[[0, raw_temperature, raw_pressure]],
+            sensors=[ESensorGroup.PRESSURE],
+            pressure_calib=pressure_calib,
+        )
+
+        bin_reader = ShimmerBinaryReader(io.BytesIO(content))
+        self.assertEqual(bin_reader.pressure_calibration.sensor, EPressureSensor.BMP390)
+
+        reader = ShimmerReader(bin_reader=bin_reader)
+        reader.load_file_data()
+
+        # The compensated values are a pressure in Pa and a temperature in degrees
+        # Celsius rather than the raw ADC readings
+        self.assertAlmostEqual(reader[EChannelType.PRESSURE][0], 100911.825, places=2)
+        self.assertAlmostEqual(reader[EChannelType.TEMPERATURE][0], 23.170170, places=5)
+
+    def test_pressure_without_calibration_stays_raw(self):
+        channels = [EChannelType.TEMPERATURE, EChannelType.PRESSURE]
+        samples = [[0, 34027, 5545536]]
+
+        # The header contains no calibration parameters for the pressure sensor
+        content = build_shimmer3r_file(
+            channels=channels, samples=samples, sensors=[ESensorGroup.PRESSURE]
+        )
+
+        bin_reader = ShimmerBinaryReader(io.BytesIO(content))
+        self.assertTrue(bin_reader.pressure_calibration.is_blank)
+
+        reader = ShimmerReader(bin_reader=bin_reader)
+        with self.assertWarns(UserWarning):
+            reader.load_file_data()
+
+        self.assertEqual(reader[EChannelType.TEMPERATURE][0], 34027)
+        self.assertEqual(reader[EChannelType.PRESSURE][0], 5545536)
+
+    def test_bmp581_pressure_and_temperature(self):
+        channels = [EChannelType.PRESSURE, EChannelType.TEMPERATURE]
+
+        # 100800 Pa at 25 and at -10 degrees Celsius. The device records the
+        # negative temperature as 24bit two's complement in an unsigned channel.
+        samples = [
+            [0, 100800 * 64, 25 * 65536],
+            [64, 100800 * 64, (1 << 24) - 10 * 65536],
+        ]
+
+        # A GSR+ board from revision 8.2 onwards carries the BMP581, whose
+        # compensated output requires LogAndStream v1.01.006 or newer
+        content = build_shimmer3r_file(
+            channels=channels,
+            samples=samples,
+            sensors=[ESensorGroup.PRESSURE],
+            exp_board=(48, 8, 2),
+            firmware=(3, 1, 1, 6),
+        )
+
+        bin_reader = ShimmerBinaryReader(io.BytesIO(content))
+        self.assertEqual(bin_reader.pressure_calibration.sensor, EPressureSensor.BMP581)
+
+        reader = ShimmerReader(bin_reader=bin_reader)
+        reader.load_file_data()
+
+        np.testing.assert_allclose(
+            reader[EChannelType.PRESSURE], np.array([100800.0, 100800.0]), rtol=1e-12
+        )
+        np.testing.assert_allclose(
+            reader[EChannelType.TEMPERATURE], np.array([25.0, -10.0]), rtol=1e-12
+        )
+
+    def test_gsr_derived_channels(self):
+        content = build_shimmer3r_file(
+            channels=[EChannelType.GSR_RAW],
+            samples=[[0, 697], [64, 17188]],
+            sensors=[ESensorGroup.GSR],
+        )
+
+        reader = ShimmerReader(io.BytesIO(content))
+        reader.load_file_data()
+
+        # The raw channel is kept and the converted values are added
+        self.assertEqual(reader.channels, [EChannelType.GSR_RAW])
+        self.assertEqual(
+            reader.derived_channels,
+            [
+                EChannelType.GSR_RANGE,
+                EChannelType.GSR_RESISTANCE,
+                EChannelType.GSR_CONDUCTANCE,
+            ],
+        )
+
+        np.testing.assert_equal(reader[EChannelType.GSR_RAW], np.array([697, 17188]))
+        np.testing.assert_equal(reader[EChannelType.GSR_RANGE], np.array([0, 1]))
+        np.testing.assert_allclose(
+            reader[EChannelType.GSR_RESISTANCE],
+            np.array([1892.1724137931103, 1612.1604938271603]),
+            rtol=0,
+            atol=1e-9,
+        )
+
+    def test_gsr_fixed_range_from_header(self):
+        # The second reading carries the range bits of range 1, but the device was
+        # configured for a fixed range of 0
+        content = build_shimmer3r_file(
+            channels=[EChannelType.GSR_RAW],
+            samples=[[0, 2054], [64, (1 << 14) | 804]],
+            sensors=[ESensorGroup.GSR],
+            gsr_range=0,
+        )
+
+        reader = ShimmerReader(io.BytesIO(content))
+        reader.load_file_data()
+
+        # Both readings are converted on the configured range, and the second one
+        # lies above its upper limit of 63 kOhm
+        np.testing.assert_equal(reader[EChannelType.GSR_RANGE], np.array([0, 0]))
+        np.testing.assert_allclose(
+            reader[EChannelType.GSR_RESISTANCE],
+            np.array([20.004739336492873, 63.0]),
+            rtol=0,
+            atol=1e-9,
+        )
+
+    def test_no_derived_channels_without_post_processing(self):
+        content = build_shimmer3r_file(
+            channels=[EChannelType.GSR_RAW],
+            samples=[[0, 697]],
+            sensors=[ESensorGroup.GSR],
+        )
+
+        reader = ShimmerReader(io.BytesIO(content), post_process=False)
+        reader.load_file_data()
+
+        self.assertEqual(reader.derived_channels, [])
+        np.testing.assert_equal(reader[EChannelType.GSR_RAW], np.array([697]))

@@ -18,13 +18,23 @@ from __future__ import annotations
 import random
 from unittest import TestCase
 
-from pyshimmer.dev.calibration import AllCalibration
+from pyshimmer.dev.calibration import AllCalibration, has_calib_params
 
 
 def randbytes(k: int) -> bytes:
     population = list(range(256))
     seq = random.choices(population, k=k)
     return bytes(seq)
+
+
+class HasCalibParamsTest(TestCase):
+
+    def test_blank_blocks(self):
+        self.assertFalse(has_calib_params(b"\x00" * 24))
+        self.assertFalse(has_calib_params(b"\xff" * 24))
+
+    def test_populated_block(self):
+        self.assertTrue(has_calib_params(b"\x00" * 23 + b"\x01"))
 
 
 class AllCalibrationTest(TestCase):

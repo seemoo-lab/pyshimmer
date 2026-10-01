@@ -20,7 +20,15 @@ import itertools
 import numpy as np
 import pytest
 
-from pyshimmer import Shimmer3Revision, EChannelType
+from pyshimmer import (
+    EExpansionBoard,
+    ExpansionBoard,
+    EPressureSensor,
+    FirmwareType,
+    FirmwareVersion,
+    Shimmer3Revision,
+    EChannelType,
+)
 from pyshimmer.dev.channels import ESensorGroup
 
 
@@ -93,7 +101,12 @@ class TestShimmer3Revision:
         assert second.signed is True
 
     def test_channel_dtype_assignment(self, revision: Shimmer3Revision):
+        # Derived channels are calculated rather than read from the data stream, so
+        # they do not possess a binary data type
         for channel in EChannelType:
+            if channel.is_derived:
+                continue
+
             r = revision.get_channel_dtypes([channel])
             assert len(r) > 0
 
@@ -211,3 +224,68 @@ class TestShimmer3Revision:
         )
         actual = revision.unwrap_device_timestamps(ts_wrapped)
         np.testing.assert_equal(actual, expected)
+
+    def test_sd_file_layout(self, revision: Shimmer3Revision):
+        # The Shimmer3 header is 256 bytes long and does not record a channel list,
+        # the channels are derived from the enabled sensors instead
+        assert revision.sd_header_len == 0x100
+        assert revision.sd_channel_list_offset is None
+        assert revision.is_sd_sync_supported is True
+
+    def test_triaxcal_specs(self, revision: Shimmer3Revision):
+        assert set(revision.triaxcal_sensors) == {
+            ESensorGroup.ACCEL_LN,
+            ESensorGroup.ACCEL_WR,
+            ESensorGroup.GYRO,
+            ESensorGroup.MAG_REG,
+        }
+
+        exp_offsets = {
+            ESensorGroup.ACCEL_WR: 0x4C,
+            ESensorGroup.GYRO: 0x61,
+            ESensorGroup.MAG_REG: 0x76,
+            ESensorGroup.ACCEL_LN: 0x8B,
+        }
+
+        for sensor, exp_offset in exp_offsets.items():
+            spec = revision.get_triaxcal_spec(sensor)
+
+            assert spec.offset == exp_offset
+            assert spec.offset_scaling == 1.0
+            assert spec.alignment_scaling == 100.0
+
+            exp_gain_scaling = 100.0 if sensor == ESensorGroup.GYRO else 1.0
+            assert spec.gain_scaling == exp_gain_scaling
+
+    def test_triaxcal_spec_for_unsupported_sensor(self, revision: Shimmer3Revision):
+        # The Shimmer3 does not record calibration data for the MPU9150 sensors
+        with pytest.raises(ValueError):
+            revision.get_triaxcal_spec(ESensorGroup.ACCEL_HG)
+
+    def test_pressure_sensor_bmp180(self, revision: Shimmer3Revision):
+        # Older expansion boards carry the BMP180
+        for board in [
+            ExpansionBoard(EExpansionBoard.SHIMMER3, 5, 0),
+            ExpansionBoard(EExpansionBoard.GSR_UNIFIED, 2, 0),
+            ExpansionBoard(EExpansionBoard.EXG_UNIFIED, 1, 0),
+            ExpansionBoard(EExpansionBoard.LOG_FILE, 255, 255),
+        ]:
+            sensor = revision.get_pressure_sensor(
+                board, FirmwareType.LogAndStream, FirmwareVersion(0, 15, 4)
+            )
+            assert sensor == EPressureSensor.BMP180, board
+
+    def test_pressure_sensor_bmp280(self, revision: Shimmer3Revision):
+        # Boards with the newer IMU set carry the BMP280
+        for board in [
+            ExpansionBoard(EExpansionBoard.SHIMMER3, 6, 0),
+            ExpansionBoard(EExpansionBoard.GSR_UNIFIED, 3, 0),
+            ExpansionBoard(EExpansionBoard.GSR_UNIFIED, 4, 2),
+            ExpansionBoard(EExpansionBoard.BR_AMP_UNIFIED, 3, 0),
+            # Any board attached to a new IMU base board
+            ExpansionBoard(EExpansionBoard.LOG_FILE, 0, 171),
+        ]:
+            sensor = revision.get_pressure_sensor(
+                board, FirmwareType.LogAndStream, FirmwareVersion(0, 15, 4)
+            )
+            assert sensor == EPressureSensor.BMP280, board

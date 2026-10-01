@@ -20,11 +20,15 @@ from typing import BinaryIO
 
 import numpy as np
 
+from pyshimmer.dev.base import ExpansionBoard
+from pyshimmer.dev.calibration import has_calib_params
 from pyshimmer.dev.channels import (
     ESensorGroup,
     EChannelType,
 )
 from pyshimmer.dev.exg import ExGRegister
+from pyshimmer.dev.fw_version import FirmwareType, FirmwareVersion
+from pyshimmer.dev.pressure import EPressureSensor, PressureCalibration
 from pyshimmer.dev.revisions import RevisionRegistry, HardwareVersion, HardwareRevision
 from pyshimmer.util import FileIOBase, unpack, bit_is_set
 from .reader_const import (
@@ -37,28 +41,49 @@ from .reader_const import (
     TRIAL_CONFIG_MASTER,
     TRIAL_CONFIG_SYNC,
     BLOCK_LEN,
-    DATA_LOG_OFFSET,
+    HW_VERSION_OFFSET,
+    FW_TYPE_OFFSET,
+    FW_VERSION_OFFSET,
     EXG_REG_OFFSET,
     EXG_REG_LEN,
-    TRIAXCAL_FILE_OFFSET,
-    TRIAXCAL_OFFSET_SCALING,
-    TRIAXCAL_GAIN_SCALING,
-    TRIAXCAL_ALIGNMENT_SCALING,
+    TRIAXCAL_FMT,
+    CONFIG_SETUP_BYTE3_OFFSET,
+    PRESSURE_OVERSAMPLING_SHIFT,
+    PRESSURE_OVERSAMPLING_MASK,
+    GSR_RANGE_SHIFT,
+    GSR_RANGE_MASK,
+    EXP_BOARD_OFFSET,
+    EXP_BOARD_LEN,
+    PRESSURE_CALIB_OFFSET,
+    PRESSURE_CALIB_LEN,
+    PRESSURE_CALIB_EXTRA_OFFSET,
+    PRESSURE_CALIB_EXTRA_LEN,
 )
 
 
 class ShimmerBinaryReader(FileIOBase):
 
-    def __init__(self, fp: BinaryIO):
+    def __init__(self, fp: BinaryIO, hw_version: HardwareVersion = None):
+        """Read the contents of a binary file recorded by a Shimmer device
+
+        :param fp: The binary file to read
+        :param hw_version: The hardware version of the device that recorded the file.
+            If None, the version is read from the file header. Provide it explicitly
+            only for files whose header does not carry a usable version field.
+        """
         super().__init__(fp)
 
-        self._revision = RevisionRegistry.get_revision(HardwareVersion.SHIMMER3)
         self._sensors = []
         self._channels = []
         self._sr = 0
         self._rtc_diff = 0
         self._start_ts = 0
         self._trial_config = 0
+        self._pressure_calib = None
+
+        if hw_version is None:
+            hw_version = self._read_hardware_version()
+        self._revision = RevisionRegistry.get_revision(hw_version)
 
         self._read_header()
 
@@ -70,14 +95,51 @@ class ShimmerBinaryReader(FileIOBase):
     def _read_header(self) -> None:
         self._sr = self._read_sample_rate()
         self._sensors = self._read_enabled_sensors()
-        self._channels = self.get_data_channels(self._sensors)
+        self._channels = self._read_data_channels()
         self._channel_dtypes = self._revision.get_channel_dtypes(self._channels)
         self._rtc_diff = self._read_rtc_clock_diff()
         self._start_ts = self._read_start_time()
         self._trial_config = self._read_trial_config()
         self._exg_regs = self._read_exg_regs()
+        self._fw_type, self._fw_version = self._read_firmware_version()
+        self._exp_board = self._read_expansion_board()
+        self._pressure_oversampling = self._read_pressure_oversampling()
+        self._pressure_calib = self._read_pressure_calibration()
+        self._gsr_range = self._read_gsr_range()
+
+        if self.has_sync and not self._revision.is_sd_sync_supported:
+            raise NotImplementedError(
+                f"Reading synchronized binary files is not supported for "
+                f"hardware version {self._revision.hardware_version.name}"
+            )
 
         self._samples_per_block, self._block_size = self._calculate_block_size()
+
+    def _read_hardware_version(self) -> HardwareVersion:
+        self._seek(HW_VERSION_OFFSET)
+        version_int = self._read_packed(">H")
+
+        version = HardwareVersion.from_int(version_int)
+        if version == HardwareVersion.UNKNOWN:
+            raise ValueError(
+                f"File header specifies unknown hardware version {version_int}"
+            )
+
+        return version
+
+    def _read_firmware_version(self) -> tuple[FirmwareType, FirmwareVersion]:
+        self._seek(FW_TYPE_OFFSET)
+        fw_type = FirmwareType.from_int(self._read_packed(">H"))
+
+        self._seek(FW_VERSION_OFFSET)
+        major, minor, rel = self._read_packed(">HBB")
+
+        return fw_type, FirmwareVersion(major=major, minor=minor, rel=rel)
+
+    def _read_gsr_range(self) -> int:
+        self._seek(CONFIG_SETUP_BYTE3_OFFSET)
+        config_byte = self._read_packed("B")
+        return (config_byte >> GSR_RANGE_SHIFT) & GSR_RANGE_MASK
 
     def _read_sample_rate(self) -> int:
         self._seek(SR_OFFSET)
@@ -89,6 +151,28 @@ class ShimmerBinaryReader(FileIOBase):
         enabled_sensors = self._revision.deserialize_sensorlist(sensor_bitfield)
 
         return enabled_sensors
+
+    def _read_data_channels(self) -> list[EChannelType]:
+        list_offset = self._revision.sd_channel_list_offset
+        if list_offset is None:
+            # The revision does not record the channels explicitly. We derive them
+            # from the set of enabled sensors instead.
+            return self.get_data_channels(self._sensors)
+
+        self._seek(list_offset)
+        num_channels = self._read_packed("B")
+
+        max_channels = self._revision.sd_header_len - (list_offset + 1)
+        if not 0 < num_channels <= max_channels:
+            raise ValueError(
+                f"File header specifies invalid number of channels: "
+                f"{num_channels} not in [1, {max_channels}]"
+            )
+
+        channel_ids = self._read(num_channels)
+
+        channels = [EChannelType.enum_for_id(ch_id) for ch_id in channel_ids]
+        return [EChannelType.TIMESTAMP] + channels
 
     def _read_rtc_clock_diff(self) -> int:
         self._seek(RTC_CLOCK_DIFF_OFFSET)
@@ -167,7 +251,7 @@ class ShimmerBinaryReader(FileIOBase):
         samples = []
         sample_ctr = 0
 
-        self._seek(DATA_LOG_OFFSET)
+        self._seek(self._revision.sd_header_len)
         while True:
             block_samples, sync_offset = self._read_data_block()
 
@@ -190,14 +274,42 @@ class ShimmerBinaryReader(FileIOBase):
         reg2 = self._read(EXG_REG_LEN)
         return reg1, reg2
 
+    def _read_expansion_board(self) -> tuple[int, int, int]:
+        self._seek(EXP_BOARD_OFFSET)
+        board_id, board_rev, board_rev_special = self._read(EXP_BOARD_LEN)
+        return board_id, board_rev, board_rev_special
+
+    def _read_pressure_oversampling(self) -> int:
+        self._seek(CONFIG_SETUP_BYTE3_OFFSET)
+        config_byte = self._read_packed("B")
+        return (config_byte >> PRESSURE_OVERSAMPLING_SHIFT) & PRESSURE_OVERSAMPLING_MASK
+
+    def _read_pressure_calibration(self) -> PressureCalibration:
+        # The sensor follows from the expansion board, and on the Shimmer3R also from
+        # the firmware version
+        sensor = self._revision.get_pressure_sensor(
+            ExpansionBoard(*self._exp_board), self._fw_type, self._fw_version
+        )
+
+        # The coefficients start at the same offset for every sensor. The BMP390
+        # uses 21 of the 22 bytes, the BMP581 needs no coefficients at all.
+        self._seek(PRESSURE_CALIB_OFFSET)
+        coeff_bin = self._read(min(sensor.coefficient_size, PRESSURE_CALIB_LEN))
+
+        if sensor == EPressureSensor.BMP280:
+            # The BMP280 coefficients do not fit into the space that was originally
+            # reserved for the BMP180, the remaining bytes are stored separately
+            self._seek(PRESSURE_CALIB_EXTRA_OFFSET)
+            coeff_bin += self._read(PRESSURE_CALIB_EXTRA_LEN)
+
+        return PressureCalibration(sensor, coeff_bin)
+
     def _read_triaxcal_params(
         self, offset: int
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        fmt = ">" + 6 * "h" + 9 * "b"
-
         self._seek(offset)
-        calib_param_bytes = self._read(struct.calcsize(fmt))
-        params_raw = struct.unpack(fmt, calib_param_bytes)
+        calib_param_bytes = self._read(struct.calcsize(TRIAXCAL_FMT))
+        params_raw = struct.unpack(TRIAXCAL_FMT, calib_param_bytes)
 
         offset = np.array(params_raw[:3])
         gain = np.diag(params_raw[3:6])
@@ -226,20 +338,73 @@ class ShimmerBinaryReader(FileIOBase):
         reg_content = self._exg_regs[chip_id]
         return ExGRegister(reg_content)
 
+    def has_triaxcal_params(self, sensor: ESensorGroup) -> bool:
+        """Check if the file stores calibration parameters for a triaxial sensor
+
+        A device that holds no parameters for a sensor stores a block of zeros or of
+        0xFF bytes instead, which cannot be used for calibration.
+
+        :param sensor: The sensor to check
+        :return: True if the file holds parameters for the sensor, else False
+        """
+        spec = self._revision.get_triaxcal_spec(sensor)
+
+        self._seek(spec.offset)
+        block = self._read(struct.calcsize(TRIAXCAL_FMT))
+
+        return has_calib_params(block)
+
     def get_triaxcal_params(
         self, sensor: ESensorGroup
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        offset = TRIAXCAL_FILE_OFFSET[sensor]
-        sc_offset = TRIAXCAL_OFFSET_SCALING[sensor]
-        sc_gain = TRIAXCAL_GAIN_SCALING[sensor]
-        sc_alignment = TRIAXCAL_ALIGNMENT_SCALING[sensor]
+        spec = self._revision.get_triaxcal_spec(sensor)
 
-        offset, gain, alignment = self._read_triaxcal_params(offset)
-        return offset * sc_offset, gain * sc_gain, alignment * sc_alignment
+        offset, gain, alignment = self._read_triaxcal_params(spec.offset)
+        return (
+            offset / spec.offset_scaling,
+            gain / spec.gain_scaling,
+            alignment / spec.alignment_scaling,
+        )
 
     @property
     def hardware_revision(self) -> HardwareRevision:
         return self._revision
+
+    @property
+    def firmware_type(self) -> FirmwareType:
+        return self._fw_type
+
+    @property
+    def firmware_version(self) -> FirmwareVersion:
+        return self._fw_version
+
+    @property
+    def expansion_board(self) -> tuple[int, int, int]:
+        """The ID, revision and special revision of the expansion board"""
+        return self._exp_board
+
+    @property
+    def pressure_calibration(self) -> PressureCalibration:
+        """The pressure sensor of the device and its calibration coefficients
+
+        The sensor is determined from the expansion board of the device, and on the
+        Shimmer3R also from its firmware version.
+        """
+        return self._pressure_calib
+
+    @property
+    def pressure_oversampling(self) -> int:
+        """The configured oversampling setting of the pressure sensor"""
+        return self._pressure_oversampling
+
+    @property
+    def gsr_range(self) -> int:
+        """The range setting of the GSR circuit
+
+        :return: 0 to 3 if the device measured on a fixed range, or GSR_RANGE_AUTO if
+            it selected the range for each sample itself
+        """
+        return self._gsr_range
 
     @property
     def sample_rate(self) -> int:

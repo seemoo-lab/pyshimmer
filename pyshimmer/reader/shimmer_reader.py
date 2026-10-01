@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from __future__ import annotations
 
+import warnings
 from abc import ABC, abstractmethod
 from typing import BinaryIO
 
@@ -22,13 +23,18 @@ import numpy as np
 
 from pyshimmer.dev.channels import EChannelType
 from pyshimmer.dev.exg import is_exg_ch, get_exg_ch, ExGRegister
-from pyshimmer.dev.revisions import HardwareRevision
+from pyshimmer.dev.gsr import calibrate_gsr
+from pyshimmer.dev.pressure import PressureCalibration
+from pyshimmer.dev.revisions import HardwareRevision, HardwareVersion
 from pyshimmer.reader.binary_reader import ShimmerBinaryReader
 from pyshimmer.reader.reader_const import (
+    ADC_GAIN,
+    ADC_OFFSET,
+    ADC_REF_VOLT,
     EXG_ADC_REF_VOLT,
     EXG_ADC_OFFSET,
-    TRIAXCAL_SENSORS,
 )
+from pyshimmer.util import calibrate_u12_adc_value
 
 
 def fit_linear_1d(xp, fp, x):
@@ -104,8 +110,39 @@ class PPGProcessor(SingleChannelProcessor):
     def process_channel(
         self, ch_type: EChannelType, y: np.ndarray, reader: ShimmerBinaryReader
     ) -> np.ndarray:
-        # Convert from mV to V
-        return y / 1000.0
+        # The channel is connected to a 12bit ADC of the microcontroller, so the raw
+        # readings are ADC counts which must be scaled to a voltage
+        return calibrate_u12_adc_value(
+            y, offset=ADC_OFFSET, vRefP=ADC_REF_VOLT, gain=ADC_GAIN
+        )
+
+
+class GSRProcessor(ChannelPostProcessor):
+    """Converts the galvanic skin response channel
+
+    The raw channel encodes the active range of the GSR circuit alongside the ADC
+    reading. This processor leaves the raw channel untouched and adds the active
+    range, the skin resistance in kOhm, and the skin conductance in microsiemens as
+    derived channels. The conversion follows the range setting that the device stored
+    in the file header.
+    """
+
+    def process(
+        self, channels: dict[EChannelType, np.ndarray], reader: ShimmerBinaryReader
+    ) -> dict[EChannelType, np.ndarray]:
+        if EChannelType.GSR_RAW not in channels:
+            return channels
+
+        gsr_range, resistance, conductance = calibrate_gsr(
+            channels[EChannelType.GSR_RAW], range_setting=reader.gsr_range
+        )
+
+        result = channels.copy()
+        result[EChannelType.GSR_RANGE] = gsr_range
+        result[EChannelType.GSR_RESISTANCE] = resistance
+        result[EChannelType.GSR_CONDUCTANCE] = conductance
+
+        return result
 
 
 class TriAxCalProcessor(ChannelPostProcessor):
@@ -114,10 +151,22 @@ class TriAxCalProcessor(ChannelPostProcessor):
         self, channels: dict[EChannelType, np.ndarray], reader: ShimmerBinaryReader
     ) -> dict[EChannelType, np.ndarray]:
         result = channels.copy()
+        revision = reader.hardware_revision
 
-        active_sensors = [s for s in reader.enabled_sensors if s in TRIAXCAL_SENSORS]
-        for sensor in active_sensors:
-            sensor_channels = reader.hardware_revision.get_enabled_channels([sensor])
+        for sensor in revision.triaxcal_sensors:
+            if sensor not in reader.enabled_sensors:
+                continue
+
+            sensor_channels = revision.get_enabled_channels([sensor])
+            if not all(c in channels for c in sensor_channels):
+                # The sensor is enabled but its channels were not recorded
+                continue
+
+            if not reader.has_triaxcal_params(sensor):
+                # The device did not store calibration parameters for the sensor, so
+                # its channels are left uncalibrated
+                continue
+
             channel_data = np.stack([channels[c] for c in sensor_channels])
             o, g, a = reader.get_triaxcal_params(sensor)
 
@@ -130,6 +179,40 @@ class TriAxCalProcessor(ChannelPostProcessor):
         return result
 
 
+class PressureProcessor(ChannelPostProcessor):
+    """Convert the pressure and temperature channels to Pa and degrees Celsius
+
+    The calibration coefficients are taken from the file header. If the header holds
+    no coefficients, the channels are left unchanged and a warning is issued.
+    """
+
+    def process(
+        self, channels: dict[EChannelType, np.ndarray], reader: ShimmerBinaryReader
+    ) -> dict[EChannelType, np.ndarray]:
+        pressure_channels = (EChannelType.PRESSURE, EChannelType.TEMPERATURE)
+        if not all(ch in channels for ch in pressure_channels):
+            return channels
+
+        calib = reader.pressure_calibration
+        if calib.is_blank:
+            warnings.warn(
+                "The file header contains no pressure calibration coefficients, "
+                "the pressure and temperature channels remain uncalibrated"
+            )
+            return channels
+
+        pressure, temperature = calib.compensate(
+            channels[EChannelType.PRESSURE],
+            channels[EChannelType.TEMPERATURE],
+            reader.pressure_oversampling,
+        )
+
+        result = channels.copy()
+        result[EChannelType.PRESSURE] = pressure
+        result[EChannelType.TEMPERATURE] = temperature
+        return result
+
+
 class ShimmerReader:
 
     def __init__(
@@ -139,9 +222,10 @@ class ShimmerReader:
         sync: bool = True,
         post_process: bool = True,
         processors: list[ChannelPostProcessor] = None,
+        hw_version: HardwareVersion = None,
     ):
         if fp is not None:
-            self._bin_reader = ShimmerBinaryReader(fp)
+            self._bin_reader = ShimmerBinaryReader(fp, hw_version=hw_version)
         elif bin_reader is not None:
             self._bin_reader = bin_reader
         else:
@@ -161,6 +245,8 @@ class ShimmerReader:
                 ExGProcessor(),
                 PPGProcessor(),
                 TriAxCalProcessor(),
+                PressureProcessor(),
+                GSRProcessor(),
             ]
 
     @staticmethod
@@ -229,6 +315,10 @@ class ShimmerReader:
         return self._bin_reader.hardware_revision
 
     @property
+    def pressure_calibration(self) -> PressureCalibration:
+        return self._bin_reader.pressure_calibration
+
+    @property
     def timestamp(self) -> np.ndarray:
         return self._ts
 
@@ -236,6 +326,18 @@ class ShimmerReader:
     def channels(self) -> list[EChannelType]:
         # We return all but the first channel which are the timestamps
         return self._bin_reader.enabled_channels[1:]
+
+    @property
+    def derived_channels(self) -> list[EChannelType]:
+        """Channels that the post processors calculated from the recorded channels
+
+        These channels are not present in the data file. They are only available if
+        post processing is enabled.
+
+        :return: A list of the available derived channels
+        """
+        recorded = set(self._bin_reader.enabled_channels)
+        return [c for c in self._ch_samples if c not in recorded]
 
     @property
     def sample_rate(self) -> float:

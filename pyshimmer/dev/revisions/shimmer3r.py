@@ -17,7 +17,16 @@ from __future__ import annotations
 
 from .hw_version import HardwareVersion
 from .revision import BaseRevision
-from ..channels import EChannelType, ChannelDataType, ESensorGroup
+from ..base import EExpansionBoard, ExpansionBoard
+from ..calibration import TriaxCalibSpec
+from ..channels import (
+    EChannelType,
+    ChannelDataType,
+    ESensorGroup,
+    PackedChannelDataType,
+)
+from ..fw_version import FirmwareType, FirmwareVersion
+from ..pressure import EPressureSensor
 
 
 class Shimmer3RRevision(BaseRevision):
@@ -26,6 +35,36 @@ class Shimmer3RRevision(BaseRevision):
     DEV_CLOCK_RATE: float = 32768.0
     ENABLED_SENSORS_LEN = 0x03
     SENSOR_DTYPE = ChannelDataType(size=ENABLED_SENSORS_LEN, signed=False, le=True)
+
+    # The Shimmer3R uses a larger configuration header than the Shimmer3
+    SD_HEADER_LEN = 0x180
+
+    # The header records the number of channels, followed by one channel id per
+    # channel. This list determines the set and order of the recorded channels.
+    SD_CHANNEL_LIST_OFFSET = 0x13A
+
+    # A board at this revision or newer carries the BMP581 instead of the BMP390
+    BMP581_BOARD_REV: dict[int, tuple[int, int]] = {
+        EExpansionBoard.SHIMMER3: (11, 2),
+        EExpansionBoard.PROTO3_DELUXE: (4, 2),
+        EExpansionBoard.EXG_UNIFIED: (8, 2),
+        EExpansionBoard.GSR_UNIFIED: (8, 2),
+        EExpansionBoard.BR_AMP_UNIFIED: (4, 2),
+    }
+
+    # The pre-compensated BMP581 output only exists from this firmware onwards
+    BMP581_MIN_FW = (FirmwareType.LogAndStream, FirmwareVersion(1, 1, 6))
+
+    TRIAXCAL_SPECS: dict[ESensorGroup, TriaxCalibSpec] = {
+        ESensorGroup.ACCEL_LN: TriaxCalibSpec(offset=0x8B, alignment_scaling=100.0),
+        ESensorGroup.ACCEL_WR: TriaxCalibSpec(offset=0x4C, alignment_scaling=100.0),
+        ESensorGroup.GYRO: TriaxCalibSpec(
+            offset=0x61, gain_scaling=100.0, alignment_scaling=100.0
+        ),
+        ESensorGroup.MAG_REG: TriaxCalibSpec(offset=0x76, alignment_scaling=100.0),
+        ESensorGroup.ACCEL_HG: TriaxCalibSpec(offset=0x100, alignment_scaling=100.0),
+        ESensorGroup.MAG_WR: TriaxCalibSpec(offset=0x11D, alignment_scaling=100.0),
+    }
 
     CH_DTYPE_ASSIGNMENT: dict[EChannelType, ChannelDataType] = {
         EChannelType.ACCEL_LN_X: ChannelDataType(2, signed=True, le=True),
@@ -48,12 +87,20 @@ class Shimmer3RRevision(BaseRevision):
         EChannelType.INTERNAL_ADC_A0: ChannelDataType(2, signed=False, le=True),
         EChannelType.INTERNAL_ADC_A1: ChannelDataType(2, signed=False, le=True),
         EChannelType.INTERNAL_ADC_A2: ChannelDataType(2, signed=False, le=True),
-        EChannelType.ACCEL_HG_X: None,
-        EChannelType.ACCEL_HG_Y: None,
-        EChannelType.ACCEL_HG_Z: None,
-        EChannelType.MAG_WR_X: None,
-        EChannelType.MAG_WR_Y: None,
-        EChannelType.MAG_WR_Z: None,
+        # The high-g accelerometer transmits 12 bit values which are left-aligned
+        # within a big-endian 16 bit word
+        EChannelType.ACCEL_HG_X: PackedChannelDataType(
+            2, bits=12, signed=True, le=False
+        ),
+        EChannelType.ACCEL_HG_Y: PackedChannelDataType(
+            2, bits=12, signed=True, le=False
+        ),
+        EChannelType.ACCEL_HG_Z: PackedChannelDataType(
+            2, bits=12, signed=True, le=False
+        ),
+        EChannelType.MAG_WR_X: ChannelDataType(2, signed=True, le=True),
+        EChannelType.MAG_WR_Y: ChannelDataType(2, signed=True, le=True),
+        EChannelType.MAG_WR_Z: ChannelDataType(2, signed=True, le=True),
         EChannelType.TEMPERATURE: ChannelDataType(3, signed=False, le=True),
         EChannelType.PRESSURE: ChannelDataType(3, signed=False, le=True),
         EChannelType.GSR_RAW: ChannelDataType(2, signed=False, le=True),
@@ -166,28 +213,33 @@ class Shimmer3RRevision(BaseRevision):
         ESensorGroup.INT_CH_A2: 23,
     }
 
+    # The order in which the channels of a sensor appear in a binary data file is read
+    # from the channel list in the file header, see SD_CHANNEL_LIST_OFFSET. This
+    # ordering is therefore not used to lay out the data of a file. It only determines
+    # the order in which the enabled sensors are reported and follows the channel ids
+    # that the firmware assigns to the sensors.
     SENSOR_ORDER: dict[ESensorGroup, int] = {
         ESensorGroup.ACCEL_LN: 1,
         ESensorGroup.BATTERY: 2,
-        ESensorGroup.EXT_CH_A0: 3,
-        ESensorGroup.EXT_CH_A1: 4,
-        ESensorGroup.EXT_CH_A2: 5,
-        ESensorGroup.INT_CH_A0: 6,
-        ESensorGroup.INT_CH_A1: 7,
-        ESensorGroup.INT_CH_A2: 8,
-        ESensorGroup.STRAIN: 9,
-        ESensorGroup.INT_CH_A3: 10,
-        ESensorGroup.GSR: 11,
-        ESensorGroup.GYRO: 12,
-        ESensorGroup.ACCEL_WR: 13,
-        ESensorGroup.MAG_REG: 14,
-        ESensorGroup.ACCEL_HG: 15,
-        ESensorGroup.MAG_WR: 16,
-        ESensorGroup.PRESSURE: 17,
-        ESensorGroup.EXG1_24BIT: 18,
-        ESensorGroup.EXG1_16BIT: 19,
-        ESensorGroup.EXG2_24BIT: 20,
-        ESensorGroup.EXG2_16BIT: 21,
+        ESensorGroup.ACCEL_WR: 3,
+        ESensorGroup.MAG_REG: 4,
+        ESensorGroup.GYRO: 5,
+        ESensorGroup.EXT_CH_A0: 6,
+        ESensorGroup.EXT_CH_A1: 7,
+        ESensorGroup.EXT_CH_A2: 8,
+        ESensorGroup.INT_CH_A3: 9,
+        ESensorGroup.INT_CH_A0: 10,
+        ESensorGroup.INT_CH_A1: 11,
+        ESensorGroup.INT_CH_A2: 12,
+        ESensorGroup.ACCEL_HG: 13,
+        ESensorGroup.MAG_WR: 14,
+        ESensorGroup.PRESSURE: 15,
+        ESensorGroup.GSR: 16,
+        ESensorGroup.EXG1_24BIT: 17,
+        ESensorGroup.EXG1_16BIT: 18,
+        ESensorGroup.EXG2_24BIT: 19,
+        ESensorGroup.EXG2_16BIT: 20,
+        ESensorGroup.STRAIN: 21,
         ESensorGroup.TEMP: 22,
     }
 
@@ -200,4 +252,37 @@ class Shimmer3RRevision(BaseRevision):
             self.SENSOR_CHANNEL_ASSIGNMENT,
             self.SENSOR_BIT_ASSIGNMENT,
             self.SENSOR_ORDER,
+            self.SD_HEADER_LEN,
+            self.TRIAXCAL_SPECS,
+            sd_channel_list_offset=self.SD_CHANNEL_LIST_OFFSET,
+            # Synchronized Shimmer3R recordings are not supported yet
+            is_sd_sync_supported=False,
         )
+
+    def get_pressure_sensor(
+        self,
+        exp_board: ExpansionBoard,
+        fw_type: FirmwareType,
+        fw_version: FirmwareVersion,
+    ) -> EPressureSensor:
+        min_rev = self.BMP581_BOARD_REV.get(exp_board.board_id, None)
+        board_eligible = min_rev is not None and exp_board.is_at_least(
+            exp_board.board_id, *min_rev
+        )
+
+        # The GSR+ board carries the BMP581 in two separate revision bands: 7.2 and
+        # newer within revision 7, and everything from 8.2 onwards. Revisions 7.0,
+        # 7.1, 8.0, and 8.1 carry the BMP390, so a single comparison cannot express
+        # the range.
+        if exp_board.board_id == EExpansionBoard.GSR_UNIFIED:
+            board_eligible = (
+                exp_board.rev == 7 and exp_board.rev_special >= 2
+            ) or exp_board.is_at_least(EExpansionBoard.GSR_UNIFIED, 8, 2)
+
+        min_fw_type, min_fw_version = self.BMP581_MIN_FW
+        fw_eligible = fw_type == min_fw_type and fw_version >= min_fw_version
+
+        if board_eligible and fw_eligible:
+            return EPressureSensor.BMP581
+
+        return EPressureSensor.BMP390
