@@ -16,12 +16,15 @@
 from __future__ import annotations
 
 import io
+import struct
 from unittest import TestCase
 
 import numpy as np
 
 from pyshimmer import (
+    BMP180Calibration,
     EChannelType,
+    EPressureSensor,
     ExGRegister,
     HardwareVersion,
     RevisionRegistry,
@@ -176,6 +179,50 @@ class ShimmerReaderTest(TestCase):
                 np.testing.assert_almost_equal(offset, exp_offset, decimal=10)
                 np.testing.assert_almost_equal(gain, exp_gain, decimal=10)
                 np.testing.assert_almost_equal(alignment, exp_alignment, decimal=10)
+
+    def test_bmp180_calibration_from_header(self):
+        with open(get_binary_sample_fpath(), "rb") as f:
+            content = bytearray(f.read())
+
+        # A GSR+ board before revision 3 carries the BMP180 rather than the BMP280
+        content[0xD6:0xD9] = bytes([48, 2, 0])
+
+        # The coefficients of the worked example of the BMP180 datasheet
+        content[0xA0:0xB6] = struct.pack(
+            ">hhhHHHhhhhh",
+            408,
+            -72,
+            -14383,
+            32741,
+            32757,
+            23153,
+            6190,
+            4,
+            -32768,
+            -8711,
+            2868,
+        )
+
+        # Oversampling setting 2 in bits 4 and 5, leaving the other settings of the
+        # byte untouched. Unlike 3, the value 2 does not survive reading the setting
+        # one bit too high or too low.
+        content[0x0B] = (content[0x0B] & ~0x30) | (2 << 4)
+
+        reader = ShimmerBinaryReader(io.BytesIO(bytes(content)))
+        calib = reader.pressure_calibration
+
+        self.assertEqual(reader.pressure_sensor, EPressureSensor.BMP180)
+        self.assertIsInstance(calib, BMP180Calibration)
+        self.assertEqual(calib.oversampling, 2)
+        self.assertEqual(
+            (calib.ac1, calib.ac4, calib.b1, calib.md), (408, 32741, 6190, 2868)
+        )
+
+        pressure, temperature = calib.calibrate(
+            np.array([23843 << 8]), np.array([27898])
+        )
+        self.assertAlmostEqual(pressure[0], 69.964, delta=0.05)
+        self.assertAlmostEqual(temperature[0], 15.0, delta=0.1)
 
 
 class Shimmer3RBinaryReaderTest(TestCase):

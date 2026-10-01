@@ -506,6 +506,57 @@ class Shimmer3RReaderTest(TestCase):
                     reader[EChannelType.ACCEL_HG_Z], np.array([300, 310])
                 )
 
+    def test_blank_calibration_leaves_other_sensors_calibrated(self):
+        channels = [
+            EChannelType.ACCEL_HG_X,
+            EChannelType.ACCEL_HG_Y,
+            EChannelType.ACCEL_HG_Z,
+            EChannelType.MAG_WR_X,
+            EChannelType.MAG_WR_Y,
+            EChannelType.MAG_WR_Z,
+        ]
+        samples = [
+            [0, 100, 200, 300, 99, 198, 297],
+            [64, 110, 210, 310, 109, 208, 307],
+        ]
+
+        # The high-g accelerometer is calibrated before the alternative magnetometer,
+        # so its blank block is skipped first. An identity alignment matrix and a
+        # gain of 10 reduce the magnetometer calibration to subtracting the offset
+        # and dividing by the gain.
+        triaxcal = {
+            ESensorGroup.ACCEL_HG: b"\x00" * 21,
+            ESensorGroup.MAG_WR: encode_triaxcal_block(
+                offset=[-1, -2, -3],
+                gain=[10, 10, 10],
+                alignment=[100, 0, 0, 0, 100, 0, 0, 0, 100],
+            ),
+        }
+
+        content = build_shimmer3r_file(
+            channels=channels,
+            samples=samples,
+            sensors=[ESensorGroup.ACCEL_HG, ESensorGroup.MAG_WR],
+            triaxcal=triaxcal,
+        )
+
+        reader = ShimmerReader(io.BytesIO(content))
+        reader.load_file_data()
+
+        np.testing.assert_equal(reader[EChannelType.ACCEL_HG_X], np.array([100, 110]))
+        np.testing.assert_equal(reader[EChannelType.ACCEL_HG_Y], np.array([200, 210]))
+        np.testing.assert_equal(reader[EChannelType.ACCEL_HG_Z], np.array([300, 310]))
+
+        np.testing.assert_almost_equal(
+            reader[EChannelType.MAG_WR_X], np.array([10.0, 11.0])
+        )
+        np.testing.assert_almost_equal(
+            reader[EChannelType.MAG_WR_Y], np.array([20.0, 21.0])
+        )
+        np.testing.assert_almost_equal(
+            reader[EChannelType.MAG_WR_Z], np.array([30.0, 31.0])
+        )
+
     def test_calibration_skips_sensors_without_recorded_channels(self):
         # The gyroscope is marked as enabled in the sensor bitfield, but the header
         # channel list does not contain its channels

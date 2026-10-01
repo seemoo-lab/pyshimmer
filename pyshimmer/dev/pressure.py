@@ -107,6 +107,11 @@ class BMP180Calibration(PressureCalibration):
     def sensor(self) -> EPressureSensor:
         return EPressureSensor.BMP180
 
+    @property
+    def oversampling(self) -> int:
+        """The pressure oversampling setting of the device"""
+        return self._oss
+
     def calibrate(
         self, raw_pressure: np.ndarray, raw_temperature: np.ndarray
     ) -> tuple[np.ndarray, np.ndarray]:
