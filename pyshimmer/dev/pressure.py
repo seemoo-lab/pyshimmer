@@ -47,22 +47,6 @@ class EPressureSensor(Enum):
     BMP581 = auto()
 
 
-def _all_same(block: bytes, value: int) -> bool:
-    return all(b == value for b in block)
-
-
-def has_calib_params(block: bytes) -> bool:
-    """Check if a calibration block holds actual parameters
-
-    A block that consists entirely of zeros or of 0xFF bytes indicates that the
-    device did not store any calibration parameters.
-
-    :param block: The binary calibration block
-    :return: True if the block holds parameters, else False
-    """
-    return not (_all_same(block, 0x00) or _all_same(block, 0xFF))
-
-
 class PressureCalibration(ABC):
     """Converts the uncompensated pressure channels into physical units"""
 

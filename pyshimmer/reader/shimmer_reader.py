@@ -192,6 +192,11 @@ class TriAxCalProcessor(ChannelPostProcessor):
                 # The sensor is enabled but its channels were not recorded
                 continue
 
+            if not reader.has_triaxcal_params(sensor):
+                # The device did not store calibration parameters for the sensor, so
+                # its channels are left uncalibrated
+                continue
+
             channel_data = np.stack([channels[c] for c in sensor_channels])
             o, g, a = reader.get_triaxcal_params(sensor)
 

@@ -72,6 +72,10 @@ The project uses semantic versioning.
   the ADC counts as if they were millivolts. The channel is connected to a 12bit
   ADC with a 3V reference, so the readings are now scaled accordingly. Values
   reported for this channel change by a factor of about 0.73.
+- Calibrating a triaxial sensor for which the device stored no calibration
+  parameters raised a `LinAlgError`, because the empty parameter block yields a
+  singular calibration matrix. The channels of such a sensor are now left
+  uncalibrated. See `ShimmerBinaryReader.has_triaxcal_params`.
 
 ## 1.0.0 - 2025-10-25
 

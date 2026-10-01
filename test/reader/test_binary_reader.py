@@ -345,6 +345,26 @@ class Shimmer3RBinaryReaderTest(TestCase):
             np.testing.assert_almost_equal(gain, exp_gain, decimal=10)
             np.testing.assert_almost_equal(alignment, exp_alignment, decimal=10)
 
+    def test_has_triaxcal_params(self):
+        triaxcal = {
+            ESensorGroup.ACCEL_HG: encode_triaxcal_block(
+                offset=[1, 2, 3],
+                gain=[100, 200, 300],
+                alignment=[100, 0, 0, 0, 100, 0, 0, 0, 100],
+            ),
+            ESensorGroup.MAG_WR: b"\xff" * 21,
+        }
+
+        content = build_shimmer3r_file(
+            channels=[EChannelType.VBATT], samples=[], triaxcal=triaxcal
+        )
+        reader = self._open(content)
+
+        self.assertTrue(reader.has_triaxcal_params(ESensorGroup.ACCEL_HG))
+        self.assertFalse(reader.has_triaxcal_params(ESensorGroup.MAG_WR))
+        # No block was written for the gyroscope, so its block consists of zeros
+        self.assertFalse(reader.has_triaxcal_params(ESensorGroup.GYRO))
+
     def test_invalid_channel_count_is_rejected(self):
         content = bytearray(
             build_shimmer3r_file(channels=[EChannelType.VBATT], samples=[])

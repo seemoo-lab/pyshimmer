@@ -401,6 +401,7 @@ class SignalPostProcessorTest(TestCase):
         data_dict = {c: data_arr[i] for i, c in enumerate(ch_types)}
 
         mock_reader = Mock(spec=ShimmerBinaryReader)
+        mock_reader.has_triaxcal_params.return_value = True
         mock_reader.get_triaxcal_params.side_effect = lambda x: params[x]
         type(mock_reader).enabled_sensors = PropertyMock(
             return_value=list(params.keys())
@@ -469,6 +470,41 @@ class Shimmer3RReaderTest(TestCase):
         np.testing.assert_almost_equal(
             reader[EChannelType.ACCEL_HG_Z], np.array([27.0, 28.0])
         )
+
+    def test_calibration_skips_sensors_without_calibration_params(self):
+        channels = [
+            EChannelType.ACCEL_HG_X,
+            EChannelType.ACCEL_HG_Y,
+            EChannelType.ACCEL_HG_Z,
+        ]
+        samples = [
+            [0, 100, 200, 300],
+            [64, 110, 210, 310],
+        ]
+
+        # A device without calibration parameters for a sensor stores a block of
+        # zeros or of 0xFF bytes, which would yield a singular calibration matrix
+        for blank_block in (b"\x00" * 21, b"\xff" * 21):
+            with self.subTest(blank_block=blank_block[:1]):
+                content = build_shimmer3r_file(
+                    channels=channels,
+                    samples=samples,
+                    sensors=[ESensorGroup.ACCEL_HG],
+                    triaxcal={ESensorGroup.ACCEL_HG: blank_block},
+                )
+
+                reader = ShimmerReader(io.BytesIO(content))
+                reader.load_file_data()
+
+                np.testing.assert_equal(
+                    reader[EChannelType.ACCEL_HG_X], np.array([100, 110])
+                )
+                np.testing.assert_equal(
+                    reader[EChannelType.ACCEL_HG_Y], np.array([200, 210])
+                )
+                np.testing.assert_equal(
+                    reader[EChannelType.ACCEL_HG_Z], np.array([300, 310])
+                )
 
     def test_calibration_skips_sensors_without_recorded_channels(self):
         # The gyroscope is marked as enabled in the sensor bitfield, but the header

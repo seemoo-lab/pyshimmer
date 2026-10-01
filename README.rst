@@ -363,6 +363,10 @@ measurement circuit alongside the ADC reading:
 **Note**: A GSR reading below the reference voltage of the amplifier means that the electrodes are open. It is reported
 as a resistance of about 4.5 GOhm, a conductance close to zero, whichever range it was taken on.
 
+**Note**: The triaxial sensors are calibrated with the parameters that the device stores in the file header. If a
+device did not store any for a sensor, the channels of that sensor are returned uncalibrated. Check
+:code:`ShimmerBinaryReader.has_triaxcal_params` to tell the two cases apart.
+
 **Note**: The barometric pressure and temperature channels are reported in kPa and degrees Celsius. This requires the
 calibration parameters of the pressure sensor, which the device stores in the file header. If a device did not store
 them, both channels are returned as raw ADC counts instead. Check

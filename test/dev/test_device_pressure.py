@@ -24,18 +24,7 @@ from pyshimmer.dev.pressure import (
     BMP390Calibration,
     BMP581Calibration,
     EPressureSensor,
-    has_calib_params,
 )
-
-
-class TestHasCalibParams:
-
-    def test_blank_blocks(self):
-        assert not has_calib_params(b"\x00" * 24)
-        assert not has_calib_params(b"\xff" * 24)
-
-    def test_populated_block(self):
-        assert has_calib_params(b"\x00" * 23 + b"\x01")
 
 
 class TestBMP280Calibration:

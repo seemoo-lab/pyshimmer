@@ -21,6 +21,7 @@ from typing import BinaryIO
 import numpy as np
 
 from pyshimmer.dev.base import ExpansionBoard
+from pyshimmer.dev.calibration import has_calib_params
 from pyshimmer.dev.channels import (
     ESensorGroup,
     EChannelType,
@@ -34,7 +35,6 @@ from pyshimmer.dev.pressure import (
     BMP581Calibration,
     EPressureSensor,
     PressureCalibration,
-    has_calib_params,
 )
 from pyshimmer.dev.revisions import RevisionRegistry, HardwareVersion, HardwareRevision
 from pyshimmer.util import FileIOBase, unpack, bit_is_set
@@ -339,6 +339,22 @@ class ShimmerBinaryReader(FileIOBase):
     def get_exg_reg(self, chip_id: int) -> ExGRegister:
         reg_content = self._exg_regs[chip_id]
         return ExGRegister(reg_content)
+
+    def has_triaxcal_params(self, sensor: ESensorGroup) -> bool:
+        """Check if the file stores calibration parameters for a triaxial sensor
+
+        A device that holds no parameters for a sensor stores a block of zeros or of
+        0xFF bytes instead, which cannot be used for calibration.
+
+        :param sensor: The sensor to check
+        :return: True if the file holds parameters for the sensor, else False
+        """
+        spec = self._revision.get_triaxcal_spec(sensor)
+
+        self._seek(spec.offset)
+        block = self._read(struct.calcsize(TRIAXCAL_FMT))
+
+        return has_calib_params(block)
 
     def get_triaxcal_params(
         self, sensor: ESensorGroup
