@@ -210,9 +210,25 @@ class TestBMP180Calibration:
         assert calib.md == 2868
 
     def test_calibrate(self, calib: BMP180Calibration):
-        # Raw readings from the worked example of the BMP180 datasheet, which yield
-        # 15 degrees Celsius and 69964 Pa
-        pressure, temperature = calib.calibrate(np.array([23843]), np.array([27898]))
+        # Readings from the worked example of the BMP180 datasheet, which yield 15
+        # degrees Celsius and 69964 Pa. The device records the full 24bit pressure
+        # register, which holds the pressure reading of the example in its upper
+        # 16 bits at an oversampling setting of 0.
+        raw_pressure = 23843 << 8
+        pressure, temperature = calib.calibrate(
+            np.array([raw_pressure]), np.array([27898])
+        )
 
         assert temperature[0] == pytest.approx(15.0, abs=0.1)
+        assert pressure[0] == pytest.approx(69.964, abs=0.05)
+
+    @pytest.mark.parametrize("oversampling", [0, 1, 2, 3])
+    def test_calibrate_with_oversampling(self, oversampling: int):
+        # A higher oversampling setting adds significant bits to the reading but
+        # leaves the register value of a given pressure unchanged. The same register
+        # value must therefore yield the same pressure for every setting.
+        calib = BMP180Calibration(self.BLOCK, oversampling=oversampling)
+
+        pressure, _ = calib.calibrate(np.array([23843 << 8]), np.array([27898]))
+
         assert pressure[0] == pytest.approx(69.964, abs=0.05)

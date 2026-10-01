@@ -127,7 +127,12 @@ class BMP180Calibration(PressureCalibration):
         self, raw_pressure: np.ndarray, raw_temperature: np.ndarray
     ) -> tuple[np.ndarray, np.ndarray]:
         ut = np.asarray(raw_temperature, dtype=float)
-        up = np.asarray(raw_pressure, dtype=float)
+
+        # The device records the full 24bit pressure register (0xF6 to 0xF8), of
+        # which only the upper 16 + oss bits are significant. The datasheet formula
+        # expects the reading without the unused least significant bits, see section
+        # 3.5 of the BMP180 datasheet.
+        up = np.asarray(raw_pressure, dtype=float) / 2 ** (8 - self._oss)
 
         x1 = (ut - self.ac6) * (self.ac5 / 32768)
         x2 = self.mc * 2048 / (x1 + self.md)
