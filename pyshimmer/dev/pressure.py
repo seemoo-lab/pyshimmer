@@ -312,6 +312,14 @@ class BMP581Calibration(PressureCalibration):
         self, raw_pressure: np.ndarray, raw_temperature: np.ndarray
     ) -> tuple[np.ndarray, np.ndarray]:
         p = np.asarray(raw_pressure, dtype=float) / 64.0
-        t = np.asarray(raw_temperature, dtype=float) / 65536.0
+
+        # The pressure registers (0x20 to 0x22) hold an unsigned value, but the
+        # temperature registers (0x1D to 0x1F) hold a signed 24bit value, as in the
+        # Bosch BMP5 Sensor API. The channel is recorded unsigned, so a temperature
+        # below 0 degrees Celsius must be sign-extended. A value that is already
+        # signed is left unchanged.
+        raw_t = np.asarray(raw_temperature).astype(np.int64)
+        raw_t = np.where(raw_t >= 1 << 23, raw_t - (1 << 24), raw_t)
+        t = raw_t / 65536.0
 
         return p / 1000.0, t

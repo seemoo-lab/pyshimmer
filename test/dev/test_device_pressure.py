@@ -162,6 +162,27 @@ class TestBMP581Calibration:
         assert pressure[0] == pytest.approx(100.8)
         assert temperature[0] == pytest.approx(25.0)
 
+    @pytest.mark.parametrize(
+        "raw_temperature, expected",
+        [
+            # The channel holds the temperature as unsigned 24bit two's complement
+            ((1 << 24) - 10 * 65536, -10.0),
+            ((1 << 24) - 1, -1.0 / 65536),
+            (1 << 23, -128.0),
+            ((1 << 23) - 1, 128.0 - 1.0 / 65536),
+            # A value that is already signed stays as it is
+            (-10 * 65536, -10.0),
+        ],
+    )
+    def test_calibrate_negative_temperature(
+        self, calib: BMP581Calibration, raw_temperature: int, expected: float
+    ):
+        _, temperature = calib.calibrate(
+            np.array([100800 * 64]), np.array([raw_temperature])
+        )
+
+        assert temperature[0] == pytest.approx(expected, abs=1e-12)
+
 
 class TestBMP180Calibration:
 
