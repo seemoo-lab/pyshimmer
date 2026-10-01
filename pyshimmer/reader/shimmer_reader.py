@@ -136,7 +136,9 @@ class PressureProcessor(ChannelPostProcessor):
     """Convert the pressure and temperature channels to Pa and degrees Celsius
 
     The calibration coefficients are taken from the file header. If the header holds
-    no coefficients, the channels are left unchanged and a warning is issued.
+    no coefficients, the channels are left unchanged and a warning is issued. They are
+    also left unchanged if the device has no pressure sensor or an unknown one, which
+    the binary reader warns about when it reads the header.
     """
 
     def process(
@@ -147,6 +149,9 @@ class PressureProcessor(ChannelPostProcessor):
             return channels
 
         calib = reader.pressure_calibration
+        if calib is None:
+            return channels
+
         if calib.is_blank:
             warnings.warn(
                 "The file header contains no pressure calibration coefficients, "
@@ -266,7 +271,7 @@ class ShimmerReader:
         return self._bin_reader.hardware_revision
 
     @property
-    def pressure_calibration(self) -> PressureCalibration:
+    def pressure_calibration(self) -> PressureCalibration | None:
         return self._bin_reader.pressure_calibration
 
     @property

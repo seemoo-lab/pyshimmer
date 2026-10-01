@@ -293,7 +293,9 @@ the pressure calibration once and apply it to each data packet:
 If the firmware of a Shimmer3 does not support :code:`get_pressure_calibration()`, use :code:`get_bmp280_calibration()`
 or, on older boards, :code:`get_bmp180_calibration()` instead. For the BMP180, also pass the configured pressure
 oversampling setting to :code:`compensate_channels()`. The Reader API calibrates the pressure and temperature channels
-of SD card recordings automatically.
+of SD card recordings automatically. It takes the pressure sensor from the file header if the firmware records it there,
+and otherwise from the expansion board of the device. If the header names no sensor or one unknown to pyshimmer, the
+channels remain uncalibrated and a warning is issued.
 
 Using the Dock API
 ^^^^^^^^^^^^^^^^^^

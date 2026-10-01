@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 from pyshimmer.dev.channels import ESensorGroup
+from pyshimmer.dev.fw_version import FirmwareVersion
 
 SR_OFFSET = 0x00
 
@@ -27,6 +28,12 @@ START_TS_OFFSET = 0xFB
 START_TS_LEN = 0x5
 
 TRIAL_CONFIG_OFFSET = 0x10
+
+# The hardware version and the firmware type are 16-bit big-endian values. The firmware
+# type is followed by the firmware version: a 16-bit big-endian major version, the
+# minor version and the patch level.
+HW_VERSION_OFFSET = 0x1E
+FW_TYPE_OFFSET = 0x22
 
 DATA_LOG_OFFSET = 0x100
 BLOCK_LEN = 0x200
@@ -51,6 +58,18 @@ PRESSURE_CALIB_OFFSET = 0xA0
 PRESSURE_CALIB_LEN = 0x16
 PRESSURE_CALIB_EXTRA_OFFSET = 0xDE
 PRESSURE_CALIB_EXTRA_LEN = 0x02
+
+# Newer LogAndStream firmware records the detected pressure sensor in the header. Bits
+# 0-6 hold the sensor ID of EPressureSensor, bit 7 marks an ID that the firmware
+# inferred from the SR number of the board because the chip ID was inconclusive.
+# Older firmware leaves the byte at 0xFF.
+PRESSURE_SENSOR_ID_OFFSET = 0xE0
+PRESSURE_SENSOR_ID_MASK = 0x7F
+PRESSURE_SENSOR_ID_INFERRED = 0x80
+PRESSURE_SENSOR_ID_NONE = 0xFE
+PRESSURE_SENSOR_ID_UNSET = 0xFF
+# The first Shimmer3 LogAndStream firmware that records the pressure sensor
+PRESSURE_SENSOR_ID_MIN_FW_SHIMMER3 = FirmwareVersion(1, 1, 6)
 
 # The file offsets at which the calibration parameters of the respective sensor can be
 # found

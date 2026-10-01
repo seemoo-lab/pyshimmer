@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import struct
+import warnings
 from typing import BinaryIO
 
 import numpy as np
@@ -25,6 +26,7 @@ from pyshimmer.dev.channels import (
     EChannelType,
 )
 from pyshimmer.dev.exg import ExGRegister
+from pyshimmer.dev.fw_version import FirmwareType, FirmwareVersion
 from pyshimmer.dev.pressure import (
     EPressureSensor,
     PressureCalibration,
@@ -58,6 +60,14 @@ from .reader_const import (
     PRESSURE_CALIB_LEN,
     PRESSURE_CALIB_EXTRA_OFFSET,
     PRESSURE_CALIB_EXTRA_LEN,
+    HW_VERSION_OFFSET,
+    FW_TYPE_OFFSET,
+    PRESSURE_SENSOR_ID_OFFSET,
+    PRESSURE_SENSOR_ID_MASK,
+    PRESSURE_SENSOR_ID_INFERRED,
+    PRESSURE_SENSOR_ID_NONE,
+    PRESSURE_SENSOR_ID_UNSET,
+    PRESSURE_SENSOR_ID_MIN_FW_SHIMMER3,
 )
 
 
@@ -89,9 +99,15 @@ class ShimmerBinaryReader(FileIOBase):
         self._rtc_diff = self._read_rtc_clock_diff()
         self._start_ts = self._read_start_time()
         self._trial_config = self._read_trial_config()
+        self._hw_version = self._read_hardware_version()
+        self._fw_type, self._fw_version = self._read_firmware_version()
         self._exg_regs = self._read_exg_regs()
         self._exp_board = self._read_expansion_board()
         self._pressure_oversampling = self._read_pressure_oversampling()
+        self._pressure_sensor_id = self._read_pressure_sensor_id()
+        self._pressure_sensor, self._pressure_sensor_inferred = (
+            self._get_pressure_sensor()
+        )
         self._pressure_calib = self._read_pressure_calibration()
 
         self._samples_per_block, self._block_size = self._calculate_block_size()
@@ -128,6 +144,15 @@ class ShimmerBinaryReader(FileIOBase):
     def _read_trial_config(self) -> int:
         self._seek(TRIAL_CONFIG_OFFSET)
         return self._read_packed("<H")
+
+    def _read_hardware_version(self) -> HardwareVersion:
+        self._seek(HW_VERSION_OFFSET)
+        return HardwareVersion.from_int(self._read_packed(">H"))
+
+    def _read_firmware_version(self) -> tuple[FirmwareType, FirmwareVersion]:
+        self._seek(FW_TYPE_OFFSET)
+        fw_type, major, minor, rel = self._read_packed(">HHBB")
+        return FirmwareType.from_int(fw_type), FirmwareVersion(major, minor, rel)
 
     def _calculate_block_size(self):
         sync_stamp = 9 * self.has_sync
@@ -217,8 +242,74 @@ class ShimmerBinaryReader(FileIOBase):
         config_byte = self._read_packed("B")
         return (config_byte >> PRESSURE_OVERSAMPLING_SHIFT) & PRESSURE_OVERSAMPLING_MASK
 
-    def _read_pressure_calibration(self) -> PressureCalibration:
-        sensor = get_shimmer3_pressure_sensor(*self._exp_board)
+    def _read_pressure_sensor_id(self) -> int | None:
+        # The reader only supports the Shimmer3, so the byte is not trusted for any
+        # other hardware version
+        records_sensor_id = (
+            self._hw_version == HardwareVersion.SHIMMER3
+            and self._fw_type == FirmwareType.LogAndStream
+            and self._fw_version >= PRESSURE_SENSOR_ID_MIN_FW_SHIMMER3
+        )
+        if not records_sensor_id:
+            return None
+
+        self._seek(PRESSURE_SENSOR_ID_OFFSET)
+        sensor_id = self._read_packed("B")
+        if sensor_id == PRESSURE_SENSOR_ID_UNSET:
+            return None
+
+        return sensor_id
+
+    def _warn_pressure(self, msg: str) -> None:
+        # The pressure sensor only matters if its channels were recorded
+        if ESensorGroup.PRESSURE in self._sensors:
+            warnings.warn(msg)
+
+    def _get_pressure_sensor(self) -> tuple[EPressureSensor | None, bool]:
+        board_sensor = get_shimmer3_pressure_sensor(*self._exp_board)
+
+        sensor_id = self._pressure_sensor_id
+        if sensor_id is None:
+            return board_sensor, False
+
+        if sensor_id == PRESSURE_SENSOR_ID_NONE:
+            self._warn_pressure(
+                "The file header states that the device has no pressure sensor, the "
+                "pressure and temperature channels remain uncalibrated"
+            )
+            return None, False
+
+        try:
+            sensor = EPressureSensor(sensor_id & PRESSURE_SENSOR_ID_MASK)
+        except ValueError:
+            # Do not fall back to the expansion board: the device has a sensor that
+            # none of the known calibrations applies to
+            self._warn_pressure(
+                f"The file header contains the unknown pressure sensor ID "
+                f"0x{sensor_id:02x}, the pressure and temperature channels remain "
+                f"uncalibrated"
+            )
+            return None, False
+
+        inferred = bool(sensor_id & PRESSURE_SENSOR_ID_INFERRED)
+        if inferred:
+            self._warn_pressure(
+                f"The firmware inferred the {sensor.name} pressure sensor from the SR "
+                f"number of the device, it was not confirmed by its chip ID"
+            )
+        if sensor != board_sensor:
+            self._warn_pressure(
+                f"The file header states that the device has a {sensor.name} pressure "
+                f"sensor, but its expansion board indicates a {board_sensor.name}. "
+                f"Using the {sensor.name}."
+            )
+
+        return sensor, inferred
+
+    def _read_pressure_calibration(self) -> PressureCalibration | None:
+        sensor = self._pressure_sensor
+        if sensor is None:
+            return None
 
         self._seek(PRESSURE_CALIB_OFFSET)
         coeff_bin = self._read(PRESSURE_CALIB_LEN)
@@ -229,7 +320,8 @@ class ShimmerBinaryReader(FileIOBase):
             self._seek(PRESSURE_CALIB_EXTRA_OFFSET)
             coeff_bin += self._read(PRESSURE_CALIB_EXTRA_LEN)
 
-        return PressureCalibration(sensor, coeff_bin)
+        # The BMP390 occupies only the first 21 bytes, the BMP581 needs no coefficients
+        return PressureCalibration(sensor, coeff_bin[: sensor.coefficient_size])
 
     def _read_triaxcal_params(
         self, offset: int
@@ -288,12 +380,49 @@ class ShimmerBinaryReader(FileIOBase):
         return self._exp_board
 
     @property
-    def pressure_calibration(self) -> PressureCalibration:
+    def hardware_version(self) -> HardwareVersion:
+        """The hardware version recorded in the file header"""
+        return self._hw_version
+
+    @property
+    def firmware_type(self) -> FirmwareType:
+        """The type of the firmware that recorded the file"""
+        return self._fw_type
+
+    @property
+    def firmware_version(self) -> FirmwareVersion:
+        """The version of the firmware that recorded the file"""
+        return self._fw_version
+
+    @property
+    def pressure_calibration(self) -> PressureCalibration | None:
         """The pressure sensor of the device and its calibration coefficients
 
-        The sensor is determined from the expansion board of the device.
+        Newer firmware records the pressure sensor in the file header, see
+        :attr:`pressure_sensor_id`. Otherwise, the sensor is determined from the
+        expansion board of the device.
+
+        :return: The calibration, or None if the file header states that the device
+            has no pressure sensor or one that is unknown to this library
         """
         return self._pressure_calib
+
+    @property
+    def pressure_sensor_id(self) -> int | None:
+        """The pressure sensor ID that the firmware recorded in the file header
+
+        :return: The raw ID, or None if the firmware does not record it
+        """
+        return self._pressure_sensor_id
+
+    @property
+    def pressure_sensor_inferred(self) -> bool:
+        """True if the firmware could not confirm the pressure sensor by its chip ID
+
+        In this case, the firmware inferred the sensor from the SR number of the
+        device.
+        """
+        return self._pressure_sensor_inferred
 
     @property
     def pressure_oversampling(self) -> int:
