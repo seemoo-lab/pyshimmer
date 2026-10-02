@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from __future__ import annotations
 
+import struct
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, Future
 from typing import BinaryIO
@@ -88,6 +89,12 @@ class TestBluetoothRequestHandler:
 
         sot.hardware_revision = new_revision
         assert sot.hardware_revision is new_revision
+
+    def test_status_byte_count(self, sot: BluetoothRequestHandler):
+        assert sot.status_byte_count == 1
+
+        sot.status_byte_count = 2
+        assert sot.status_byte_count == 2
 
     def test_add_remove_stream_cb(self, sot: BluetoothRequestHandler):
         def cb(_):
@@ -334,6 +341,47 @@ class TestBluetoothRequestHandler:
             False,
         ]
 
+    @pytest.mark.parametrize(
+        "status_byte_count, status_bin",
+        [(1, b"\x21"), (2, b"\x21\x00"), (2, b"\x21\x01")],
+    )
+    def test_get_status_command_byte_count(
+        self,
+        mock_creator: PTYSerialMockCreator,
+        revision: HardwareRevision,
+        sot: BluetoothRequestHandler,
+        status_byte_count: int,
+        status_bin: bytes,
+    ):
+        _, resp1 = sot.queue_command(GetStatusCommand(revision, status_byte_count))
+        compl2, resp2 = sot.queue_command(GetDeviceNameCommand(revision))
+
+        r = mock_creator.read_from_master(2)
+        assert r == b"\x72\x7b"
+
+        mock_creator.write_to_master(b"\xff\x8a\x71" + status_bin)
+        mock_creator.write_to_master(b"\xff\x7a\x05\x53\x5f\x50\x50\x47")
+
+        sot.process_single_input_event()
+        sot.process_single_input_event()
+        assert resp1.get_result() == [
+            True,
+            False,
+            False,
+            False,
+            False,
+            True,
+            False,
+            False,
+        ]
+
+        # The whole status was read, so the next reply is still intact
+        sot.process_single_input_event()
+        assert compl2.has_completed() is True
+
+        sot.process_single_input_event()
+        assert resp2.get_result() == "S_PPG"
+
     def test_incorrect_resp_code_fail(
         self,
         mock_creator: PTYSerialMockCreator,
@@ -405,6 +453,41 @@ class TestBluetoothRequestHandler:
         sot.process_single_input_event()
         assert len(status_resp) == 2
         assert status_resp[1] == [True, False, False, False, False, True, False, False]
+
+    @pytest.mark.parametrize(
+        "status_byte_count, status_bin",
+        [(1, b"\x20"), (2, b"\x20\x00"), (2, b"\x20\x01")],
+    )
+    def test_get_status_response_byte_count(
+        self,
+        mock_creator: PTYSerialMockCreator,
+        revision: HardwareRevision,
+        sot: BluetoothRequestHandler,
+        status_byte_count: int,
+        status_bin: bytes,
+    ):
+        sot.status_byte_count = status_byte_count
+
+        status_resp: list[list[bool]] = []
+        sot.add_status_callback(status_resp.append)
+
+        results: list[DataPacket] = []
+        ch_types = [EChannelType.TIMESTAMP, EChannelType.INTERNAL_ADC_A1]
+        sot.stream_types = [(c, revision.get_channel_dtype(c)) for c in ch_types]
+        sot.add_stream_callback(results.append)
+
+        # The device pushes a status in the middle of a stream of data packets
+        mock_creator.write_to_master(b"\x8a\x71" + status_bin)
+        mock_creator.write_to_master(b"\x00\xde\xd0\xb2\x26\x07")
+
+        sot.process_single_input_event()
+        assert status_resp == [[False, False, False, False, False, True, False, False]]
+
+        # The whole status was read, so the data packet after it is still intact
+        sot.process_single_input_event()
+        assert len(results) == 1
+        assert results[0][EChannelType.TIMESTAMP] == 0xB2D0DE
+        assert results[0][EChannelType.INTERNAL_ADC_A1] == 0x0726
 
     def test_get_status_response_update_mixed(
         self,
@@ -502,12 +585,21 @@ class IntegrationTestHelper:
         return self.submit_handler_fn(master_fn)
 
     def queue_initialization_data(
-        self, version: HardwareVersion | int
+        self,
+        version: HardwareVersion | int,
+        fw_version: FirmwareVersion = FirmwareVersion(0, 11, 0),
     ) -> tuple[Future, Future]:
         # The Bluetooth API automatically requests the firmware version upon
         # initialization. We must prepare a proper response beforehand.
+        fw_version_bin = struct.pack(
+            "<HHBB",
+            FirmwareType.LogAndStream,
+            fw_version.major,
+            fw_version.minor,
+            fw_version.rel,
+        )
         req_future_fw = self.submit_req_resp_handler(
-            req_len=1, resp=b"\xff\x2f\x03\x00\x00\x00\x0b\x00"
+            req_len=1, resp=b"\xff\x2f" + fw_version_bin
         )
 
         hw_version_bin = version.to_bytes(length=1, byteorder="big")
@@ -702,6 +794,54 @@ class TestShimmerBluetoothIntegration:
         pkt = pkts[0]
 
         assert pkt == [False, False, False, False, False, True, False, False]
+
+    @pytest.mark.parametrize(
+        "hw_version, fw_version, usb_status_bin",
+        [
+            # A Shimmer3 sends a single status byte, whatever its firmware version
+            (HardwareVersion.SHIMMER3, FirmwareVersion(1, 0, 24), b""),
+            # A Shimmer3R adds the USB plugged-in state from LogAndStream v1.0.24
+            (HardwareVersion.SHIMMER3R, FirmwareVersion(1, 0, 23), b""),
+            (HardwareVersion.SHIMMER3R, FirmwareVersion(1, 0, 24), b"\x00"),
+            (HardwareVersion.SHIMMER3R, FirmwareVersion(1, 0, 24), b"\x01"),
+        ],
+    )
+    def test_status_byte_count(
+        self,
+        helper: IntegrationTestHelper,
+        hw_version: HardwareVersion,
+        fw_version: FirmwareVersion,
+        usb_status_bin: bytes,
+    ):
+        helper.setup(run_sot_initialize=False)
+
+        helper.queue_initialization_data(hw_version, fw_version)
+        # Firmware this recent supports disabling the status acknowledgment, which
+        # the API does during initialization
+        ack_disable_ftr = helper.submit_req_resp_handler(2, b"\xff")
+        helper.sot.initialize()
+        assert ack_disable_ftr.result() == b"\xa3\x00"
+
+        statuses = []
+        helper.sot.add_status_callback(statuses.append)
+        pkts = []
+        helper.sot.add_stream_callback(pkts.append)
+
+        # The reply to a status request
+        helper.submit_req_resp_handler(1, b"\xff\x8a\x71\x21" + usb_status_bin)
+        r = helper.sot.get_status()
+        assert r == [True, False, False, False, False, True, False, False]
+
+        # A pushed status, followed by the reply to the next command
+        helper.submit_req_resp_handler(
+            1, b"\x8a\x71\x20" + usb_status_bin + b"\xff\x7a\x03ABC"
+        )
+        r = helper.sot.get_device_name()
+        assert r == "ABC"
+
+        assert statuses == [[False, False, False, False, False, True, False, False]]
+        # No status byte was taken for the start of a data packet
+        assert pkts == []
 
     def test_get_firmware_version(
         self, helper: IntegrationTestHelper, hw_version: HardwareVersion

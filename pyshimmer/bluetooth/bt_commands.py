@@ -382,13 +382,17 @@ class GetStatusCommand(ResponseCommand):
         STATUS_RED_LED_BF,
     )
 
-    def __init__(self, rev: HardwareRevision):
+    def __init__(self, rev: HardwareRevision, status_byte_count: int = 1):
         """Retrieve the current status of the device
 
         :param rev: The hardware revision of the Shimmer device this command
             will be sent to
+        :param status_byte_count: The number of status bytes the device sends, see
+            :meth:`HardwareRevision.get_status_byte_count`. Only the first one is
+            decoded, but all of them are read.
         """
         super().__init__(rev, FULL_STATUS_RESPONSE)
+        self._status_byte_count = status_byte_count
 
     def unpack_status_bitfields(self, val: int) -> list[bool]:
         values = [bit_is_set(val, f) for f in self.STATUS_BITFIELDS]
@@ -399,6 +403,9 @@ class GetStatusCommand(ResponseCommand):
 
     def receive(self, ser: BluetoothSerial) -> any:
         bitfields = ser.read_response(self.get_response_code(), arg_format="B")
+        # Any further status bytes, such as the USB plugged-in state that newer
+        # Shimmer3R firmware sends, must still be consumed to keep the stream aligned
+        ser.read(self._status_byte_count - 1)
         return self.unpack_status_bitfields(bitfields)
 
 

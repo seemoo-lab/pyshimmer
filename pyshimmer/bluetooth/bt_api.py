@@ -190,6 +190,7 @@ class BluetoothRequestHandler:
     def __init__(self, serial: BluetoothSerial, revision: HardwareRevision):
         self._serial = serial
         self._rev = revision
+        self._status_byte_count = 1
 
         self._ack_queue = Queue()
         self._resp_queue = PeekQueue()
@@ -213,6 +214,23 @@ class BluetoothRequestHandler:
         know precisely what device we are talking to during class instantiation.
         """
         self._rev = v
+
+    @property
+    def status_byte_count(self) -> int:
+        """
+        The number of status bytes that the Shimmer device sends in a status
+        response.
+        """
+        return self._status_byte_count
+
+    @status_byte_count.setter
+    def status_byte_count(self, v: int) -> None:
+        """Update the number of status bytes that the Shimmer device sends in a
+        status response. Like the hardware revision, it is only known once the
+        hardware and firmware versions have been queried. Until then, the single
+        byte that most firmware sends is assumed.
+        """
+        self._status_byte_count = v
 
     @property
     def stream_types(self) -> Sequence[tuple[EChannelType, ChannelDataType]]:
@@ -316,7 +334,7 @@ class BluetoothRequestHandler:
     def _process_status_update(self):
         # Called if the status response was not triggered by a command but sent by the
         # Shimmer as the result of an event
-        status_cmd = GetStatusCommand(self._rev)
+        status_cmd = GetStatusCommand(self._rev, self._status_byte_count)
         r = status_cmd.receive(self._serial)
 
         for cb in self._status_cbs:
@@ -551,6 +569,12 @@ class ShimmerBluetooth:
                 RevisionRegistry.get_revision(self._hw_version)
             )
 
+        # The read loop must know how many status bytes the device sends, both for
+        # the replies to get_status() and for the status updates it pushes unprompted
+        self._bluetooth.status_byte_count = self._revision.get_status_byte_count(
+            self._fw_type, self._fw_version
+        )
+
         if self.capabilities.supports_ack_disable and self._disable_ack:
             self.set_status_ack(enabled=False)
 
@@ -684,7 +708,9 @@ class ShimmerBluetooth:
             dev_docked, dev_sensing, rtc_set, dev_logging, dev_streaming,
             sd_card_present, sd_error, status_red_led
         """
-        return self._process_and_wait(GetStatusCommand(self._revision))
+        return self._process_and_wait(
+            GetStatusCommand(self._revision, self._bluetooth.status_byte_count)
+        )
 
     def get_firmware_version(self) -> tuple[FirmwareType, FirmwareVersion]:
         """Get the version of the running firmware

@@ -18,6 +18,7 @@ from __future__ import annotations
 from .hw_version import HardwareVersion
 from .revision import BaseRevision
 from ..channels import EChannelType, ChannelDataType, ESensorGroup
+from ..fw_version import FirmwareType, FirmwareVersion
 
 
 class Shimmer3RRevision(BaseRevision):
@@ -26,6 +27,10 @@ class Shimmer3RRevision(BaseRevision):
     DEV_CLOCK_RATE: float = 32768.0
     ENABLED_SENSORS_LEN = 0x03
     SENSOR_DTYPE = ChannelDataType(size=ENABLED_SENSORS_LEN, signed=False, le=True)
+
+    # From this firmware on, a status response carries a second status byte, which
+    # holds the USB plugged-in state
+    USB_STATUS_MIN_FW = (FirmwareType.LogAndStream, FirmwareVersion(1, 0, 24))
 
     CH_DTYPE_ASSIGNMENT: dict[EChannelType, ChannelDataType] = {
         EChannelType.ACCEL_LN_X: ChannelDataType(2, signed=True, le=True),
@@ -201,3 +206,12 @@ class Shimmer3RRevision(BaseRevision):
             self.SENSOR_BIT_ASSIGNMENT,
             self.SENSOR_ORDER,
         )
+
+    def get_status_byte_count(
+        self, fw_type: FirmwareType, fw_version: FirmwareVersion
+    ) -> int:
+        min_fw_type, min_fw_version = self.USB_STATUS_MIN_FW
+        if fw_type == min_fw_type and fw_version >= min_fw_version:
+            return 2
+
+        return 1
