@@ -18,6 +18,7 @@ from __future__ import annotations
 from .hw_version import HardwareVersion
 from .revision import BaseRevision
 from ..channels import EChannelType, ChannelDataType, ESensorGroup
+from ..fw_version import FirmwareType, FirmwareVersion
 
 
 class Shimmer3Revision(BaseRevision):
@@ -201,3 +202,9 @@ class Shimmer3Revision(BaseRevision):
             self.SENSOR_BIT_ASSIGNMENT,
             self.SENSOR_ORDER,
         )
+
+    def get_status_byte_count(
+        self, fw_type: FirmwareType, fw_version: FirmwareVersion
+    ) -> int:
+        # No Shimmer3 firmware sends more than one status byte
+        return 1

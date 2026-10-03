@@ -20,7 +20,7 @@ import itertools
 import numpy as np
 import pytest
 
-from pyshimmer import Shimmer3Revision, EChannelType
+from pyshimmer import Shimmer3Revision, EChannelType, FirmwareType, FirmwareVersion
 from pyshimmer.dev.channels import ESensorGroup
 
 
@@ -198,6 +198,19 @@ class TestShimmer3Revision:
         ]
         r = revision.sort_sensors(sensors)
         assert r == expected
+
+    def test_get_status_byte_count(self, revision: Shimmer3Revision):
+        r = revision.get_status_byte_count(
+            FirmwareType.LogAndStream, FirmwareVersion(0, 16, 0)
+        )
+        assert r == 1
+
+        # Shimmer3R firmware sends a second status byte from this version on, but
+        # Shimmer3 firmware never does
+        r = revision.get_status_byte_count(
+            FirmwareType.LogAndStream, FirmwareVersion(1, 0, 24)
+        )
+        assert r == 1
 
     def test_unwrap_device_timestamps(self, revision: Shimmer3Revision):
         ts_wrapped = np.array([0, 1, 2, 2**24 - 1, 0, 2**24])

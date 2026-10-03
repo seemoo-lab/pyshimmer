@@ -16,6 +16,14 @@ The project uses semantic versioning.
   code. As a consequence, all global functions in `pyshimmer.dev.base` and
   `pyshimmer.dev.channels` were removed.
 
+### Fixed
+- From LogAndStream v1.0.24 on, the Shimmer3R sends a second status byte, which
+  holds the USB plugged-in state. The Bluetooth API read only the first and took
+  the second for the start of the next message. That misaligned a data stream,
+  or stopped the read loop and left every later command blocked. The number of
+  status bytes now follows the hardware revision and the firmware version, see
+  `HardwareRevision.get_status_byte_count`.
+
 ## 1.0.0 - 2025-10-25
 
 This is a rebrand of release v0.7.0 as v1.0.0.
