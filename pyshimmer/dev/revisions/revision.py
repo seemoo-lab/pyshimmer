@@ -24,8 +24,8 @@ from typing import overload
 import numpy as np
 
 from pyshimmer.util import bit_is_set, flatten_list, unwrap
-from ..channels import EChannelType, ChannelDataType, ESensorGroup
 from .hw_version import HardwareVersion
+from ..channels import EChannelType, ChannelDataType, ESensorGroup
 
 
 class HardwareRevision(ABC):
@@ -201,8 +201,34 @@ class HardwareRevision(ABC):
         """
         pass
 
+    @abstractmethod
+    def get_exg_chip_and_channel(self, ch: EChannelType) -> tuple[int, int]:
+        """Get the numeric chip index and channel index for an EChannelType
+
+        If a recorded EChannelType is an ExG channel, it originates from
+        one of two ExG DAC chips. Each chip has two chips. This method returns
+        the zero-based index of the chip and channel for a specific
+        EChannelType instance.
+
+        :param ch: The channel for which to return chip ID and channel index
+        :return: A tuple (chip_idx, channel_idx), where chip_idx is in {0, 1}
+            and channel_idx is in {0, 1}.
+        """
+        pass
+
 
 class BaseRevision(HardwareRevision):
+
+    ExG_ChType_Chip_Assignment: dict[EChannelType, tuple[int, int]] = {
+        EChannelType.EXG1_CH1_24BIT: (0, 0),
+        EChannelType.EXG1_CH1_16BIT: (0, 0),
+        EChannelType.EXG1_CH2_24BIT: (0, 1),
+        EChannelType.EXG1_CH2_16BIT: (0, 1),
+        EChannelType.EXG2_CH1_24BIT: (1, 0),
+        EChannelType.EXG2_CH1_16BIT: (1, 0),
+        EChannelType.EXG2_CH2_24BIT: (1, 1),
+        EChannelType.EXG2_CH2_16BIT: (1, 1),
+    }
 
     def __init__(
         self,
@@ -307,3 +333,9 @@ class BaseRevision(HardwareRevision):
         uint_max = 2 ** (8 * ts_dtype.size)
 
         return unwrap(timestamps, uint_max)
+
+    def get_exg_chip_and_channel(self, ch: EChannelType) -> tuple[int, int]:
+        if ch not in self.ExG_ChType_Chip_Assignment:
+            raise ValueError(f"Channel {ch} is not an ExG channel")
+
+        return self.ExG_ChType_Chip_Assignment[ch]

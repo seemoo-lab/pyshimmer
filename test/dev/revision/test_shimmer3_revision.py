@@ -211,3 +211,16 @@ class TestShimmer3Revision:
         )
         actual = revision.unwrap_device_timestamps(ts_wrapped)
         np.testing.assert_equal(actual, expected)
+
+    def test_get_exg_chip_and_channel(self, revision: Shimmer3Revision):
+        assert revision.get_exg_chip_and_channel(EChannelType.EXG1_CH1_16BIT) == (0, 0)
+        assert revision.get_exg_chip_and_channel(EChannelType.EXG1_CH2_16BIT) == (0, 1)
+        assert revision.get_exg_chip_and_channel(EChannelType.EXG2_CH1_16BIT) == (1, 0)
+        assert revision.get_exg_chip_and_channel(EChannelType.EXG2_CH2_16BIT) == (1, 1)
+        assert revision.get_exg_chip_and_channel(EChannelType.EXG1_CH1_24BIT) == (0, 0)
+        assert revision.get_exg_chip_and_channel(EChannelType.EXG1_CH2_24BIT) == (0, 1)
+        assert revision.get_exg_chip_and_channel(EChannelType.EXG2_CH1_24BIT) == (1, 0)
+        assert revision.get_exg_chip_and_channel(EChannelType.EXG2_CH2_24BIT) == (1, 1)
+
+        with pytest.raises(ValueError):
+            revision.get_exg_chip_and_channel(EChannelType.ACCEL_HG_X)
