@@ -21,7 +21,7 @@ from typing import BinaryIO
 import numpy as np
 
 from pyshimmer.dev.channels import EChannelType
-from pyshimmer.dev.exg import is_exg_ch, get_exg_ch, ExGRegister
+from pyshimmer.dev.exg import is_exg_ch, ExGRegister
 from pyshimmer.dev.revisions import HardwareRevision
 from pyshimmer.reader.binary_reader import ShimmerBinaryReader
 from pyshimmer.reader.reader_const import (
@@ -83,11 +83,13 @@ class ExGProcessor(SingleChannelProcessor):
     def process_channel(
         self, ch_type: EChannelType, y: np.ndarray, reader: ShimmerBinaryReader
     ) -> np.ndarray:
-        chip_id, ch_id = get_exg_ch(ch_type)
+        rev = reader.hardware_revision
+
+        chip_id, ch_id = rev.get_exg_chip_and_channel(ch_type)
         exg_reg = reader.get_exg_reg(chip_id)
         gain = exg_reg.get_ch_gain(ch_id)
 
-        ch_dtype = reader.hardware_revision.get_channel_dtype(ch_type)
+        ch_dtype = rev.get_channel_dtype(ch_type)
         resolution = 8 * ch_dtype.size
         sensitivity = EXG_ADC_REF_VOLT / (2 ** (resolution - 1) - 1)
 

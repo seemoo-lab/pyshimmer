@@ -183,18 +183,6 @@ class ExGRegister:
         return ERLDRef(rld_ref)
 
 
-ExG_ChType_Chip_Assignment: dict[EChannelType, tuple[int, int]] = {
-    EChannelType.EXG1_CH1_24BIT: (0, 0),
-    EChannelType.EXG1_CH1_16BIT: (0, 0),
-    EChannelType.EXG1_CH2_24BIT: (0, 1),
-    EChannelType.EXG1_CH2_16BIT: (0, 1),
-    EChannelType.EXG2_CH1_24BIT: (1, 0),
-    EChannelType.EXG2_CH1_16BIT: (1, 0),
-    EChannelType.EXG2_CH2_24BIT: (1, 1),
-    EChannelType.EXG2_CH2_16BIT: (1, 1),
-}
-
-
 def is_exg_ch(ch_type: EChannelType) -> bool:
     """
     Returns true if the signal that this channel type describes was recorded by a ExG
@@ -209,19 +197,3 @@ def is_exg_ch(ch_type: EChannelType) -> bool:
     # This is hacky but protected by unit tests
     regex = re.compile(r"EXG\d_CH\d_\d{2}BIT")
     return regex.match(ch_type.name) is not None
-
-
-def get_exg_ch(ch_type: EChannelType) -> tuple[int, int]:
-    """
-    Each ExG Chip EChannelType originates from a specific ExG chip and channel. This
-    function returns a tuple that specifices which chip and channel a certain signal
-    EChannelType was recorded with.
-
-    Args:
-        ch_type: The EChannelType of the signal
-
-    Returns:
-        A tuple of ints which represents the chip id {0, 1} and the channel id {0, 1}.
-
-    """
-    return ExG_ChType_Chip_Assignment[ch_type]

@@ -15,6 +15,7 @@ The project uses semantic versioning.
 - Introduce new hardware revision classes to encapsulate all hardware-specific
   code. As a consequence, all global functions in `pyshimmer.dev.base` and
   `pyshimmer.dev.channels` were removed.
+- Move the `get_exg_ch` function into the `HardwareRevision` class
 
 ## 1.0.0 - 2025-10-25
 

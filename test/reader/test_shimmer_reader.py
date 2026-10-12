@@ -22,7 +22,7 @@ import numpy as np
 import pandas as pd
 
 from pyshimmer.dev.channels import ESensorGroup, EChannelType
-from pyshimmer.dev.exg import ExGRegister, get_exg_ch
+from pyshimmer.dev.exg import ExGRegister
 from pyshimmer.dev.revisions import RevisionRegistry
 from pyshimmer.reader.binary_reader import ShimmerBinaryReader
 from pyshimmer.reader.shimmer_reader import (
@@ -231,6 +231,7 @@ class ShimmerReaderTest(TestCase):
 
         samples_w_ts = {**samples, EChannelType.TIMESTAMP: np.arange(1000)}
 
+        revision = RevisionRegistry.REV_SHIMMER3
         m_br = Mock(spec=ShimmerBinaryReader)
         m_br.get_exg_reg.side_effect = lambda x: exg_reg1 if x == 0 else exg_reg2
         m_br.read_data.side_effect = lambda: (dict(samples_w_ts), ((), ()))
@@ -241,7 +242,7 @@ class ShimmerReaderTest(TestCase):
         type(m_br).start_timestamp = PropertyMock(return_value=0)
         type(m_br).exg_reg1 = PropertyMock(return_value=exg_reg1)
         type(m_br).exg_reg2 = PropertyMock(return_value=exg_reg2)
-        type(m_br).hardware_revision = RevisionRegistry.REV_SHIMMER3
+        type(m_br).hardware_revision = revision
 
         reader = ShimmerReader(bin_reader=m_br, post_process=False)
         reader.load_file_data()
@@ -253,7 +254,7 @@ class ShimmerReaderTest(TestCase):
 
         for ch in samples:
             bit = 16 if "16" in ch.name else 24
-            gain = chip_gain[get_exg_ch(ch)[0]]
+            gain = chip_gain[revision.get_exg_chip_and_channel(ch)[0]]
             expected = (samples[ch] - 0) * 2.420 / (2 ** (bit - 1) - 1) / gain
             actual = reader[ch]
             np.testing.assert_almost_equal(actual, expected)
