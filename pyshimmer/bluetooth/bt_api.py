@@ -539,8 +539,6 @@ class ShimmerBluetooth:
         # Start the thread to enable communication with the device
         self._thread.start()
 
-        self._fw_type, self._fw_version = self.get_firmware_version()
-        self._fw_caps = FirmwareCapabilities(self._fw_type, self._fw_version)
         self._hw_version = self.get_device_hardware_version()
 
         # If the revision was set manually, we don't want to automatically
@@ -550,6 +548,11 @@ class ShimmerBluetooth:
             self._revision = self._bluetooth.hardware_revision = (
                 RevisionRegistry.get_revision(self._hw_version)
             )
+
+        self._fw_type, self._fw_version = self.get_firmware_version()
+        self._fw_caps = FirmwareCapabilities(
+            self._revision, self._fw_type, self._fw_version
+        )
 
         if self.capabilities.supports_ack_disable and self._disable_ack:
             self.set_status_ack(enabled=False)

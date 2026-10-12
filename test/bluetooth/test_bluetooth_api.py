@@ -504,16 +504,18 @@ class IntegrationTestHelper:
     def queue_initialization_data(
         self, version: HardwareVersion | int
     ) -> tuple[Future, Future]:
-        # The Bluetooth API automatically requests the firmware version upon
-        # initialization. We must prepare a proper response beforehand.
-        req_future_fw = self.submit_req_resp_handler(
-            req_len=1, resp=b"\xff\x2f\x03\x00\x00\x00\x0b\x00"
-        )
-
+        # The Bluetooth API automatically requests the hardware version
+        # and the firmware version upon initialization. We must provide
+        # adequate values here for these requests to suceed.
         hw_version_bin = version.to_bytes(length=1, byteorder="big")
         req_future_hw = self.submit_req_resp_handler(
             req_len=1, resp=b"\xff\x25" + hw_version_bin
         )
+
+        req_future_fw = self.submit_req_resp_handler(
+            req_len=1, resp=b"\xff\x2f\x03\x00\x00\x00\x0b\x00"
+        )
+
         return req_future_fw, req_future_hw
 
     def execute_sot_initialization(
@@ -595,10 +597,11 @@ class TestShimmerBluetoothIntegration:
     def test_context_manager(self, helper: IntegrationTestHelper):
         helper.setup(run_sot_initialize=False)
 
+        req_future_hw = helper.submit_req_resp_handler(req_len=1, resp=b"\xff\x25\x03")
         req_future_fw = helper.submit_req_resp_handler(
             req_len=1, resp=b"\xff\x2f\x03\x00\x00\x00\x0b\x00"
         )
-        req_future_hw = helper.submit_req_resp_handler(req_len=1, resp=b"\xff\x25\x03")
+
         with helper.sot:
             # We check that the API properly asked for the firmware version
             req_data_fw = req_future_fw.result()
@@ -735,8 +738,9 @@ class TestShimmerBluetoothIntegration:
         helper.setup(run_sot_initialize=False, hw_version=hw_version)
 
         # Queue response for version command
-        helper.submit_req_resp_handler(1, b"\xff\x2f\x03\x00\x00\x00\x0f\x04")
         helper.submit_req_resp_handler(1, b"\xff\x25\x03")
+        helper.submit_req_resp_handler(1, b"\xff\x2f\x03\x00\x00\x00\x0f\x04")
+
         # Queue response for disabling the status acknowledgment
         req_future = helper.submit_req_resp_handler(2, b"\xff")
 
@@ -752,6 +756,6 @@ class TestShimmerBluetoothIntegration:
         )
 
         # Queue response for version command
-        helper.submit_req_resp_handler(1, b"\xff\x2f\x03\x00\x00\x00\x0f\x04")
         helper.submit_req_resp_handler(1, b"\xff\x25\x03")
+        helper.submit_req_resp_handler(1, b"\xff\x2f\x03\x00\x00\x00\x0f\x04")
         helper.sot.initialize()

@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 from enum import IntEnum
+from .revisions import HardwareRevision
 
 
 def ensure_firmware_version(func):
@@ -63,11 +64,37 @@ class FirmwareVersion:
         return self._key <= other._key
 
 
+class FirmwareType(IntEnum):
+    BtStream = 0x01
+    SDLog = 0x02
+    LogAndStream = 0x03
+    Unknown = -1
+
+    @classmethod
+    def from_int(cls, value: int) -> FirmwareType:
+        """Converts an Integer to the corresponding FirmwareType enum
+
+        :param value: Integer representing firmware type
+        :return: Corresponding FirmwareType enum member, or Unknown if unrecognised
+        """
+        return cls._value2member_map_.get(value, cls.Unknown)
+
+
 class FirmwareCapabilities:
 
-    def __init__(self, fw_type: FirmwareType, version: FirmwareVersion):
+    def __init__(
+        self,
+        hw_revision: HardwareRevision,
+        fw_type: FirmwareType,
+        version: FirmwareVersion,
+    ):
+        self._revision = hw_revision
         self._fw_type = fw_type
         self._version = version
+
+    @property
+    def hardware_revision(self) -> HardwareRevision:
+        return self._revision
 
     @property
     def fw_type(self) -> FirmwareType:
@@ -83,19 +110,3 @@ class FirmwareCapabilities:
             self._fw_type == FirmwareType.LogAndStream
             and self._version >= FirmwareVersion(major=0, minor=15, rel=4)
         )
-
-
-class FirmwareType(IntEnum):
-    BtStream = 0x01
-    SDLog = 0x02
-    LogAndStream = 0x03
-    Unknown = -1
-
-    @classmethod
-    def from_int(cls, value: int) -> FirmwareType:
-        """Converts an Integer to the corresponding FirmwareType enum
-
-        :param value: Integer representing firmware type
-        :return: Corresponding FirmwareType enum member, or Unknown if unrecognised
-        """
-        return cls._value2member_map_.get(value, cls.Unknown)
