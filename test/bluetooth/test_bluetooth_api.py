@@ -36,7 +36,7 @@ from pyshimmer.bluetooth.bt_commands import (
     ResponseCommand,
 )
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
-from pyshimmer.dev.fw_version import FirmwareVersion, FirmwareType
+from pyshimmer.dev.fw_version import FirmwareVersion, FirmwareType, FirmwareCapabilities
 from pyshimmer.dev.revisions import (
     HardwareVersion,
     HardwareRevision,
@@ -62,15 +62,24 @@ class TestBluetoothRequestHandler:
         return request.param
 
     @pytest.fixture
+    def fw_caps(self, revision: HardwareRevision) -> FirmwareCapabilities:
+        return FirmwareCapabilities(
+            revision, FirmwareType.LogAndStream, FirmwareVersion(0, 5, 0)
+        )
+
+    @pytest.fixture
     def mock_serial(self, mock_creator: PTYSerialMockCreator) -> BluetoothSerial:
         bt_serial = BluetoothSerial(mock_creator.slave_serial)
         return bt_serial
 
     @pytest.fixture
     def sot(
-        self, mock_serial: BluetoothSerial, revision: HardwareRevision
+        self,
+        mock_serial: BluetoothSerial,
+        revision: HardwareRevision,
+        fw_caps: FirmwareCapabilities,
     ) -> BluetoothRequestHandler:
-        handler = BluetoothRequestHandler(mock_serial, revision)
+        handler = BluetoothRequestHandler(mock_serial, revision, fw_caps)
         return handler
 
     def test_stream_types(self, sot: BluetoothRequestHandler):
