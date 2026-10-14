@@ -21,7 +21,6 @@ from unittest import TestCase
 from pyshimmer.dev.channels import EChannelType
 from pyshimmer.dev.exg import (
     is_exg_ch,
-    get_exg_ch,
     ExGMux,
     ExGRLDLead,
     ERLDRef,
@@ -36,12 +35,6 @@ def randbytes(k: int) -> bytes:
 
 
 class DeviceExGTest(TestCase):
-
-    def test_get_exg_ch(self):
-        self.assertEqual(get_exg_ch(EChannelType.EXG1_CH1_24BIT), (0, 0))
-        self.assertEqual(get_exg_ch(EChannelType.EXG1_CH2_24BIT), (0, 1))
-        self.assertEqual(get_exg_ch(EChannelType.EXG2_CH1_24BIT), (1, 0))
-        self.assertEqual(get_exg_ch(EChannelType.EXG2_CH2_24BIT), (1, 1))
 
     def test_is_exg_ch(self):
         from itertools import product
