@@ -342,7 +342,7 @@ class BluetoothRequestHandler:
     def _process_status_update(self):
         # Called if the status response was not triggered by a command but sent by the
         # Shimmer as the result of an event
-        status_cmd = GetStatusCommand(self._rev)
+        status_cmd = GetStatusCommand(self._rev, self._fw_caps.status_byte_count)
         r = status_cmd.receive(self._serial)
 
         for cb in self._status_cbs:
@@ -720,7 +720,9 @@ class ShimmerBluetooth:
             dev_docked, dev_sensing, rtc_set, dev_logging, dev_streaming,
             sd_card_present, sd_error, status_red_led
         """
-        return self._process_and_wait(GetStatusCommand(self._revision))
+        return self._process_and_wait(
+            GetStatusCommand(self._revision, self._fw_caps.status_byte_count)
+        )
 
     def get_firmware_version(self) -> tuple[FirmwareType, FirmwareVersion]:
         """Get the version of the running firmware

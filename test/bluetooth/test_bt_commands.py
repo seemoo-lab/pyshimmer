@@ -179,6 +179,24 @@ class TestBluetoothCommands:
         self.assert_cmd(cmd, b"\x72", b"\x8a\x71", b"\x8a\x71\x25", expected_result)
 
     @pytest.mark.parametrize("rev", RevisionRegistry.ALL_REVISIONS)
+    @pytest.mark.parametrize(
+        "status_byte_count, status_bin",
+        [(1, b"\x25"), (2, b"\x25\x00"), (2, b"\x25\x01")],
+    )
+    def test_get_status_command_byte_count(
+        self, rev: HardwareRevision, status_byte_count: int, status_bin: bytes
+    ):
+        serial, mock = self.create_mock()
+        cmd = GetStatusCommand(rev, status_byte_count)
+
+        # The byte after the status belongs to the next message
+        mock.test_put_read_data(b"\x8a\x71" + status_bin + b"\xff")
+        r = cmd.receive(serial)
+
+        assert r == [True, False, True, False, False, True, False, False]
+        assert mock.test_get_remaining_read_data() == b"\xff"
+
+    @pytest.mark.parametrize("rev", RevisionRegistry.ALL_REVISIONS)
     def test_get_firmware_version_command(self, rev: HardwareRevision):
         cmd = GetFirmwareVersionCommand(rev)
         fw_type, major, minor, patch = self.assert_cmd(
