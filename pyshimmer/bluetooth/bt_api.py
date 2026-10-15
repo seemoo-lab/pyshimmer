@@ -189,11 +189,20 @@ class BluetoothRequestHandler:
         the device, for which we need this class. The revision can bootstrapped
         with a sensible default and updated later with the appropriate
         property setter.
+    :arg fw_caps: The same goes for the firmware capabilities. We must
+        use a sensible default at startup and then the firmware capabilities
+        are updated as soon as the precise firmware version is known.
     """
 
-    def __init__(self, serial: BluetoothSerial, revision: HardwareRevision):
+    def __init__(
+        self,
+        serial: BluetoothSerial,
+        revision: HardwareRevision,
+        fw_caps: FirmwareCapabilities,
+    ):
         self._serial = serial
         self._rev = revision
+        self._fw_caps = fw_caps
 
         self._ack_queue = Queue()
         self._resp_queue = PeekQueue()
@@ -217,6 +226,23 @@ class BluetoothRequestHandler:
         know precisely what device we are talking to during class instantiation.
         """
         self._rev = v
+
+    @property
+    def firmware_capabilities(self) -> FirmwareCapabilities:
+        """
+        The firmware capabilities of the firmware. Allows reasoning about
+        which features are enabled in the firmware.
+        """
+        return self._fw_caps
+
+    @firmware_capabilities.setter
+    def firmware_capabilities(self, v: FirmwareCapabilities) -> None:
+        """
+        Update the firmware capabilities of the device that we're communicating
+        with. This can be necessary because we don't always know the firmware
+        version and capabilities of a device before we communicate with it.
+        """
+        self._fw_caps = v
 
     @property
     def stream_types(self) -> Sequence[tuple[EChannelType, ChannelDataType]]:
@@ -439,26 +465,33 @@ class ShimmerBluetooth:
         """
         self._serial = BluetoothSerial(serial)
 
+        # If no specific revision is provided, we simply assume that
+        # we are talking to a Shimmer3. During initialization, we query
+        # the actual revision and update it.
         if revision is None:
             self._revision_is_custom = False
             self._revision = RevisionRegistry.get_revision(HardwareVersion.SHIMMER3)
         else:
             self._revision_is_custom = True
             self._revision = revision
-        # If no specific revision is provided, we simply assume that
-        # we are talking to a Shimmer3. During initialization, we query
-        # the actual revision and update it.
-        self._bluetooth = BluetoothRequestHandler(self._serial, revision=self._revision)
+
+        # We initialize to some sensible defaults until we can ask the
+        # device about its true hardware & firmware.
+        self._hw_version = self._revision.hardware_version
+        self._fw_type = FirmwareType.LogAndStream
+        self._fw_version = FirmwareVersion(0, 0, 0)
+        self._fw_caps = FirmwareCapabilities(
+            self._revision, self._fw_type, self._fw_version
+        )
+
+        self._bluetooth = BluetoothRequestHandler(
+            self._serial, revision=self._revision, fw_caps=self._fw_caps
+        )
 
         self._thread = Thread(target=self._run_readloop, daemon=True)
 
         self._initialized = False
         self._disable_ack = disable_status_ack
-
-        self._fw_type: FirmwareType | None = None
-        self._fw_version: FirmwareVersion | None = None
-        self._fw_caps: FirmwareCapabilities | None = None
-        self._hw_version: HardwareVersion | None = None
 
     @property
     def initialized(self) -> bool:
@@ -472,7 +505,7 @@ class ShimmerBluetooth:
         return self._initialized
 
     @property
-    def firmware_type(self) -> FirmwareType | None:
+    def firmware_type(self) -> FirmwareType:
         """Return the firmware type being run on the device
 
         This property shall only be accessed after invoking initialize().
@@ -483,7 +516,7 @@ class ShimmerBluetooth:
         return self._fw_type
 
     @property
-    def firmware_version(self) -> FirmwareVersion | None:
+    def firmware_version(self) -> FirmwareVersion:
         """Return the firmware version of the device
 
         This property shall only be accessed after invoking initialize().
@@ -505,7 +538,7 @@ class ShimmerBluetooth:
         return self._fw_caps
 
     @property
-    def hardware_version(self) -> HardwareVersion | None:
+    def hardware_version(self) -> HardwareVersion:
         """Return the hardware version of the device
 
         This property shall only be accessed after invoking initialize().
@@ -543,8 +576,6 @@ class ShimmerBluetooth:
         # Start the thread to enable communication with the device
         self._thread.start()
 
-        self._fw_type, self._fw_version = self.get_firmware_version()
-        self._fw_caps = FirmwareCapabilities(self._fw_type, self._fw_version)
         self._hw_version = self.get_device_hardware_version()
 
         # If the revision was set manually, we don't want to automatically
@@ -554,6 +585,11 @@ class ShimmerBluetooth:
             self._revision = self._bluetooth.hardware_revision = (
                 RevisionRegistry.get_revision(self._hw_version)
             )
+
+        self._fw_type, self._fw_version = self.get_firmware_version()
+        self._fw_caps = self._bluetooth.firmware_capabilities = FirmwareCapabilities(
+            self._revision, self._fw_type, self._fw_version
+        )
 
         if self.capabilities.supports_ack_disable and self._disable_ack:
             self.set_status_ack(enabled=False)
