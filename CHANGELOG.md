@@ -16,6 +16,7 @@ The project uses semantic versioning.
   code. As a consequence, all global functions in `pyshimmer.dev.base` and
   `pyshimmer.dev.channels` were removed.
 - Move the `get_exg_ch` function into the `HardwareRevision` class
+- Introduce the `HardwareRevision` into the `FirmwareCapabilities` class to include the revision into the reasoning process
 
 ### Fixed
 - From LogAndStream v1.0.24 on, the Shimmer3R sends a second status byte, which

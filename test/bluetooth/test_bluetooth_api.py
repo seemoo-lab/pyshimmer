@@ -37,7 +37,7 @@ from pyshimmer.bluetooth.bt_commands import (
     ResponseCommand,
 )
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
-from pyshimmer.dev.fw_version import FirmwareVersion, FirmwareType
+from pyshimmer.dev.fw_version import FirmwareVersion, FirmwareType, FirmwareCapabilities
 from pyshimmer.dev.revisions import (
     HardwareVersion,
     HardwareRevision,
@@ -63,15 +63,24 @@ class TestBluetoothRequestHandler:
         return request.param
 
     @pytest.fixture
+    def fw_caps(self, revision: HardwareRevision) -> FirmwareCapabilities:
+        return FirmwareCapabilities(
+            revision, FirmwareType.LogAndStream, FirmwareVersion(0, 5, 0)
+        )
+
+    @pytest.fixture
     def mock_serial(self, mock_creator: PTYSerialMockCreator) -> BluetoothSerial:
         bt_serial = BluetoothSerial(mock_creator.slave_serial)
         return bt_serial
 
     @pytest.fixture
     def sot(
-        self, mock_serial: BluetoothSerial, revision: HardwareRevision
+        self,
+        mock_serial: BluetoothSerial,
+        revision: HardwareRevision,
+        fw_caps: FirmwareCapabilities,
     ) -> BluetoothRequestHandler:
-        handler = BluetoothRequestHandler(mock_serial, revision)
+        handler = BluetoothRequestHandler(mock_serial, revision, fw_caps)
         return handler
 
     def test_stream_types(self, sot: BluetoothRequestHandler):
@@ -589,8 +598,14 @@ class IntegrationTestHelper:
         version: HardwareVersion | int,
         fw_version: FirmwareVersion = FirmwareVersion(0, 11, 0),
     ) -> tuple[Future, Future]:
-        # The Bluetooth API automatically requests the firmware version upon
-        # initialization. We must prepare a proper response beforehand.
+        # The Bluetooth API automatically requests the hardware version
+        # and the firmware version upon initialization. We must provide
+        # adequate values here for these requests to suceed.
+        hw_version_bin = version.to_bytes(length=1, byteorder="big")
+        req_future_hw = self.submit_req_resp_handler(
+            req_len=1, resp=b"\xff\x25" + hw_version_bin
+        )
+
         fw_version_bin = struct.pack(
             "<HHBB",
             FirmwareType.LogAndStream,
@@ -602,10 +617,6 @@ class IntegrationTestHelper:
             req_len=1, resp=b"\xff\x2f" + fw_version_bin
         )
 
-        hw_version_bin = version.to_bytes(length=1, byteorder="big")
-        req_future_hw = self.submit_req_resp_handler(
-            req_len=1, resp=b"\xff\x25" + hw_version_bin
-        )
         return req_future_fw, req_future_hw
 
     def execute_sot_initialization(
@@ -687,10 +698,11 @@ class TestShimmerBluetoothIntegration:
     def test_context_manager(self, helper: IntegrationTestHelper):
         helper.setup(run_sot_initialize=False)
 
+        req_future_hw = helper.submit_req_resp_handler(req_len=1, resp=b"\xff\x25\x03")
         req_future_fw = helper.submit_req_resp_handler(
             req_len=1, resp=b"\xff\x2f\x03\x00\x00\x00\x0b\x00"
         )
-        req_future_hw = helper.submit_req_resp_handler(req_len=1, resp=b"\xff\x25\x03")
+
         with helper.sot:
             # We check that the API properly asked for the firmware version
             req_data_fw = req_future_fw.result()
@@ -875,8 +887,9 @@ class TestShimmerBluetoothIntegration:
         helper.setup(run_sot_initialize=False, hw_version=hw_version)
 
         # Queue response for version command
-        helper.submit_req_resp_handler(1, b"\xff\x2f\x03\x00\x00\x00\x0f\x04")
         helper.submit_req_resp_handler(1, b"\xff\x25\x03")
+        helper.submit_req_resp_handler(1, b"\xff\x2f\x03\x00\x00\x00\x0f\x04")
+
         # Queue response for disabling the status acknowledgment
         req_future = helper.submit_req_resp_handler(2, b"\xff")
 
@@ -892,6 +905,6 @@ class TestShimmerBluetoothIntegration:
         )
 
         # Queue response for version command
-        helper.submit_req_resp_handler(1, b"\xff\x2f\x03\x00\x00\x00\x0f\x04")
         helper.submit_req_resp_handler(1, b"\xff\x25\x03")
+        helper.submit_req_resp_handler(1, b"\xff\x2f\x03\x00\x00\x00\x0f\x04")
         helper.sot.initialize()
