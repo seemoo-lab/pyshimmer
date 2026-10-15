@@ -22,6 +22,7 @@ from pyshimmer.dev.fw_version import (
     FirmwareType,
     FirmwareCapabilities,
 )
+from pyshimmer.dev.revisions import RevisionRegistry
 
 
 class TestFirmwareType:
@@ -41,8 +42,9 @@ class TestFirmwareType:
 class FirmwareCapabilitiesTest(TestCase):
 
     def test_capabilities(self):
+        revision = RevisionRegistry.REV_SHIMMER3
         cap = FirmwareCapabilities(
-            FirmwareType.LogAndStream, version=FirmwareVersion(1, 2, 3)
+            revision, FirmwareType.LogAndStream, version=FirmwareVersion(1, 2, 3)
         )
         self.assertTrue(cap.supports_ack_disable)
         self.assertEqual(cap.version, FirmwareVersion(1, 2, 3))
