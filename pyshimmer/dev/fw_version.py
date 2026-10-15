@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 from enum import IntEnum
-from .revisions import HardwareRevision
+from .revisions import HardwareRevision, HardwareVersion
 
 
 def ensure_firmware_version(func):
@@ -110,3 +110,21 @@ class FirmwareCapabilities:
             self._fw_type == FirmwareType.LogAndStream
             and self._version >= FirmwareVersion(major=0, minor=15, rel=4)
         )
+
+    @property
+    def status_byte_count(self) -> int:
+        """The number of status bytes the firmware sends in a status response
+
+        Shimmer3R LogAndStream firmware sends a second status byte, which holds the
+        USB plugged-in state, from version 1.0.24 on. All other firmware sends one.
+        Shimmer3 and Shimmer3R version numbers overlap, so the hardware revision
+        decides as much as the version.
+        """
+        if (
+            self._revision.hardware_version == HardwareVersion.SHIMMER3R
+            and self._fw_type == FirmwareType.LogAndStream
+            and self._version >= FirmwareVersion(major=1, minor=0, rel=24)
+        ):
+            return 2
+
+        return 1

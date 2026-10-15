@@ -24,7 +24,7 @@ The project uses semantic versioning.
   the second for the start of the next message. That misaligned a data stream,
   or stopped the read loop and left every later command blocked. The number of
   status bytes now follows the hardware revision and the firmware version, see
-  `HardwareRevision.get_status_byte_count`.
+  `FirmwareCapabilities.status_byte_count`.
 
 ## 1.0.0 - 2025-10-25
 

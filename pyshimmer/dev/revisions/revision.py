@@ -26,7 +26,6 @@ import numpy as np
 from pyshimmer.util import bit_is_set, flatten_list, unwrap
 from .hw_version import HardwareVersion
 from ..channels import EChannelType, ChannelDataType, ESensorGroup
-from ..fw_version import FirmwareType, FirmwareVersion
 
 
 class HardwareRevision(ABC):
@@ -214,22 +213,6 @@ class HardwareRevision(ABC):
         :param ch: The channel for which to return chip ID and channel index
         :return: A tuple (chip_idx, channel_idx), where chip_idx is in {0, 1}
             and channel_idx is in {0, 1}.
-        """
-        pass
-
-    @abstractmethod
-    def get_status_byte_count(
-        self, fw_type: FirmwareType, fw_version: FirmwareVersion
-    ) -> int:
-        """Determine how many status bytes the device sends in a status response
-
-        All devices send at least one status byte. Newer firmware for some hardware
-        revisions appends more, and the API must read them all to stay aligned with
-        the data stream.
-
-        :param fw_type: The type of firmware running on the device
-        :param fw_version: The version of the firmware running on the device
-        :return: The number of status bytes that follow the status response code
         """
         pass
 

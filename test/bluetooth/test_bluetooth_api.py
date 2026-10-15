@@ -99,12 +99,6 @@ class TestBluetoothRequestHandler:
         sot.hardware_revision = new_revision
         assert sot.hardware_revision is new_revision
 
-    def test_status_byte_count(self, sot: BluetoothRequestHandler):
-        assert sot.status_byte_count == 1
-
-        sot.status_byte_count = 2
-        assert sot.status_byte_count == 2
-
     def test_add_remove_stream_cb(self, sot: BluetoothRequestHandler):
         def cb(_):
             pass
@@ -464,18 +458,26 @@ class TestBluetoothRequestHandler:
         assert status_resp[1] == [True, False, False, False, False, True, False, False]
 
     @pytest.mark.parametrize(
-        "status_byte_count, status_bin",
-        [(1, b"\x20"), (2, b"\x20\x00"), (2, b"\x20\x01")],
+        "fw_version, status_bin",
+        [
+            (FirmwareVersion(1, 0, 23), b"\x20"),
+            (FirmwareVersion(1, 0, 24), b"\x20\x00"),
+            (FirmwareVersion(1, 0, 24), b"\x20\x01"),
+        ],
     )
     def test_get_status_response_byte_count(
         self,
         mock_creator: PTYSerialMockCreator,
         revision: HardwareRevision,
         sot: BluetoothRequestHandler,
-        status_byte_count: int,
+        fw_version: FirmwareVersion,
         status_bin: bytes,
     ):
-        sot.status_byte_count = status_byte_count
+        # Pushed status updates are read with the handler's firmware capabilities
+        sot.firmware_capabilities = FirmwareCapabilities(
+            RevisionRegistry.REV_SHIMMER3R, FirmwareType.LogAndStream, fw_version
+        )
+        assert sot.firmware_capabilities.status_byte_count == len(status_bin)
 
         status_resp: list[list[bool]] = []
         sot.add_status_callback(status_resp.append)

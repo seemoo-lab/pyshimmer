@@ -50,6 +50,29 @@ class FirmwareCapabilitiesTest(TestCase):
         self.assertEqual(cap.version, FirmwareVersion(1, 2, 3))
         self.assertEqual(cap.fw_type, FirmwareType.LogAndStream)
 
+    def test_status_byte_count(self):
+        rev3 = RevisionRegistry.REV_SHIMMER3
+        rev3r = RevisionRegistry.REV_SHIMMER3R
+        las = FirmwareType.LogAndStream
+        cases = [
+            # Shimmer3R LogAndStream adds the USB plugged-in state from v1.0.24
+            (rev3r, las, (1, 0, 24), 2),
+            (rev3r, las, (1, 1, 0), 2),
+            (rev3r, las, (2, 0, 0), 2),
+            (rev3r, las, (1, 0, 23), 1),
+            (rev3r, las, (0, 0, 2), 1),
+            (rev3r, FirmwareType.SDLog, (1, 0, 24), 1),
+            (rev3r, FirmwareType.BtStream, (1, 0, 24), 1),
+            (rev3r, FirmwareType.Unknown, (1, 0, 24), 1),
+            # Shimmer3 version numbers overlap, but no Shimmer3 firmware sends it
+            (rev3, las, (1, 0, 24), 1),
+            (rev3, las, (0, 16, 0), 1),
+        ]
+        for rev, fw_type, version, expected in cases:
+            with self.subTest(rev=rev.hardware_version, fw_type=fw_type, v=version):
+                cap = FirmwareCapabilities(rev, fw_type, FirmwareVersion(*version))
+                self.assertEqual(cap.status_byte_count, expected)
+
 
 class FirmwareVersionTest(TestCase):
 

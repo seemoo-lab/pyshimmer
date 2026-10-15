@@ -388,7 +388,7 @@ class GetStatusCommand(ResponseCommand):
         :param rev: The hardware revision of the Shimmer device this command
             will be sent to
         :param status_byte_count: The number of status bytes the device sends, see
-            :meth:`HardwareRevision.get_status_byte_count`. Only the first one is
+            :attr:`FirmwareCapabilities.status_byte_count`. Only the first one is
             decoded, but all of them are read.
         """
         super().__init__(rev, FULL_STATUS_RESPONSE)
