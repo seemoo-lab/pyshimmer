@@ -47,10 +47,14 @@ from pyshimmer.bluetooth.bt_commands import (
     SetSensorsCommand,
     SetSamplingRateCommand,
     GetAllCalibrationCommand,
+    GetPressureCalibrationCommand,
+    GetBMP180CalibrationCommand,
+    GetBMP280CalibrationCommand,
 )
 from pyshimmer.bluetooth.bt_serial import BluetoothSerial
 from pyshimmer.dev.channels import EChannelType, ESensorGroup
 from pyshimmer.dev.fw_version import FirmwareType
+from pyshimmer.dev.pressure import EPressureSensor, PressureCalibration
 
 from pyshimmer.dev.revisions import HardwareVersion, HardwareRevision, RevisionRegistry
 from pyshimmer.test_util import MockSerial
@@ -276,6 +280,83 @@ class TestBluetoothCommands:
         assert r.binary == expected_result
 
     @pytest.mark.parametrize("rev", RevisionRegistry.ALL_REVISIONS)
+    def test_get_pressure_calibration_bmp581(self, rev: HardwareRevision):
+        cmd = GetPressureCalibrationCommand(rev)
+        r = self.assert_cmd(cmd, b"\xa7", b"\xa6", b"\xa6\x01\x03")
+
+        assert r.sensor == EPressureSensor.BMP581
+        assert r.binary == b""
+        assert r.coefficients is None
+
+    @pytest.mark.parametrize("rev", RevisionRegistry.ALL_REVISIONS)
+    @pytest.mark.parametrize(
+        "sensor",
+        [EPressureSensor.BMP180, EPressureSensor.BMP280, EPressureSensor.BMP390],
+    )
+    def test_get_pressure_calibration_with_coefficients(
+        self, rev: HardwareRevision, sensor: EPressureSensor
+    ):
+        coeff_bin = bytes(range(1, sensor.coefficient_size + 1))
+        resp = bytes([0xA6, 1 + len(coeff_bin), sensor.value]) + coeff_bin
+
+        cmd = GetPressureCalibrationCommand(rev)
+        r = self.assert_cmd(cmd, b"\xa7", b"\xa6", resp)
+
+        assert r.sensor == sensor
+        assert r.binary == coeff_bin
+
+    @pytest.mark.parametrize("rev", RevisionRegistry.ALL_REVISIONS)
+    @pytest.mark.parametrize(
+        "resp",
+        [
+            # BMP581 with coefficients
+            b"\xa6\x04\x03\x01\x02\x03",
+            # BMP390 with a BMP280 coefficient block
+            b"\xa6\x19\x02" + bytes(24),
+            # BMP280 with a BMP390 coefficient block
+            b"\xa6\x16\x01" + bytes(21),
+            # Unknown sensor id
+            b"\xa6\x01\x04",
+            # No sensor id
+            b"\xa6\x00",
+        ],
+    )
+    def test_get_pressure_calibration_fail(self, rev: HardwareRevision, resp: bytes):
+        serial, mock = self.create_mock()
+        cmd = GetPressureCalibrationCommand(rev)
+
+        mock.test_put_read_data(resp)
+        with pytest.raises(ValueError):
+            cmd.receive(serial)
+
+        # The entire response has been consumed
+        assert mock.test_get_remaining_read_data() == b""
+
+    @pytest.mark.parametrize("rev", RevisionRegistry.ALL_REVISIONS)
+    def test_get_bmp180_calibration_command(self, rev: HardwareRevision):
+        coeff_bin = bytes(range(1, 23))
+
+        cmd = GetBMP180CalibrationCommand(rev)
+        r = self.assert_cmd(cmd, b"\x59", b"\x58", b"\x58" + coeff_bin)
+
+        assert r.sensor == EPressureSensor.BMP180
+        assert r.binary == coeff_bin
+
+    @pytest.mark.parametrize("rev", RevisionRegistry.ALL_REVISIONS)
+    def test_get_bmp280_calibration_command(self, rev: HardwareRevision):
+        coeff_bin = bytes(range(1, 25))
+
+        cmd = GetBMP280CalibrationCommand(rev)
+        r = self.assert_cmd(cmd, b"\xa0", b"\x9f", b"\x9f" + coeff_bin)
+
+        assert r.sensor == EPressureSensor.BMP280
+        assert r.binary == coeff_bin
+
+        # The firmware sends a filler if the BMP280 is not fitted
+        r = self.assert_cmd(cmd, b"\xa0", b"\x9f", b"\x9f" + b"\x01" * 24)
+        assert r.is_blank
+
+    @pytest.mark.parametrize("rev", RevisionRegistry.ALL_REVISIONS)
     def test_set_exg_register_command(self, rev: HardwareRevision):
         cmd = SetEXGRegsCommand(rev, 1, 0x02, b"\x10\x00")
         self.assert_cmd(cmd, b"\x61\x01\x02\x02\x10\x00")
@@ -340,3 +421,27 @@ class TestBluetoothCommands:
 
         assert pkt[EChannelType.TIMESTAMP] == 0xB2D0DE
         assert pkt[EChannelType.INTERNAL_ADC_A1] == 0x0726
+
+    def test_data_packet_pressure_bmp581(self):
+        rev = RevisionRegistry.REV_SHIMMER3R
+        serial, mock = self.create_mock()
+        calib = PressureCalibration(EPressureSensor.BMP581, b"")
+
+        channels = [EChannelType.PRESSURE, EChannelType.TEMPERATURE]
+        pkt = DataPacket(rev, list(zip(channels, rev.get_channel_dtypes(channels))))
+
+        mock.test_put_read_data(b"\x00\x00\xa8\x61\x00\x00\x19")
+        pkt.receive(serial)
+
+        assert pkt[EChannelType.PRESSURE] == 6400000
+        assert pkt[EChannelType.TEMPERATURE] == 1638400
+        assert calib.compensate_channels(pkt) == (100000.0, 25.0)
+
+        # The raw temperature remains unsigned, it is only sign-extended during
+        # compensation
+        mock.test_put_read_data(b"\x00\x00\xa8\x61\x56\x55\xfe")
+        pkt.receive(serial)
+
+        assert pkt[EChannelType.TEMPERATURE] == 0xFE5556
+        _, t = calib.compensate_channels(pkt)
+        assert t == pytest.approx(-1.6666565, abs=1e-7)

@@ -20,6 +20,7 @@ from .dev.base import DEFAULT_BAUDRATE
 from .dev.channels import ChannelDataType, EChannelType, ESensorGroup
 from .dev.exg import ExGMux, ExGRLDLead, ERLDRef, ExGRegister
 from .dev.fw_version import FirmwareType, FirmwareVersion
+from .dev.pressure import EPressureSensor, PressureCalibration
 from .dev.revisions import (
     HardwareRevision,
     Shimmer3Revision,
